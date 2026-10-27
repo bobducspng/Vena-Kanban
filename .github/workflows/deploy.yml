@@ -14,7 +14,23 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      # Guard: se os secrets da VM não estiverem configurados, pula o deploy em
+      # vez de falhar o workflow (evita e-mails de erro até você configurar).
+      - name: Verifica secrets da VM
+        id: check
+        env:
+          VM_HOST: ${{ secrets.VM_HOST }}
+          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+        run: |
+          if [ -n "$VM_HOST" ] && [ -n "$VM_SSH_KEY" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Secrets VM_HOST/VM_SSH_KEY ausentes — deploy pulado. Configure em Settings → Secrets para ativar."
+          fi
+
       - name: Deploy via SSH na VM
+        if: steps.check.outputs.ready == 'true'
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VM_HOST }}
