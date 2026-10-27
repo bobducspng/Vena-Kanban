@@ -1,0 +1,28 @@
+name: Deploy Fluxos na VM
+
+# Dispara quando você dá push na main (ex.: commit feito pelo Claude Desktop).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {} # permite rodar manualmente pelo botão "Run workflow"
+
+concurrency:
+  group: deploy-vm
+  cancel-in-progress: false # não cancela um deploy no meio
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH na VM
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          port: ${{ secrets.VM_PORT || 22 }}
+          # Puxa, builda, migra e reinicia. REPO_DIR = onde o repo está clonado.
+          script: |
+            set -e
+            cd ${{ secrets.VM_REPO_DIR || '/opt/fluxos' }}
+            ./deploy/deploy.sh

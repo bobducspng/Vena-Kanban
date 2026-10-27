@@ -1,0 +1,25 @@
+# /etc/systemd/system/fluxos-api.service
+# Ajuste WorkingDirectory/User conforme sua VM. Depois:
+#   sudo systemctl daemon-reload && sudo systemctl enable --now fluxos-api
+[Unit]
+Description=Fluxos API + SPA (replica_pipefy)
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=fluxos
+WorkingDirectory=/opt/fluxos
+# Carrega DB_*, GOOGLE_*, PUBLIC_BASE_URL, APP_ORIGIN, SESSION_SECRET, ALLOWED_*
+EnvironmentFile=/opt/fluxos/server/.env
+ExecStart=/usr/bin/node server/dist/index.js
+Restart=on-failure
+RestartSec=3
+# Endurecimento básico
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/fluxos
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

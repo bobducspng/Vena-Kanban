@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+app/dist/
+server/dist/
+
+# Secrets / env (NUNCA versionar — só os .example)
+.env
+.env.*
+!.env.example
+*.local
+
+# Testes e2e
+e2e/.auth/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

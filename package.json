@@ -1,0 +1,13 @@
+{
+  "name": "replica-pipefy",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["app", "server"],
+  "scripts": {
+    "build": "npm run build -w server && npm run build -w app",
+    "build:server": "npm run build -w server",
+    "build:app": "npm run build -w app",
+    "dev:server": "npm run dev -w server",
+    "dev:app": "npm run dev -w app"
+  }
+}

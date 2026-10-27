@@ -1,0 +1,13 @@
+@import "./styles/tokens.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global focus ring — shown on keyboard focus only, via the focus role token. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+  * { border-color: var(--color-border); }
+}

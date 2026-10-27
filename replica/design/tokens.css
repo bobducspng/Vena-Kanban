@@ -1,0 +1,113 @@
+/* Design tokens — internal process app (Pipefy-style).
+ * Generated from tokens.json. Roles, not brand: replica-brand swaps the values.
+ * Light is the source of truth (checked by contrast.py). Dark is provided and
+ * should be re-checked after any value change.
+ * Usage: reference var(--color-*), never raw hex, in CSS/components. */
+
+:root {
+  /* color roles */
+  --color-bg: #ffffff;
+  --color-surface: #f4f5f7;
+  --color-surface-raised: #ffffff;
+  --color-border: #e2e5ea;
+  --color-border-input: #7b828d;
+  --color-text: #15181d;
+  --color-text-muted: #565e6b;
+  --color-accent: #2f5bea;
+  --color-accent-hover: #2546c4;
+  --color-on-accent: #ffffff;
+  --color-danger: #c62f2f;
+  --color-success: #1f7a4d;
+  --color-warning: #8a5a00;
+  --color-focus: #2f5bea;
+
+  /* categorical (phase headers / card labels) */
+  --label-gray: #6b7280;
+  --label-red: #d64545;
+  --label-orange: #c2691c;
+  --label-amber: #9a7000;
+  --label-green: #1f7a4d;
+  --label-teal: #0f7a86;
+  --label-blue: #2f5bea;
+  --label-purple: #7a4fd1;
+  --label-pink: #c13f8a;
+
+  /* type */
+  --font-sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --text-xs: 12px;   --leading-xs: 16px;   --weight-xs: 500;
+  --text-sm: 14px;   --leading-sm: 20px;   --weight-sm: 400;
+  --text-base: 16px; --leading-base: 24px; --weight-base: 400;
+  --text-lg: 20px;   --leading-lg: 28px;   --weight-lg: 600;
+  --text-xl: 28px;   --leading-xl: 34px;   --weight-xl: 700;
+  --text-display: 40px; --leading-display: 44px; --weight-display: 700;
+
+  /* space (4/8 base) */
+  --space-0: 0px;  --space-1: 4px;  --space-2: 8px;  --space-3: 12px;
+  --space-4: 16px; --space-5: 20px; --space-6: 24px; --space-8: 32px;
+  --space-10: 40px; --space-12: 48px; --space-16: 64px;
+
+  /* radius */
+  --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-pill: 999px;
+
+  /* shadow */
+  --shadow-card: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.10);
+  --shadow-pop: 0 12px 32px rgba(16,24,40,.16);
+
+  /* motion */
+  --motion-fast: 120ms; --motion-base: 200ms;
+  --motion-ease: cubic-bezier(.2,.8,.2,1);
+
+  /* layout */
+  --layout-sidebar: 248px; --layout-header: 56px; --layout-card-modal: 720px;
+  --layout-kanban-column: 288px; --layout-content-max: 1280px;
+
+  color-scheme: light;
+}
+
+/* Dark theme: applied via @media, and forced via [data-theme]. Re-check with
+ * contrast.py before shipping if you change these. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #0f1115;
+    --color-surface: #171a21;
+    --color-surface-raised: #1e222b;
+    --color-border: #2a2f3a;
+    --color-border-input: #8b94a3;
+    --color-text: #eceef2;
+    --color-text-muted: #a4adbc;
+    --color-accent: #7a97ff;
+    --color-accent-hover: #9ab0ff;
+    --color-on-accent: #0f1115;
+    --color-danger: #f0908f;
+    --color-success: #5bc08f;
+    --color-warning: #e2b659;
+    --color-focus: #7a97ff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --color-bg: #0f1115;
+  --color-surface: #171a21;
+  --color-surface-raised: #1e222b;
+  --color-border: #2a2f3a;
+  --color-border-input: #8b94a3;
+  --color-text: #eceef2;
+  --color-text-muted: #a4adbc;
+  --color-accent: #7a97ff;
+  --color-accent-hover: #9ab0ff;
+  --color-on-accent: #0f1115;
+  --color-danger: #f0908f;
+  --color-success: #5bc08f;
+  --color-warning: #e2b659;
+  --color-focus: #7a97ff;
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+}

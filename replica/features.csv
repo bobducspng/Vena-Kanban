@@ -1,0 +1,46 @@
+feature,area,priority,original,clone,notes
+Create a pipe (process) from scratch,pipes,must,yes,yes,modal + seeds default phases
+Define ordered phases with name/color/description,pipes,must,yes,partial,created with defaults; no phase editor UI yet (S11 stub)
+Mark a phase as end of process,pipes,must,yes,partial,default end phase exists; no UI toggle yet
+Add and reorder fields per phase,fields,must,yes,no,field editor UI pending (S11)
+Full field type catalogue,fields,must,yes,partial,"renders text/long/select/number/currency/date/email; attachment/assignee/checkbox pending"
+Required fields gate card movement,fields,must,yes,yes,enforced in data layer on create and move
+Start form creates a card,forms,must,yes,yes,StartFormModal (S07)
+Card detail with fields assignees history attachments,cards,must,yes,partial,fields + activity log done; assignees/attachments pending
+Kanban view with drag-and-drop between phases,views,must,yes,partial,kanban columns done; move via buttons; drag not wired yet
+Move card one phase forward/backward,cards,must,yes,yes,required-gated in data layer
+List/table view of cards,views,must,yes,no,pending
+Assign members to a card,cards,must,yes,no,avatars shown read-only; assigning pending
+Comments / activity log on a card,cards,must,yes,partial,activity log done; comments pending
+Labels on cards,cards,must,yes,partial,Tag/label primitive built; assigning to cards pending
+Database tables with records,databases,must,yes,no,stub (S13)
+Connector field linking card to pipe/table record,databases,must,yes,no,schema ready; UI pending
+Automations: event to action,automations,should,yes,no,stub (S12)
+Automation optional conditions,automations,should,yes,no,
+Automation actions: move card update field create connected record notify,automations,should,yes,no,
+Public form without login,forms,should,yes,no,REST route planned in architecture
+Portal grouping several public forms,forms,should,yes,no,
+Phase form shared externally,forms,should,yes,no,
+Calendar view of cards with due date,views,should,yes,no,
+Pipe report (customizable table + export),reports,should,yes,no,stub (S16)
+Email reminders / due-date alerts,notifications,should,yes,no,job worker planned
+Roles and private processes,permissions,should,yes,no,data-layer scoping planned
+Company (cross-pipe) report,reports,could,yes,no,
+BI dashboards with charts,reports,could,yes,no,
+Conditional logic in forms,forms,could,yes,no,
+Templates to start a new pipe,pipes,could,yes,no,
+Email inbox turns messages into cards,forms,could,yes,no,
+Bulk actions on cards,cards,could,yes,no,
+SLA / WIP limits per phase,pipes,could,yes,no,
+Template marketplace content,templates,skip,yes,skip,Pipefy's own template library is their content
+Third-party integration marketplace,integrations,skip,yes,skip,their partner network is not part of the product you rebuild
+AI credits / hosted AI features,ai,skip,yes,skip,vendor-metered; wire your own model if needed
+SSO / enterprise certifications,enterprise,skip,yes,skip,compliance/ops work not a UX to clone
+The Pipefy brand and visual identity,brand,skip,yes,skip,clone gets its own name and look via replica-brand
+Design system (tokens + primitives),design,must,yes,yes,tokens + 10 primitives + /design showcase; WCAG AA pass
+App shell (sidebar + header + routing),foundation,must,yes,yes,AppShell + routes for all screens
+Google OAuth login (backend),auth,must,yes,yes,server/src/auth; own Google app; http-only session cookie
+Database + migrations (MySQL/Drizzle),foundation,must,yes,yes,28 tables; drizzle/0000_init.sql; not yet run on live DB
+Access scoping without RLS (data layer),permissions,must,yes,partial,protectedProcedure + assertPipeInOrg; needs second-user test on live DB
+tRPC API matching the front-end,foundation,must,yes,yes,user/pipe/phase/field/card/event routers
+Background job runner (due-date sweep),jobs,should,yes,partial,jobs.ts sweeps late; automation hook is TODO

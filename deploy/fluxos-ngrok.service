@@ -1,0 +1,19 @@
+# /etc/systemd/system/fluxos-ngrok.service
+# Pré-requisito (uma vez): ngrok config add-authtoken <SEU_TOKEN>
+# e reserve o domínio estático no painel do ngrok (free dá 1).
+# Troque o --domain pelo seu. Depois:
+#   sudo systemctl daemon-reload && sudo systemctl enable --now fluxos-ngrok
+[Unit]
+Description=ngrok tunnel para o Fluxos
+After=network.target fluxos-api.service
+Wants=fluxos-api.service
+
+[Service]
+Type=simple
+User=fluxos
+ExecStart=/usr/local/bin/ngrok http 4000 --domain=your-static-name.ngrok-free.app --log=stdout
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
