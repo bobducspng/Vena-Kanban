@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, eq, inArray, isNull, like, desc } from "drizzle-orm";
+import { and, eq, inArray, isNull, like, desc, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "./db/client.js";
 import { cardFields, cards, dataTables, fields, phases, pipes, tableFields, tableRecordFields, tableRecords } from "./db/schema.js";
@@ -15,6 +15,9 @@ export const connectionSettings = z.object({
   // Autopreenchimento: copy source column/field → this pipe's field when an item is
   // connected (a copy, decision 2026-10-28: the card keeps its values; "atualizar" re-copies).
   fieldMap: z.array(z.object({ from: z.string(), to: z.string() })).max(50).default([]),
+  // Pai/filho (pipe targets): rules checked when the parent goes into an end phase.
+  requireChild: z.boolean().default(false), // at least one connected card
+  requireChildrenDone: z.boolean().default(false), // every connected card concluded
 });
 export type ConnectionSettings = z.infer<typeof connectionSettings>;
 
@@ -143,4 +146,54 @@ export async function search(s: ConnectionSettings, q: string): Promise<Connecte
   const where = num !== null ? and(base, eq(cards.number, num)) : term ? and(base, like(cards.title, `%${term}%`)) : base;
   const ids = (await db.select({ id: cards.id }).from(cards).where(where).orderBy(desc(cards.createdAt)).limit(20)).map((r) => r.id);
   return describe(s, ids);
+}
+
+export interface Backlink {
+  cardId: string;
+  number: number;
+  title: string;
+  pipeId: string;
+  pipeName: string;
+  fieldLabel: string;
+  done: boolean;
+}
+
+/** Cards (not in the trash) whose "Conexão" field holds `itemId`: a card's parents,
+ *  or the cards that use a database record. */
+export async function linkedFrom(itemId: string, orgId: string): Promise<Backlink[]> {
+  return db.select({
+    cardId: cards.id, number: cards.number, title: cards.title, pipeId: pipes.id, pipeName: pipes.name,
+    fieldLabel: fields.label, done: cards.done,
+  })
+    .from(cardFields)
+    .innerJoin(fields, eq(fields.id, cardFields.fieldId))
+    .innerJoin(cards, eq(cards.id, cardFields.cardId))
+    .innerJoin(pipes, eq(pipes.id, cards.pipeId))
+    .where(and(
+      eq(fields.type, "connection"), eq(pipes.orgId, orgId), isNull(cards.deletedAt),
+      sql`JSON_CONTAINS(${cardFields.value}, JSON_QUOTE(${itemId}))`,
+    ))
+    .orderBy(desc(cards.createdAt))
+    .limit(200);
+}
+
+/** Pai/filho rules of a card's connection fields, checked when it moves into an end
+ *  phase. Returns the reason it cannot conclude, or null. */
+export async function finishBlocker(cardId: string, pipeId: string): Promise<string | null> {
+  const conns = await db.select().from(fields).where(and(eq(fields.pipeId, pipeId), eq(fields.type, "connection"), isNull(fields.archivedAt)));
+  for (const f of conns) {
+    const s = readSettings(f.settings);
+    if (!s || s.target !== "pipe" || (!s.requireChild && !s.requireChildrenDone)) continue;
+    const row = (await db.select().from(cardFields).where(and(eq(cardFields.cardId, cardId), eq(cardFields.fieldId, f.id))).limit(1))[0];
+    const ids = Array.isArray(row?.value) ? (row!.value as string[]) : [];
+    const children = ids.length
+      ? await db.select({ number: cards.number, done: cards.done }).from(cards).where(and(inArray(cards.id, ids), isNull(cards.deletedAt)))
+      : [];
+    if (s.requireChild && children.length === 0) return `Conecte ao menos um card em "${f.label}" antes de concluir.`;
+    if (s.requireChildrenDone) {
+      const open = children.filter((c) => !c.done).map((c) => `#${c.number}`);
+      if (open.length) return `Conclua os cards conectados em "${f.label}" antes (${open.join(", ")}).`;
+    }
+  }
+  return null;
 }

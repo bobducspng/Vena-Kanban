@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Settings, Search, Trash2, CheckSquare, MessageSquare, Paperclip, CalendarClock } from "lucide-react";
 import { api, RequiredFieldError } from "../data/store";
@@ -34,6 +34,14 @@ export function PipeKanban() {
   const [overId, setOverId] = useState<string | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
   const { isAdmin } = useMe();
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    const c = params.get("card");
+    if (!c) return;
+    setActiveId(c);
+    params.delete("card");
+    setParams(params, { replace: true });
+  }, [params, setParams]);
 
   const { data: pipe } = useQuery({ queryKey: ["pipe", pipeId], queryFn: () => api.pipe.get(pipeId) });
   const { data: phases, isLoading: lp } = useQuery({ queryKey: ["phases", pipeId], queryFn: () => api.phase.listByPipe(pipeId) });

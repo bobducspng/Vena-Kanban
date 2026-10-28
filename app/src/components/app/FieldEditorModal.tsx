@@ -49,7 +49,7 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
   const [editableOtherPhases, setEditableOtherPhases] = useState(true);
   const [isUnique, setIsUnique] = useState(false);
   const [regex, setRegex] = useState("");
-  const [conn, setConn] = useState<ConnectionSettings>({ target: "table", targetId: "", canSearch: true, canCreate: true, multiple: false, fieldMap: [] });
+  const [conn, setConn] = useState<ConnectionSettings>({ target: "table", targetId: "", canSearch: true, canCreate: true, multiple: false, fieldMap: [], requireChild: false, requireChildrenDone: false });
   const isConnection = type === "connection";
   const { data: tables } = useQuery({ queryKey: ["databases"], queryFn: api.database.list, enabled: isConnection });
   const { data: pipes } = useQuery({ queryKey: ["pipes"], queryFn: api.pipe.list, enabled: isConnection });
@@ -73,7 +73,7 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
     setEditableOtherPhases(existing?.editableOtherPhases ?? true);
     setIsUnique(existing?.isUnique ?? false);
     setRegex(existing?.validationRegex ?? "");
-    setConn(existing?.settings ?? { target: "table", targetId: "", canSearch: true, canCreate: true, multiple: false, fieldMap: [] });
+    setConn(existing?.settings ?? { target: "table", targetId: "", canSearch: true, canCreate: true, multiple: false, fieldMap: [], requireChild: false, requireChildrenDone: false });
   }, [field]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasOptions = OPTION_FIELD_TYPES.includes(type);
@@ -143,6 +143,20 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
               <input type="checkbox" className="h-4 w-4 accent-accent" checked={conn.multiple} onChange={(e) => setConn((c) => ({ ...c, multiple: e.target.checked }))} />
               Permitir vários itens
             </label>
+            {conn.target === "pipe" && (
+              <div className="flex flex-col gap-2 border-t border-border pt-3">
+                <p className="text-sm font-medium text-text">Pai e filho</p>
+                <p className="text-xs text-muted">Este card é o pai; os cards conectados do outro pipe são os filhos. As regras valem quando o pai vai para uma fase final.</p>
+                <label className="inline-flex items-center gap-2 text-sm text-text">
+                  <input type="checkbox" className="h-4 w-4 accent-accent" checked={conn.requireChild} onChange={(e) => setConn((c) => ({ ...c, requireChild: e.target.checked }))} />
+                  Só concluir o pai se tiver ao menos um filho
+                </label>
+                <label className="inline-flex items-center gap-2 text-sm text-text">
+                  <input type="checkbox" className="h-4 w-4 accent-accent" checked={conn.requireChildrenDone} onChange={(e) => setConn((c) => ({ ...c, requireChildrenDone: e.target.checked }))} />
+                  Só concluir o pai quando todos os filhos estiverem concluídos
+                </label>
+              </div>
+            )}
             {conn.targetId && dests.length > 0 && (
               <div className="flex flex-col gap-2 border-t border-border pt-3">
                 <p className="text-sm font-medium text-text">Preencher automaticamente</p>

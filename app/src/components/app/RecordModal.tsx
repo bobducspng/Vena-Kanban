@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Trash2 } from "lucide-react";
+import { Link2, Trash2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { api, RequiredFieldError } from "../../data/store";
 import type { CardFieldValue, DbRecord, FieldDef } from "../../data/types";
 import { Button } from "../ui/Button";
@@ -25,6 +26,7 @@ export function RecordModal({ tableId, columns, record, onClose, onCreated }: {
   useEffect(() => { setValues({}); setErrors({}); }, [record]);
   const { data: fresh } = useQuery({ queryKey: ["dbRecord", existing?.id], queryFn: () => api.database.record(existing!.id), enabled: !!existing });
   const current = fresh ?? existing;
+  const { data: usage } = useQuery({ queryKey: ["recordUsage", existing?.id], queryFn: () => api.database.recordUsage(existing!.id), enabled: !!existing });
   const refresh = () => { qc.invalidateQueries({ queryKey: ["dbRecords", tableId] }); qc.invalidateQueries({ queryKey: ["dbRecord", existing?.id] }); };
 
   const create = useMutation({
@@ -59,6 +61,21 @@ export function RecordModal({ tableId, columns, record, onClose, onCreated }: {
           <Field key={c.id} def={c} value={values[c.id]} error={errors[c.id]}
             onChange={(v) => { setValues((p) => ({ ...p, [c.id]: v })); setErrors((p) => ({ ...p, [c.id]: "" })); }} />
         ))}
+        {!!usage?.length && (
+          <section aria-label="Usado em" className="flex flex-col gap-2 border-t border-border pt-4">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Usado em ({usage.length})</h3>
+            <ul className="flex flex-col gap-1.5">
+              {usage.map((u) => (
+                <li key={`${u.cardId}-${u.fieldLabel}`}>
+                  <Link to={`/pipes/${u.pipeId}?card=${u.cardId}`} className="flex items-center gap-2 text-sm text-accent hover:underline">
+                    <Link2 className="h-4 w-4 shrink-0" aria-hidden="true" /> #{u.number} · {u.title}
+                    <span className="truncate text-xs text-muted">({u.pipeName})</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
     </Modal>
   );

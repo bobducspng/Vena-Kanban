@@ -46,6 +46,20 @@ export interface ConnectionSettings {
   multiple: boolean;
   /** Autopreenchimento: source column/field → field of this pipe (copied on connect). */
   fieldMap: { from: string; to: string }[];
+  /** Pai/filho (pipe targets): rules checked when the parent concludes. */
+  requireChild: boolean;
+  requireChildrenDone: boolean;
+}
+
+/** A card that points at an item through a connection field (parent card / "usado em"). */
+export interface Backlink {
+  cardId: string;
+  number: number;
+  title: string;
+  pipeId: string;
+  pipeName: string;
+  fieldLabel: string;
+  done: boolean;
 }
 
 /** A connected record/card as shown on the card. */

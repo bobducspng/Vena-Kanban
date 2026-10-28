@@ -5,6 +5,7 @@ import { db } from "../../db/client.js";
 import { dataTables, tableFields, tableRecords, tableRecordFields } from "../../db/schema.js";
 import { router, protectedProcedure, adminProcedure } from "../trpc.js";
 import { isEmpty, validateShape, uniqueKey } from "../../fieldRules.js";
+import { linkedFrom } from "../../connections.js";
 
 /** Databases ("tabelas"): org-wide registries (suppliers, clients, cost centres) that
  *  cards connect to. Admins configure tables and columns; members manage records. */
@@ -261,6 +262,12 @@ export const databaseRouter = router({
       if (table.titleFieldId === col.id) await db.update(tableRecords).set({ title: titleOf(input.value) ?? "(sem nome)" }).where(eq(tableRecords.id, record.id));
       return (await recordsWithValues(eq(tableRecords.id, record.id)))[0];
     }),
+
+  /** "Usado em": cards that connect this record. */
+  recordUsage: protectedProcedure.input(z.object({ recordId: z.string() })).query(async ({ ctx, input }) => {
+    const { record } = await recordInOrg(input.recordId, ctx.orgId);
+    return linkedFrom(record.id, ctx.orgId);
+  }),
 
   removeRecord: protectedProcedure.input(z.object({ recordId: z.string() })).mutation(async ({ ctx, input }) => {
     const { record } = await recordInOrg(input.recordId, ctx.orgId);

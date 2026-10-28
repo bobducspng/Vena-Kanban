@@ -123,7 +123,7 @@ export const fieldRouter = router({
       required: z.boolean().optional(),
       options: options.nullable().optional(),
       // Connection switches; the target itself is fixed after creation.
-      settings: connectionSettings.pick({ canSearch: true, canCreate: true, multiple: true, fieldMap: true }).partial().optional(),
+      settings: connectionSettings.pick({ canSearch: true, canCreate: true, multiple: true, fieldMap: true, requireChild: true, requireChildrenDone: true }).partial().optional(),
       ...props,
     }))
     .mutation(async ({ ctx, input }) => {

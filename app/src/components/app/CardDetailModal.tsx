@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, CheckCircle2, Copy, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, Copy, Link2, Trash2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { api, RequiredFieldError } from "../../data/store";
 import { isConflict } from "../../lib/trpc";
 import { Modal } from "../ui/Modal";
@@ -30,6 +31,7 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
   const { data: fields } = useQuery({ queryKey: ["fields", pipeId], queryFn: () => api.field.listByPipe(pipeId) });
   const { data: members } = useQuery({ queryKey: ["users"], queryFn: api.user.list });
   const { data: conditions } = useQuery({ queryKey: ["conditions", pipeId], queryFn: () => api.condition.listByPipe(pipeId) });
+  const { data: parents } = useQuery({ queryKey: ["parents", cardId], queryFn: () => api.card.parents(cardId!), enabled: !!cardId });
   const { data: events } = useQuery({
     queryKey: ["events", cardId],
     queryFn: () => api.event.listByCard(cardId!),
@@ -65,7 +67,9 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
   });
 
   if (!card || !phases) return null;
-  const current = phases.find((p) => p.id === card.currentPhaseId)!;
+  const current = phases.find((p) => p.id === card.currentPhaseId);
+  // A ?card= link to a card of another pipe: nothing to show on this board.
+  if (!current || card.pipeId !== pipeId) return null;
   // "Mover para": only the phases configured for the current phase, in board order.
   const targets = phases.filter((p) => current.allowedTo.includes(p.id));
   // Fields of the phases the card has reached (start → current), in order (BUG-003:
@@ -145,6 +149,26 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
               </div>
             )}
           </section>
+
+          {!!parents?.length && (
+            <section aria-label="Conectado a" className="flex flex-col gap-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Conectado a</h3>
+              <ul className="flex flex-col gap-1.5">
+                {parents.map((p) => (
+                  <li key={`${p.cardId}-${p.fieldLabel}`}>
+                    <Link to={`/pipes/${p.pipeId}?card=${p.cardId}`} onClick={() => onOpenChange(false)}
+                      className="flex items-start gap-2 rounded-md border border-border px-3 py-2 hover:border-accent">
+                      <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-muted" aria-hidden="true" />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm text-text">#{p.number} · {p.title}</span>
+                        <span className="block truncate text-xs text-muted">{p.pipeName} · {p.fieldLabel}{p.done ? " · concluído" : ""}</span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <AssigneesSection card={card} members={members ?? []} onChanged={refresh} />
           <LabelsSection card={card} pipeId={pipeId} onChanged={refresh} />

@@ -450,7 +450,7 @@ function PhaseEditor({ phase, phases, fields, allFields, onChanged }: { phase: P
       <FieldEditorModal field={editing} onClose={() => setEditing(null)} onSaved={onChanged} pipeFields={allFields}
         save={(d, existing) => existing
           ? api.field.update({ fieldId: existing.id, label: d.label, required: d.required, options: d.options, description: d.description, help: d.help, editableOtherPhases: d.editableOtherPhases, isUnique: d.isUnique, validationRegex: d.validationRegex,
-              settings: d.settings ? { canSearch: d.settings.canSearch, canCreate: d.settings.canCreate, multiple: d.settings.multiple, fieldMap: d.settings.fieldMap } : undefined })
+              settings: d.settings ? { canSearch: d.settings.canSearch, canCreate: d.settings.canCreate, multiple: d.settings.multiple, fieldMap: d.settings.fieldMap, requireChild: d.settings.requireChild, requireChildrenDone: d.settings.requireChildrenDone } : undefined })
           : api.field.create({ phaseId: phase.id, ...d, options: d.options ?? undefined, settings: d.settings ?? undefined })} />
     </section>
   );

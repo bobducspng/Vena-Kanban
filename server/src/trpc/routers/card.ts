@@ -6,7 +6,7 @@ import { cards, cardFields, cardAssignees, cardLabels, cardEvents, fields, phase
 import { cardInOrg, logEvent } from "../cardAccess.js";
 import { isEmpty, validateValue, applySideEffects } from "../../fieldRules.js";
 import { fieldStates, mustFill, type ConditionDef } from "../../conditions.js";
-import { autofillValues, readSettings } from "../../connections.js";
+import { autofillValues, readSettings, linkedFrom, finishBlocker } from "../../connections.js";
 import { router, protectedProcedure, assertPipeInOrg } from "../trpc.js";
 
 // Lists hold checklist options, user ids (responsáveis) or label ids (etiquetas).
@@ -233,6 +233,11 @@ export const cardRouter = router({
       const link = (await db.select().from(phaseTransitions)
         .where(and(eq(phaseTransitions.fromPhaseId, card.currentPhaseId), eq(phaseTransitions.toPhaseId, to.id))).limit(1))[0];
       if (!link) throw new TRPCError({ code: "FORBIDDEN", message: `Não é permitido mover deste ponto para "${to.name}".` });
+      // Pai/filho: concluding may require connected (child) cards, or all of them concluded.
+      if (to.isEnd) {
+        const blocker = await finishBlocker(card.id, card.pipeId);
+        if (blocker) throw new TRPCError({ code: "BAD_REQUEST", message: blocker });
+      }
 
       // Required-field gate on the phase being left.
       const vals = await db.select().from(cardFields).where(eq(cardFields.cardId, card.id));
@@ -370,5 +375,11 @@ export const cardRouter = router({
     await writeValues(card.id, values as Map<string, never>);
     await logEvent(card.id, "autofill_refreshed", ctx.userId, { fieldId: field.id, count: values.size });
     return shaped(card.id);
+  }),
+
+  /** "Conectado a": cards whose connection field holds this card (its parents). */
+  parents: protectedProcedure.input(z.object({ cardId: z.string() })).query(async ({ ctx, input }) => {
+    await cardInOrg(input.cardId, ctx.orgId);
+    return linkedFrom(input.cardId, ctx.orgId);
   }),
 });
