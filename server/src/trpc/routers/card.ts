@@ -2,9 +2,10 @@ import { z } from "zod";
 import { eq, and, inArray, isNull, isNotNull, desc, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
-import { cards, cardFields, cardAssignees, cardLabels, cardEvents, fields, phases, phaseTransitions, phaseAssignees, pipes, labels, memberships, checklistItems, comments, attachments } from "../../db/schema.js";
+import { cards, cardFields, cardAssignees, cardLabels, cardEvents, fields, phases, phaseTransitions, phaseAssignees, pipes, labels, memberships, checklistItems, comments, attachments, fieldConditions } from "../../db/schema.js";
 import { cardInOrg, logEvent } from "../cardAccess.js";
 import { isEmpty, validateValue, applySideEffects } from "../../fieldRules.js";
+import { fieldStates, mustFill, type ConditionDef } from "../../conditions.js";
 import { router, protectedProcedure, assertPipeInOrg } from "../trpc.js";
 
 // Lists hold checklist options, user ids (responsáveis) or label ids (etiquetas).
@@ -50,6 +51,19 @@ async function syncPhaseAssignees(cardId: string, fromPhaseId: string | null, to
   }
 }
 
+/** Labels of the phase's fields that must be filled (required and visible after the
+ *  phase's conditionals) but are empty. `skipTypes` = types not checked here. */
+async function missingInPhase(phaseId: string, values: { fieldId: string; value: unknown }[], skipTypes: string[] = []) {
+  const phaseFields = await db.select().from(fields).where(and(eq(fields.phaseId, phaseId), isNull(fields.archivedAt)));
+  const conds = (await db.select().from(fieldConditions).where(eq(fieldConditions.phaseId, phaseId))) as unknown as ConditionDef[];
+  const byId = Object.fromEntries(values.map((v) => [v.fieldId, v.value])) as Parameters<typeof fieldStates>[2];
+  const states = fieldStates(phaseFields, conds, byId);
+  return phaseFields
+    .filter((f) => !skipTypes.includes(f.type) && mustFill(states.get(f.id)))
+    .filter((f) => { const v = byId[f.id]; return isEmpty(v) || v === false; })
+    .map((f) => f.label);
+}
+
 /** Title shown for a value of the pipe's title field. */
 const titleOf = (v: unknown) => (v === null || v === undefined || v === "" ? null : String(v).slice(0, 512));
 
@@ -59,21 +73,6 @@ async function shaped(cardId: string) {
   const h = await hydrate([cardId]);
   return { ...row, ...h.get(cardId)! };
 }
-
-/** Required fields of a phase that are empty for this card's value set. */
-function missingRequired(
-  required: { id: string; label: string }[],
-  values: { fieldId: string; value: unknown }[]
-): string[] {
-  return required
-    .filter((f) => {
-      const v = values.find((x) => x.fieldId === f.id)?.value;
-      // A required Sim/Não field must be ticked.
-      return isEmpty(v) || v === false;
-    })
-    .map((f) => f.label);
-}
-
 
 export const cardRouter = router({
   listByPipe: protectedProcedure.input(z.object({ pipeId: z.string() })).query(async ({ ctx, input }) => {
@@ -113,10 +112,8 @@ export const cardRouter = router({
         landing = ph;
       }
 
-      const required = (await db.select({ id: fields.id, label: fields.label, type: fields.type }).from(fields)
-        .where(and(eq(fields.phaseId, start.id), eq(fields.required, true), isNull(fields.archivedAt))))
-        .filter((f) => f.type !== "attachment" && f.type !== "id");
-      const missing = missingRequired(required, input.values);
+      // Attachments can only be added after the card exists: checked when it leaves the phase.
+      const missing = await missingInPhase(start.id, input.values, ["attachment", "id"]);
       if (missing.length) throw new TRPCError({ code: "BAD_REQUEST", message: `Preencha os campos obrigatórios: ${missing.join(", ")}` });
       // Only start-phase fields can be filled on creation.
       const startFields = await db.select().from(fields).where(and(eq(fields.phaseId, start.id), isNull(fields.archivedAt)));
@@ -201,10 +198,8 @@ export const cardRouter = router({
       if (!link) throw new TRPCError({ code: "FORBIDDEN", message: `Não é permitido mover deste ponto para "${to.name}".` });
 
       // Required-field gate on the phase being left.
-      const required = await db.select({ id: fields.id, label: fields.label }).from(fields)
-        .where(and(eq(fields.phaseId, card.currentPhaseId), eq(fields.required, true), isNull(fields.archivedAt)));
       const vals = await db.select().from(cardFields).where(eq(cardFields.cardId, card.id));
-      const missing = missingRequired(required, vals.map((v) => ({ fieldId: v.fieldId, value: v.value })));
+      const missing = await missingInPhase(card.currentPhaseId, vals.map((v) => ({ fieldId: v.fieldId, value: v.value })));
       if (missing.length) throw new TRPCError({ code: "BAD_REQUEST", message: `Preencha os campos obrigatórios: ${missing.join(", ")}` });
 
       // Optimistic lock: only move if version matches (when the client sent one).

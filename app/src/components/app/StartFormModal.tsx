@@ -7,6 +7,7 @@ import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Field } from "../ui/Field";
 import { useToast } from "../ui/Toast";
+import { useFieldStates, withState } from "../../lib/useFieldStates";
 
 /** S07 — start form: create a card. Required fields gate submission. */
 export function StartFormModal({ pipeId, phaseId, open, onOpenChange }: { pipeId: string; phaseId?: string; open: boolean; onOpenChange: (o: boolean) => void }) {
@@ -26,6 +27,10 @@ export function StartFormModal({ pipeId, phaseId, open, onOpenChange }: { pipeId
     enabled: !!startPhase,
   });
 
+  // Conditionals of the start phase: hidden fields are not shown, not required, not sent.
+  const states = useFieldStates(pipeId, startPhase?.id, fields ?? [], values);
+  const visible = (fields ?? []).filter((f) => states.get(f.id)?.visible !== false);
+
   const reset = () => { setTitle(""); setValues({}); setErrors({}); };
 
   const create = useMutation({
@@ -34,7 +39,7 @@ export function StartFormModal({ pipeId, phaseId, open, onOpenChange }: { pipeId
         pipeId,
         phaseId,
         title,
-        values: Object.entries(values).map(([fieldId, value]) => ({ fieldId, value })),
+        values: visible.filter((f) => f.id in values).map((f) => ({ fieldId: f.id, value: values[f.id] })),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["cards", pipeId] });
@@ -49,7 +54,7 @@ export function StartFormModal({ pipeId, phaseId, open, onOpenChange }: { pipeId
         setErrors(map);
         toast(err.message, "error");
       } else {
-        toast("Não foi possível criar o card", "error");
+        toast(err instanceof Error ? err.message : "Não foi possível criar o card", "error");
       }
     },
   });
@@ -74,10 +79,10 @@ export function StartFormModal({ pipeId, phaseId, open, onOpenChange }: { pipeId
             <Input id="card-title" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Resumo em uma linha" />
           </div>
         )}
-        {fields?.map((f) => (
+        {visible.map((f) => (
           <Field
             key={f.id}
-            def={f}
+            def={withState(f, states.get(f.id))}
             value={values[f.id]}
             error={errors[f.id]}
             onChange={(v) => { setValues((p) => ({ ...p, [f.id]: v })); setErrors((p) => ({ ...p, [f.id]: "" })); }}

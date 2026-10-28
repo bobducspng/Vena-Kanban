@@ -8,6 +8,7 @@ import { eventRouter } from "./event.js";
 import { labelRouter } from "./label.js";
 import { commentRouter } from "./comment.js";
 import { checklistRouter } from "./checklist.js";
+import { conditionRouter } from "./condition.js";
 
 export const appRouter = router({
   user: userRouter,
@@ -19,6 +20,7 @@ export const appRouter = router({
   label: labelRouter,
   comment: commentRouter,
   checklist: checklistRouter,
+  condition: conditionRouter,
 });
 
 // The front-end imports this type for an end-to-end-typed client.

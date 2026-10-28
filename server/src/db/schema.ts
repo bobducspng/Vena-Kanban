@@ -85,6 +85,19 @@ export const phases = mysqlTable("phases", {
   createdAt: createdAt(),
 }, (t) => ({ pipeIdx: index("idx_phases_pipe").on(t.pipeId, t.position) }));
 
+// Condicionais de campo of a phase's form (see src/conditions.ts for the semantics).
+export const fieldConditions = mysqlTable("field_conditions", {
+  id: id(),
+  pipeId: ref("pipe_id").notNull(),
+  phaseId: ref("phase_id").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  position: int("position").notNull().default(0),
+  groups: json("groups").notNull(), // Rule[][]: groups OR'ed, rules AND'ed
+  onTrue: json("on_true").notNull(), // FieldAction[]
+  onFalse: json("on_false").notNull(), // FieldAction[]
+  createdAt: createdAt(),
+}, (t) => ({ phaseIdx: index("idx_conditions_phase").on(t.phaseId, t.position), pipeIdx: index("idx_conditions_pipe").on(t.pipeId) }));
+
 // Responsáveis da fase: added to a card while it sits in the phase.
 export const phaseAssignees = mysqlTable("phase_assignees", {
   phaseId: ref("phase_id").notNull(),

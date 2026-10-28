@@ -11,6 +11,8 @@ import { Tag } from "../ui/Tag";
 import { useToast } from "../ui/Toast";
 import type { CardEvent, CardFieldValue, FieldDef, Phase, User } from "../../data/types";
 import { AssigneesSection, AttachmentsSection, ChecklistSection, CommentsSection, DueDateSection, LabelsSection } from "./CardSections";
+import { fieldStates } from "../../lib/conditions";
+import { withState } from "../../lib/useFieldStates";
 
 /** S06 — card detail in two columns: left = title, actions and phase fields;
  *  right = phase + "Mover para", assignees, labels, due date, checklist,
@@ -27,6 +29,7 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
   const { data: phases } = useQuery({ queryKey: ["phases", pipeId], queryFn: () => api.phase.listByPipe(pipeId) });
   const { data: fields } = useQuery({ queryKey: ["fields", pipeId], queryFn: () => api.field.listByPipe(pipeId) });
   const { data: members } = useQuery({ queryKey: ["users"], queryFn: api.user.list });
+  const { data: conditions } = useQuery({ queryKey: ["conditions", pipeId], queryFn: () => api.condition.listByPipe(pipeId) });
   const { data: events } = useQuery({
     queryKey: ["events", cardId],
     queryFn: () => api.event.listByCard(cardId!),
@@ -67,12 +70,19 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
   const targets = phases.filter((p) => current.allowedTo.includes(p.id));
   // Fields of the phases the card has reached (start → current), in order (BUG-003:
   // not only the start phase). Future phases stay hidden, as in the original.
+  // Each phase's conditionals decide which of its fields show and which are required
+  // (evaluated on the saved values of the whole card).
+  const values = Object.fromEntries(card.values.map((v) => [v.fieldId, v.value]));
   const groups = phases
     .filter((ph) => ph.position <= current.position)
-    .map((ph) => ({
-      phase: ph,
-      defs: (fields ?? []).filter((f) => f.phaseId === ph.id).sort((a, b) => a.position - b.position),
-    }))
+    .map((ph) => {
+      const defs = (fields ?? []).filter((f) => f.phaseId === ph.id).sort((a, b) => a.position - b.position);
+      const states = fieldStates(defs, (conditions ?? []).filter((c) => c.phaseId === ph.id), values);
+      return {
+        phase: ph,
+        defs: defs.filter((f) => states.get(f.id)?.visible !== false).map((f) => withState(f, states.get(f.id))),
+      };
+    })
     .filter((g) => g.defs.length > 0);
 
   return (

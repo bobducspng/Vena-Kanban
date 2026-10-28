@@ -14,6 +14,7 @@ import { Tag } from "../components/ui/Tag";
 import { Modal } from "../components/ui/Modal";
 import { Textarea } from "../components/ui/Textarea";
 import { useToast } from "../components/ui/Toast";
+import { ConditionsSection } from "../components/app/ConditionsEditor";
 import { cn } from "../lib/cn";
 import { Avatar } from "../components/ui/Avatar";
 
@@ -124,6 +125,7 @@ export function PipeSettings() {
                 phase={selected}
                 phases={phases}
                 fields={(fields ?? []).filter((f) => f.phaseId === selected.id).sort((a, b) => a.position - b.position)}
+                allFields={(fields ?? []).filter((f) => !f.archivedAt)}
                 onChanged={refresh}
               />
             )}
@@ -276,7 +278,7 @@ function LabelsManager({ pipeId }: { pipeId: string }) {
   );
 }
 
-function PhaseEditor({ phase, phases, fields, onChanged }: { phase: Phase; phases: Phase[]; fields: FieldDef[]; onChanged: () => void }) {
+function PhaseEditor({ phase, phases, fields, allFields, onChanged }: { phase: Phase; phases: Phase[]; fields: FieldDef[]; allFields: FieldDef[]; onChanged: () => void }) {
   const toast = useToast();
   const [name, setName] = useState(phase.name);
   const [description, setDescription] = useState(phase.description ?? "");
@@ -434,6 +436,8 @@ function PhaseEditor({ phase, phases, fields, onChanged }: { phase: Phase; phase
           </div>
         )}
       </div>
+
+      <ConditionsSection phase={phase} phases={phases} fields={allFields} />
 
       <div className="border-t border-border pt-4">
         <Button variant="danger" size="sm" disabled={phase.isStart} loading={remove.isPending}

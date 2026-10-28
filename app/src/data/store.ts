@@ -3,6 +3,11 @@
 // are mapped to the app's domain types (src/data/types.ts).
 import { trpc, API_URL } from "../lib/trpc";
 import type { Pipe, Phase, FieldDef, Card, CardFieldValue, CardEvent, User, FieldType, PhaseColor, EditableFieldType, Role, Label, Comment, ChecklistItem, Attachment, TrashedCard } from "./types";
+import type { ConditionDef, Rule, FieldAction } from "../lib/conditions";
+
+/** A phase's conditional, as stored (the evaluator's ConditionDef + a name). */
+export type Condition = ConditionDef & { name: string; pipeId: string };
+type ConditionBody = { name: string; groups: Rule[][]; onTrue: FieldAction[]; onFalse: FieldAction[] };
 
 // --- error handling: turn the server's required-fields message back into the
 // structured error the forms expect, so inline per-field errors still work. ---
@@ -165,6 +170,18 @@ export const api = {
   event: {
     listByCard: async (cardId: string): Promise<CardEvent[]> =>
       (await trpc.event.listByCard.query({ cardId })).map(mapEvent),
+  },
+
+  condition: {
+    listByPipe: async (pipeId: string): Promise<Condition[]> =>
+      (await trpc.condition.listByPipe.query({ pipeId })).map((c) => ({
+        id: c.id, pipeId: c.pipeId, phaseId: c.phaseId, name: c.name, position: c.position,
+        groups: c.groups as Rule[][], onTrue: c.onTrue as FieldAction[], onFalse: c.onFalse as FieldAction[],
+      })),
+    create: (input: { phaseId: string } & ConditionBody) => trpc.condition.create.mutate(input),
+    update: (input: { conditionId: string } & ConditionBody) => trpc.condition.update.mutate(input),
+    move: (conditionId: string, dir: -1 | 1) => trpc.condition.move.mutate({ conditionId, dir }),
+    remove: (conditionId: string) => trpc.condition.remove.mutate({ conditionId }),
   },
 
   label: {

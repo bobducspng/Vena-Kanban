@@ -2,7 +2,7 @@ import { z } from "zod";
 import { eq, asc, inArray, or, and, sql, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
-import { phases, cards, fields, cardFields, phaseTransitions, phaseAssignees, memberships } from "../../db/schema.js";
+import { phases, cards, fields, cardFields, phaseTransitions, phaseAssignees, memberships, fieldConditions } from "../../db/schema.js";
 import { router, protectedProcedure, adminProcedure, assertPipeInOrg } from "../trpc.js";
 
 const color = z.enum(["gray", "red", "orange", "amber", "green", "teal", "blue", "purple", "pink"]);
@@ -145,6 +145,7 @@ export const phaseRouter = router({
       }
       await tx.delete(phaseTransitions).where(or(eq(phaseTransitions.fromPhaseId, phase.id), eq(phaseTransitions.toPhaseId, phase.id)));
       await tx.delete(phaseAssignees).where(eq(phaseAssignees.phaseId, phase.id));
+      await tx.delete(fieldConditions).where(eq(fieldConditions.phaseId, phase.id));
       await tx.delete(phases).where(eq(phases.id, phase.id));
     });
     return { ok: true };
