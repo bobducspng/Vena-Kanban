@@ -3,7 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Pencil, Plus, Trash2, Flag, CheckCircle2 } from "lucide-react";
 import { api } from "../data/store";
-import { EDITABLE_FIELD_TYPES, PHASE_COLORS, type EditableFieldType, type FieldDef, type Phase, type PhaseColor } from "../data/types";
+import { useMe } from "../lib/useMe";
+import { EDITABLE_FIELD_TYPES, PHASE_COLORS, UNIQUE_FIELD_TYPES, type EditableFieldType, type FieldDef, type Phase, type PhaseColor } from "../data/types";
 import { AppShell } from "../components/app/AppShell";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
@@ -60,6 +61,17 @@ export function PipeSettings() {
   const reorder = useMutation({ mutationFn: (ids: string[]) => api.phase.reorder(pipeId, ids), onSuccess: refresh, onError });
 
   const selected = phases?.find((p) => p.id === selectedId);
+  const { me, isAdmin } = useMe();
+
+  if (me && !isAdmin) {
+    return (
+      <AppShell title="Configurações">
+        <div className="p-6 text-sm text-muted">
+          Só administradores configuram pipes. <Link to={`/pipes/${pipeId}`} className="text-accent">Voltar ao quadro</Link>
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell title={pipe ? `${pipe.name} · Configurações` : "Configurações"}>
@@ -205,7 +217,7 @@ function PhaseEditor({ phase, fields, onChanged }: { phase: Phase; fields: Field
   );
 }
 
-/** Create or edit one field: label, type, required, options (for lists). */
+/** Create or edit one field. The type is chosen on creation and cannot change afterwards. */
 function FieldEditorModal({ phaseId, field, onClose, onSaved }: { phaseId: string; field: FieldDef | "new" | null; onClose: () => void; onSaved: () => void }) {
   const toast = useToast();
   const existing = field && field !== "new" ? field : null;
@@ -213,21 +225,41 @@ function FieldEditorModal({ phaseId, field, onClose, onSaved }: { phaseId: strin
   const [type, setType] = useState<EditableFieldType>("short_text");
   const [required, setRequired] = useState(false);
   const [optionsText, setOptionsText] = useState("");
+  const [description, setDescription] = useState("");
+  const [help, setHelp] = useState("");
+  const [editableOtherPhases, setEditableOtherPhases] = useState(true);
+  const [isUnique, setIsUnique] = useState(false);
+  const [regex, setRegex] = useState("");
 
   useEffect(() => {
     setLabel(existing?.label ?? "");
     setType((existing?.type as EditableFieldType) ?? "short_text");
     setRequired(existing?.required ?? false);
     setOptionsText((existing?.options ?? []).join("\n"));
+    setDescription(existing?.description ?? "");
+    setHelp(existing?.help ?? "");
+    setEditableOtherPhases(existing?.editableOtherPhases ?? true);
+    setIsUnique(existing?.isUnique ?? false);
+    setRegex(existing?.validationRegex ?? "");
   }, [field]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasOptions = type === "select" || type === "radio";
+  const canBeUnique = UNIQUE_FIELD_TYPES.includes(type);
+  const canRegex = type === "short_text";
   const options = optionsText.split("\n").map((s) => s.trim()).filter(Boolean);
+  const regexError = (() => { if (!regex) return ""; try { new RegExp(regex); return ""; } catch { return "Expressão inválida"; } })();
 
+  const props = {
+    description: description.trim() || null,
+    help: help.trim() || null,
+    editableOtherPhases,
+    isUnique: canBeUnique && isUnique,
+    validationRegex: canRegex && regex ? regex : null,
+  };
   const save = useMutation({
     mutationFn: () => existing
-      ? api.field.update({ fieldId: existing.id, label: label.trim(), type, required, options: hasOptions ? options : null })
-      : api.field.create({ phaseId, label: label.trim(), type, required, options: hasOptions ? options : undefined }),
+      ? api.field.update({ fieldId: existing.id, label: label.trim(), required, options: hasOptions ? options : null, ...props })
+      : api.field.create({ phaseId, label: label.trim(), type, required, options: hasOptions ? options : undefined, ...props }),
     onSuccess: () => { onSaved(); toast(existing ? "Campo atualizado" : "Campo criado", "success"); onClose(); },
     onError: (e) => toast(errMsg(e), "error"),
   });
@@ -240,7 +272,7 @@ function FieldEditorModal({ phaseId, field, onClose, onSaved }: { phaseId: strin
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => save.mutate()} loading={save.isPending} disabled={!label.trim() || (hasOptions && options.length === 0)}>Salvar</Button>
+          <Button onClick={() => save.mutate()} loading={save.isPending} disabled={!label.trim() || (hasOptions && options.length === 0) || !!regexError}>Salvar</Button>
         </>
       }
     >
@@ -251,7 +283,8 @@ function FieldEditorModal({ phaseId, field, onClose, onSaved }: { phaseId: strin
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="field-type" className="text-sm font-medium text-text">Tipo</label>
-          <Select id="field-type" value={type} onValueChange={(v) => setType(v as EditableFieldType)} options={EDITABLE_FIELD_TYPES.map((t) => ({ value: t.value, label: t.label }))} />
+          <Select id="field-type" value={type} disabled={!!existing} onValueChange={(v) => setType(v as EditableFieldType)} options={EDITABLE_FIELD_TYPES.map((t) => ({ value: t.value, label: t.label }))} />
+          {existing && <p className="text-xs text-muted">O tipo não pode ser alterado depois de criado. Para mudar, crie um campo novo.</p>}
         </div>
         {hasOptions && (
           <div className="flex flex-col gap-1.5">
@@ -259,10 +292,38 @@ function FieldEditorModal({ phaseId, field, onClose, onSaved }: { phaseId: strin
             <Textarea id="field-options" rows={5} value={optionsText} onChange={(e) => setOptionsText(e.target.value)} placeholder={"Baixa\nMédia\nAlta"} />
           </div>
         )}
-        <label className="inline-flex items-center gap-2 text-sm text-text">
-          <input type="checkbox" className="h-4 w-4 accent-accent" checked={required} onChange={(e) => setRequired(e.target.checked)} />
-          Obrigatório (o card não sai desta fase sem ele)
-        </label>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="field-description" className="text-sm font-medium text-text">Descrição <span className="text-muted">(opcional, aparece abaixo do nome)</span></label>
+          <Textarea id="field-description" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="field-help" className="text-sm font-medium text-text">Texto de ajuda <span className="text-muted">(opcional, dica para quem preenche)</span></label>
+          <Input id="field-help" value={help} onChange={(e) => setHelp(e.target.value)} placeholder="Ex.: informe o valor com impostos" />
+        </div>
+        {canRegex && (
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="field-regex" className="text-sm font-medium text-text">Validação por expressão regular <span className="text-muted">(opcional)</span></label>
+            <Input id="field-regex" value={regex} invalid={!!regexError} onChange={(e) => setRegex(e.target.value)} placeholder="Ex.: ^[A-Z]{3}-\d{4}$" className="font-mono" />
+            {regexError && <p className="text-xs text-danger">{regexError}</p>}
+          </div>
+        )}
+        <fieldset className="flex flex-col gap-2">
+          <legend className="sr-only">Regras do campo</legend>
+          <label className="inline-flex items-center gap-2 text-sm text-text">
+            <input type="checkbox" className="h-4 w-4 accent-accent" checked={required} onChange={(e) => setRequired(e.target.checked)} />
+            Obrigatório (o card não sai desta fase sem ele)
+          </label>
+          <label className="inline-flex items-center gap-2 text-sm text-text">
+            <input type="checkbox" className="h-4 w-4 accent-accent" checked={editableOtherPhases} onChange={(e) => setEditableOtherPhases(e.target.checked)} />
+            Editável em outras fases (depois que o card sair desta fase)
+          </label>
+          {canBeUnique && (
+            <label className="inline-flex items-center gap-2 text-sm text-text">
+              <input type="checkbox" className="h-4 w-4 accent-accent" checked={isUnique} onChange={(e) => setIsUnique(e.target.checked)} />
+              Valor único (não deixa repetir o valor de outro card do pipe)
+            </label>
+          )}
+        </fieldset>
       </form>
     </Modal>
   );

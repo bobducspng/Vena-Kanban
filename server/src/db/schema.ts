@@ -81,6 +81,13 @@ export const fields = mysqlTable("fields", {
   label: varchar("label", { length: 255 }).notNull(),
   type: varchar("type", { length: 32 }).notNull(),
   required: boolean("required").notNull().default(false),
+  description: text("description"),
+  help: varchar("help", { length: 500 }),
+  // false = only editable while the card is in this field's phase.
+  editableOtherPhases: boolean("editable_other_phases").notNull().default(true),
+  // Rejects a value already used by another card of the pipe.
+  isUnique: boolean("is_unique").notNull().default(false),
+  validationRegex: varchar("validation_regex", { length: 500 }),
   options: json("options"),
   settings: json("settings"),
   position: int("position").notNull().default(0),

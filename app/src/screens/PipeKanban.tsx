@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Settings, Search } from "lucide-react";
 import { api } from "../data/store";
+import { useMe } from "../lib/useMe";
 import { AppShell } from "../components/app/AppShell";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
@@ -18,6 +19,7 @@ export function PipeKanban() {
   const [startOpen, setStartOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const { isAdmin } = useMe();
 
   const { data: pipe } = useQuery({ queryKey: ["pipe", pipeId], queryFn: () => api.pipe.get(pipeId) });
   const { data: phases, isLoading: lp } = useQuery({ queryKey: ["phases", pipeId], queryFn: () => api.phase.listByPipe(pipeId) });
@@ -44,9 +46,11 @@ export function PipeKanban() {
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
               <Input aria-label="Buscar card por número ou título" placeholder="Buscar #ID ou título" value={query} onChange={(e) => setQuery(e.target.value)} className="w-56 pl-8" />
             </div>
-            <Link to={`/pipes/${pipeId}/settings`} className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-surface px-4 text-sm text-text hover:bg-bg">
-              <Settings className="h-4 w-4" aria-hidden="true" /> Configurar
-            </Link>
+            {isAdmin && (
+              <Link to={`/pipes/${pipeId}/settings`} className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-surface px-4 text-sm text-text hover:bg-bg">
+                <Settings className="h-4 w-4" aria-hidden="true" /> Configurar
+              </Link>
+            )}
             <Button onClick={() => setStartOpen(true)}>
               <Plus className="h-4 w-4" aria-hidden="true" /> Novo card
             </Button>

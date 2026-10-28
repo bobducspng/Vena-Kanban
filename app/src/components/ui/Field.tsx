@@ -9,19 +9,43 @@ interface FieldProps {
   value: CardFieldValue["value"] | undefined;
   onChange: (value: CardFieldValue["value"]) => void;
   error?: string;
+  /** Read-only (e.g. a past phase's field that is not "editável em outras fases"). */
+  disabled?: boolean;
 }
 
-/** Renders one field by its type, with a label, required marker and error.
+/** Client-side mirror of the server's regex rule, so the user sees it while typing. */
+function regexError(def: FieldDef, value: CardFieldValue["value"] | undefined): string | undefined {
+  if (!def.validationRegex || typeof value !== "string" || value === "") return undefined;
+  try {
+    return new RegExp(def.validationRegex).test(value) ? undefined : "Formato inválido";
+  } catch {
+    return undefined;
+  }
+}
+
+/** Renders one field by its type, with a label, required marker, description, help and error.
  *  Required is signalled with text + aria-required, never colour alone. */
-export function Field({ def, value, onChange, error }: FieldProps) {
+export function Field({ def, value, onChange, error, disabled }: FieldProps) {
   const id = useId();
   const errId = `${id}-err`;
+  const helpId = `${id}-help`;
+  const shownError = error || regexError(def, value);
+  const describedBy = [shownError ? errId : null, def.help ? helpId : null].filter(Boolean).join(" ") || undefined;
   const common = {
     id,
-    invalid: !!error,
+    disabled,
+    invalid: !!shownError,
     "aria-required": def.required || undefined,
-    "aria-describedby": error ? errId : undefined,
+    "aria-describedby": describedBy,
   };
+
+  const footer = (
+    <>
+      {def.help && <p id={helpId} className="text-xs text-muted">{def.help}</p>}
+      {shownError && <p id={errId} className="text-xs text-danger">{shownError}</p>}
+    </>
+  );
+  const description = def.description && <p className="-mt-1 whitespace-pre-line text-xs text-muted">{def.description}</p>;
 
   if (def.type === "checkbox") {
     return (
@@ -30,17 +54,40 @@ export function Field({ def, value, onChange, error }: FieldProps) {
           <input
             id={id}
             type="checkbox"
-            className="h-4 w-4 accent-accent"
+            className="h-4 w-4 accent-accent disabled:opacity-60"
             checked={value === true}
+            disabled={disabled}
             aria-required={def.required || undefined}
-            aria-describedby={error ? errId : undefined}
+            aria-describedby={describedBy}
             onChange={(e) => onChange(e.target.checked)}
           />
           {def.label}
           {def.required && <span className="text-muted">(obrigatório)</span>}
         </label>
-        {error && <p id={errId} className="text-xs text-danger">{error}</p>}
+        {description}
+        {footer}
       </div>
+    );
+  }
+
+  if (def.type === "radio") {
+    return (
+      <fieldset className="flex flex-col gap-1.5" aria-describedby={describedBy} disabled={disabled}>
+        <legend className="text-sm font-medium text-text">
+          {def.label}
+          {def.required && <span className="ml-1 text-muted">(obrigatório)<span className="text-danger" aria-hidden="true"> *</span></span>}
+        </legend>
+        {description}
+        <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+          {(def.options ?? []).map((o) => (
+            <label key={o} className="inline-flex items-center gap-2 text-sm text-text">
+              <input type="radio" name={id} className="h-4 w-4 accent-accent" checked={value === o} onChange={() => onChange(o)} />
+              {o}
+            </label>
+          ))}
+        </div>
+        {footer}
+      </fieldset>
     );
   }
 
@@ -54,13 +101,15 @@ export function Field({ def, value, onChange, error }: FieldProps) {
           </span>
         )}
       </label>
+      {description}
 
       {def.type === "long_text" ? (
         <Textarea {...common} value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} />
-      ) : def.type === "select" || def.type === "radio" ? (
+      ) : def.type === "select" ? (
         <Select
           id={id}
-          invalid={!!error}
+          invalid={!!shownError}
+          disabled={disabled}
           value={(value as string) ?? undefined}
           onValueChange={onChange}
           options={(def.options ?? []).map((o) => ({ value: o, label: o }))}
@@ -85,11 +134,7 @@ export function Field({ def, value, onChange, error }: FieldProps) {
         <Input {...common} type="text" value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} />
       )}
 
-      {error && (
-        <p id={errId} className="text-xs text-danger">
-          {error}
-        </p>
-      )}
+      {footer}
     </div>
   );
 }

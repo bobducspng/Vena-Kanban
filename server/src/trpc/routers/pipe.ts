@@ -2,7 +2,7 @@ import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { pipes, phases, fields } from "../../db/schema.js";
-import { router, protectedProcedure } from "../trpc.js";
+import { router, protectedProcedure, adminProcedure } from "../trpc.js";
 
 export const pipeRouter = router({
   list: protectedProcedure.query(({ ctx }) =>
@@ -14,7 +14,8 @@ export const pipeRouter = router({
       .where(and(eq(pipes.id, input.pipeId), eq(pipes.orgId, ctx.orgId))).limit(1))[0] ?? null;
   }),
 
-  create: protectedProcedure
+  // Configuring pipes is admin-only.
+  create: adminProcedure
     .input(z.object({ name: z.string().min(1).max(255), description: z.string().max(2000).optional() }))
     .mutation(async ({ ctx, input }) => {
       return db.transaction(async (tx) => {

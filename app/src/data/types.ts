@@ -32,6 +32,7 @@ export interface User {
   name: string;
   email: string;
   avatarColor: string; // one of the label-* roles, for the avatar
+  role?: Role | null; // org role; only set for the current user (user.me)
 }
 
 export interface FieldDef {
@@ -43,7 +44,15 @@ export interface FieldDef {
   required: boolean;
   options?: string[]; // for select/radio/checkbox
   position: number;
+  description?: string | null;
+  help?: string | null;
+  editableOtherPhases: boolean; // false = only editable while the card is in this phase
+  isUnique: boolean;
+  validationRegex?: string | null;
 }
+
+/** Field types that accept "valor único" (server checks the same list). */
+export const UNIQUE_FIELD_TYPES: FieldType[] = ["short_text", "email", "phone", "number", "currency", "date", "datetime"];
 
 export interface Phase {
   id: string;

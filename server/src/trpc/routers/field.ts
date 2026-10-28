@@ -3,7 +3,7 @@ import { eq, asc, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
 import { fields, phases, cardFields } from "../../db/schema.js";
-import { router, protectedProcedure, assertPipeInOrg } from "../trpc.js";
+import { router, protectedProcedure, adminProcedure, assertPipeInOrg } from "../trpc.js";
 
 // Types the editor offers (and the card form renders).
 const fieldType = z.enum([
@@ -11,6 +11,28 @@ const fieldType = z.enum([
   "email", "phone", "select", "radio", "checkbox",
 ]);
 const options = z.array(z.string().trim().min(1).max(255)).max(200);
+// Types where "valor único" makes sense (as in the original).
+const UNIQUE_TYPES = new Set(["short_text", "email", "phone", "number", "currency", "date", "datetime"]);
+const props = {
+  description: z.string().max(2000).nullable().optional(),
+  help: z.string().max(500).nullable().optional(),
+  editableOtherPhases: z.boolean().optional(),
+  isUnique: z.boolean().optional(),
+  validationRegex: z.string().max(500).nullable().optional(),
+};
+
+/** Reject a regex that does not compile, and unique on a type that can't be unique. */
+function checkProps(type: string, p: { isUnique?: boolean; validationRegex?: string | null }) {
+  if (p.isUnique && !UNIQUE_TYPES.has(type)) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Este tipo de campo não aceita valor único." });
+  }
+  if (p.validationRegex) {
+    if (type !== "short_text") throw new TRPCError({ code: "BAD_REQUEST", message: "Validação por expressão só vale para texto curto." });
+    try { new RegExp(p.validationRegex); } catch {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Expressão de validação inválida." });
+    }
+  }
+}
 
 /** Load a phase and authorize its pipe. */
 async function phaseInOrg(phaseId: string, orgId: string) {
@@ -48,45 +70,55 @@ export const fieldRouter = router({
     return db.select().from(fields).where(eq(fields.phaseId, input.phaseId)).orderBy(asc(fields.position));
   }),
 
-  create: protectedProcedure
+  create: adminProcedure
     .input(z.object({
       phaseId: z.string(),
       label: z.string().trim().min(1).max(255),
       type: fieldType,
       required: z.boolean().default(false),
       options: options.optional(),
+      ...props,
     }))
     .mutation(async ({ ctx, input }) => {
       const phase = await phaseInOrg(input.phaseId, ctx.orgId);
       checkOptions(input.type, input.options);
+      checkProps(input.type, input);
       const [{ max }] = await db.select({ max: sql<number | null>`MAX(${fields.position})` })
         .from(fields).where(eq(fields.phaseId, phase.id));
       const id = crypto.randomUUID();
       await db.insert(fields).values({
         id, pipeId: phase.pipeId, phaseId: phase.id, label: input.label, type: input.type,
         required: input.required, options: input.options ?? null, position: (max ?? -1) + 1,
+        description: input.description || null, help: input.help || null,
+        editableOtherPhases: input.editableOtherPhases ?? true, isUnique: input.isUnique ?? false,
+        validationRegex: input.validationRegex || null,
       });
       return (await db.select().from(fields).where(eq(fields.id, id)).limit(1))[0];
     }),
 
-  update: protectedProcedure
+  update: adminProcedure
     .input(z.object({
       fieldId: z.string(),
       label: z.string().trim().min(1).max(255).optional(),
-      type: fieldType.optional(),
+      // No `type`: a field's type cannot change after creation.
       required: z.boolean().optional(),
       options: options.nullable().optional(),
+      ...props,
     }))
     .mutation(async ({ ctx, input }) => {
       const field = await fieldInOrg(input.fieldId, ctx.orgId);
       const { fieldId, ...patch } = input;
-      checkOptions(patch.type ?? field.type, patch.options === undefined ? (field.options as string[] | null) : patch.options);
+      checkOptions(field.type, patch.options === undefined ? (field.options as string[] | null) : patch.options);
+      checkProps(field.type, {
+        isUnique: patch.isUnique ?? field.isUnique,
+        validationRegex: patch.validationRegex === undefined ? field.validationRegex : patch.validationRegex,
+      });
       if (Object.keys(patch).length) await db.update(fields).set(patch).where(eq(fields.id, fieldId));
       return (await db.select().from(fields).where(eq(fields.id, fieldId)).limit(1))[0];
     }),
 
   /** Persist a new order of a phase's fields. `fieldIds` must be exactly the phase's fields. */
-  reorder: protectedProcedure
+  reorder: adminProcedure
     .input(z.object({ phaseId: z.string(), fieldIds: z.array(z.string()).min(1) }))
     .mutation(async ({ ctx, input }) => {
       const phase = await phaseInOrg(input.phaseId, ctx.orgId);
@@ -104,7 +136,7 @@ export const fieldRouter = router({
     }),
 
   /** Delete a field and every card's value for it. */
-  remove: protectedProcedure.input(z.object({ fieldId: z.string() })).mutation(async ({ ctx, input }) => {
+  remove: adminProcedure.input(z.object({ fieldId: z.string() })).mutation(async ({ ctx, input }) => {
     const field = await fieldInOrg(input.fieldId, ctx.orgId);
     await db.transaction(async (tx) => {
       await tx.delete(cardFields).where(eq(cardFields.fieldId, field.id));

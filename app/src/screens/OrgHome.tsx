@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, LayoutGrid } from "lucide-react";
 import { api } from "../data/store";
+import { useMe } from "../lib/useMe";
 import { AppShell } from "../components/app/AppShell";
 import { Button } from "../components/ui/Button";
 import { Modal } from "../components/ui/Modal";
@@ -17,6 +18,7 @@ export function OrgHome() {
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const { isAdmin } = useMe(); // only admins configure pipes
 
   const { data: pipes, isLoading } = useQuery({ queryKey: ["pipes"], queryFn: api.pipe.list });
 
@@ -36,9 +38,11 @@ export function OrgHome() {
       <div className="mx-auto max-w-content p-6">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-xl text-text">Seus pipes</h2>
-          <Button onClick={() => setOpen(true)}>
-            <Plus className="h-4 w-4" aria-hidden="true" /> Novo pipe
-          </Button>
+          {isAdmin && (
+            <Button onClick={() => setOpen(true)}>
+              <Plus className="h-4 w-4" aria-hidden="true" /> Novo pipe
+            </Button>
+          )}
         </div>
 
         {isLoading ? (
@@ -49,8 +53,10 @@ export function OrgHome() {
           <div className="rounded-lg border border-dashed border-border-input p-12 text-center">
             <LayoutGrid className="mx-auto h-8 w-8 text-muted" aria-hidden="true" />
             <p className="mt-3 text-sm font-medium text-text">Nenhum pipe ainda</p>
-            <p className="mt-1 text-sm text-muted">Crie seu primeiro processo para começar.</p>
-            <Button className="mt-4" onClick={() => setOpen(true)}>Criar pipe</Button>
+            <p className="mt-1 text-sm text-muted">
+              {isAdmin ? "Crie seu primeiro processo para começar." : "Peça a um administrador para criar o primeiro processo."}
+            </p>
+            {isAdmin && <Button className="mt-4" onClick={() => setOpen(true)}>Criar pipe</Button>}
           </div>
         ) : (
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

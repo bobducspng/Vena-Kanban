@@ -27,12 +27,12 @@ export const phases: Phase[] = [
 ];
 
 export const fields: FieldDef[] = [
-  { id: "f1", pipeId: "p1", phaseId: "ph1", label: "Item solicitado", type: "short_text", required: true, position: 0 },
-  { id: "f2", pipeId: "p1", phaseId: "ph1", label: "Valor estimado", type: "currency", required: true, position: 1 },
-  { id: "f3", pipeId: "p1", phaseId: "ph1", label: "Justificativa", type: "long_text", required: false, position: 2 },
+  { id: "f1", pipeId: "p1", phaseId: "ph1", label: "Item solicitado", type: "short_text", required: true, position: 0, editableOtherPhases: true, isUnique: false },
+  { id: "f2", pipeId: "p1", phaseId: "ph1", label: "Valor estimado", type: "currency", required: true, position: 1, editableOtherPhases: true, isUnique: false },
+  { id: "f3", pipeId: "p1", phaseId: "ph1", label: "Justificativa", type: "long_text", required: false, position: 2, editableOtherPhases: true, isUnique: false },
   {
     id: "f4", pipeId: "p1", phaseId: "ph1", label: "Urgência", type: "select", required: false,
-    options: ["Baixa", "Média", "Alta"], position: 3,
+    options: ["Baixa", "Média", "Alta"], position: 3, editableOtherPhases: true, isUnique: false,
   },
 ];
 

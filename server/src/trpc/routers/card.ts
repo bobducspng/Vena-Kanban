@@ -28,9 +28,27 @@ function missingRequired(
     .filter((f) => {
       const v = values.find((x) => x.fieldId === f.id)?.value;
       // A required Sim/Não field must be ticked.
-      return v === undefined || v === null || v === "" || v === false;
+      return isEmpty(v) || v === false;
     })
     .map((f) => f.label);
+}
+
+type FieldRow = typeof fields.$inferSelect;
+const isEmpty = (v: unknown) => v === undefined || v === null || v === "";
+
+/** Field-level rules on a value: custom regex and "valor único" within the pipe. */
+async function validateValue(field: FieldRow, value: unknown, exceptCardId?: string) {
+  if (isEmpty(value)) return;
+  if (field.validationRegex && typeof value === "string" && !new RegExp(field.validationRegex).test(value)) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: `"${field.label}" está em formato inválido.` });
+  }
+  if (field.isUnique) {
+    const others = await db.select({ cardId: cardFields.cardId, value: cardFields.value })
+      .from(cardFields).where(eq(cardFields.fieldId, field.id));
+    const norm = (v: unknown) => String(v).trim().toLowerCase();
+    const dup = others.find((o) => o.cardId !== exceptCardId && !isEmpty(o.value) && norm(o.value) === norm(value));
+    if (dup) throw new TRPCError({ code: "CONFLICT", message: `Já existe um card com este valor em "${field.label}".` });
+  }
 }
 
 export const cardRouter = router({
@@ -65,6 +83,13 @@ export const cardRouter = router({
         .where(and(eq(fields.phaseId, start.id), eq(fields.required, true)));
       const missing = missingRequired(required, input.values);
       if (missing.length) throw new TRPCError({ code: "BAD_REQUEST", message: `Preencha os campos obrigatórios: ${missing.join(", ")}` });
+      // Only start-phase fields can be filled on creation.
+      const startFields = await db.select().from(fields).where(eq(fields.phaseId, start.id));
+      for (const v of input.values) {
+        const f = startFields.find((x) => x.id === v.fieldId);
+        if (!f) throw new TRPCError({ code: "BAD_REQUEST", message: "Campo não pertence ao formulário inicial" });
+        await validateValue(f, v.value);
+      }
 
       return db.transaction(async (tx) => {
         const cardId = crypto.randomUUID();
@@ -91,6 +116,21 @@ export const cardRouter = router({
       const card = (await db.select().from(cards).where(eq(cards.id, input.cardId)).limit(1))[0];
       if (!card) throw new TRPCError({ code: "NOT_FOUND" });
       await assertPipeInOrg(card.pipeId, ctx.orgId);
+
+      // Editability: never a future phase's field; a past phase's only if "editável em outras fases".
+      const field = (await db.select().from(fields).where(eq(fields.id, input.fieldId)).limit(1))[0];
+      if (!field || field.pipeId !== card.pipeId) throw new TRPCError({ code: "BAD_REQUEST", message: "Campo inválido" });
+      if (field.phaseId !== card.currentPhaseId) {
+        const ph = await db.select({ id: phases.id, position: phases.position }).from(phases).where(eq(phases.pipeId, card.pipeId));
+        const pos = (id: string) => ph.find((x) => x.id === id)?.position ?? 0;
+        if (pos(field.phaseId) > pos(card.currentPhaseId)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: `"${field.label}" é de uma fase que o card ainda não alcançou.` });
+        }
+        if (!field.editableOtherPhases) {
+          throw new TRPCError({ code: "FORBIDDEN", message: `"${field.label}" só pode ser editado na fase dele.` });
+        }
+      }
+      await validateValue(field, input.value, card.id);
 
       const existing = (await db.select().from(cardFields)
         .where(and(eq(cardFields.cardId, input.cardId), eq(cardFields.fieldId, input.fieldId))).limit(1))[0];

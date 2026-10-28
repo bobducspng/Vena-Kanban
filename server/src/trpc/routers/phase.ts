@@ -3,7 +3,7 @@ import { eq, asc, inArray, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
 import { phases, cards, fields, cardFields } from "../../db/schema.js";
-import { router, protectedProcedure, assertPipeInOrg } from "../trpc.js";
+import { router, protectedProcedure, adminProcedure, assertPipeInOrg } from "../trpc.js";
 
 const color = z.enum(["gray", "red", "orange", "amber", "green", "teal", "blue", "purple", "pink"]);
 
@@ -21,7 +21,7 @@ export const phaseRouter = router({
     return db.select().from(phases).where(eq(phases.pipeId, input.pipeId)).orderBy(asc(phases.position));
   }),
 
-  create: protectedProcedure
+  create: adminProcedure
     .input(z.object({ pipeId: z.string(), name: z.string().trim().min(1).max(255), color: color.default("gray") }))
     .mutation(async ({ ctx, input }) => {
       await assertPipeInOrg(input.pipeId, ctx.orgId);
@@ -32,7 +32,7 @@ export const phaseRouter = router({
       return (await db.select().from(phases).where(eq(phases.id, id)).limit(1))[0];
     }),
 
-  update: protectedProcedure
+  update: adminProcedure
     .input(z.object({
       phaseId: z.string(),
       name: z.string().trim().min(1).max(255).optional(),
@@ -52,7 +52,7 @@ export const phaseRouter = router({
     }),
 
   /** Make this the start phase (where new cards land and the start form lives). */
-  setStart: protectedProcedure.input(z.object({ phaseId: z.string() })).mutation(async ({ ctx, input }) => {
+  setStart: adminProcedure.input(z.object({ phaseId: z.string() })).mutation(async ({ ctx, input }) => {
     const phase = await phaseInOrg(input.phaseId, ctx.orgId);
     await db.transaction(async (tx) => {
       await tx.update(phases).set({ isStart: false }).where(eq(phases.pipeId, phase.pipeId));
@@ -62,7 +62,7 @@ export const phaseRouter = router({
   }),
 
   /** Persist a new order. `phaseIds` must be exactly the pipe's phases. */
-  reorder: protectedProcedure
+  reorder: adminProcedure
     .input(z.object({ pipeId: z.string(), phaseIds: z.array(z.string()).min(1) }))
     .mutation(async ({ ctx, input }) => {
       await assertPipeInOrg(input.pipeId, ctx.orgId);
@@ -80,7 +80,7 @@ export const phaseRouter = router({
     }),
 
   /** Delete an empty phase (no cards) that is not the start phase. Its fields go with it. */
-  remove: protectedProcedure.input(z.object({ phaseId: z.string() })).mutation(async ({ ctx, input }) => {
+  remove: adminProcedure.input(z.object({ phaseId: z.string() })).mutation(async ({ ctx, input }) => {
     const phase = await phaseInOrg(input.phaseId, ctx.orgId);
     if (phase.isStart) throw new TRPCError({ code: "BAD_REQUEST", message: "A fase inicial não pode ser excluída. Defina outra como inicial antes." });
     const [{ n }] = await db.select({ n: sql<number>`COUNT(*)` }).from(cards).where(eq(cards.currentPhaseId, phase.id));

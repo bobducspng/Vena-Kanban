@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import { api, RequiredFieldError } from "../../data/store";
@@ -7,6 +8,7 @@ import { Button } from "../ui/Button";
 import { Field } from "../ui/Field";
 import { Tag } from "../ui/Tag";
 import { useToast } from "../ui/Toast";
+import type { CardFieldValue, FieldDef } from "../../data/types";
 
 /** S06 — card detail: fields, phase movement (required-gated), activity log.
  *  Fetches the card by id so it stays fresh after a move (no stale prop). */
@@ -33,11 +35,6 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
     qc.invalidateQueries({ queryKey: ["events", cardId] });
   };
 
-  const updateField = useMutation({
-    mutationFn: (p: { fieldId: string; value: string | number | boolean | null }) =>
-      api.card.updateField({ cardId: cardId!, ...p }),
-    onSuccess: refresh,
-  });
 
   const move = useMutation({
     // Send the loaded version so the server can reject a stale move (BUG-005).
@@ -55,9 +52,10 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
   const idx = phases.findIndex((p) => p.id === current.id);
   const prev = phases[idx - 1];
   const next = phases[idx + 1];
-  // All fields, grouped by phase in order (BUG-003: not just the start phase, so
-  // fields on later phases are visible and editable — required ones included).
+  // Fields of the phases the card has reached (start → current), in order (BUG-003:
+  // not only the start phase). Future phases stay hidden, as in the original.
   const groups = phases
+    .filter((ph) => ph.position <= current.position)
     .map((ph) => ({
       phase: ph,
       defs: (fields ?? []).filter((f) => f.phaseId === ph.id).sort((a, b) => a.position - b.position),
@@ -99,11 +97,13 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
                 {g.phase.id === current.id && <Tag color={g.phase.color}>fase atual</Tag>}
               </div>
               {g.defs.map((f) => (
-                <Field
+                <CardFieldEditor
                   key={f.id}
+                  cardId={card.id}
                   def={f}
-                  value={card.values.find((v) => v.fieldId === f.id)?.value ?? undefined}
-                  onChange={(v) => updateField.mutate({ fieldId: f.id, value: v })}
+                  saved={card.values.find((v) => v.fieldId === f.id)?.value ?? undefined}
+                  disabled={f.phaseId !== current.id && !f.editableOtherPhases}
+                  onSaved={refresh}
                 />
               ))}
             </div>
@@ -123,6 +123,36 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
       </div>
     </Modal>
   );
+}
+
+// Typed inputs save after a pause; choices save at once.
+const IMMEDIATE = new Set(["select", "radio", "checkbox", "date", "datetime", "due_date"]);
+
+/** One field on an open card: local draft, debounced save, server errors as a toast
+ *  (and the draft rolls back to the saved value). */
+function CardFieldEditor({ cardId, def, saved, disabled, onSaved }: {
+  cardId: string; def: FieldDef; saved: CardFieldValue["value"] | undefined; disabled: boolean; onSaved: () => void;
+}) {
+  const toast = useToast();
+  const [draft, setDraft] = useState(saved);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => { setDraft(saved); }, [saved]);
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  const save = useMutation({
+    mutationFn: (value: CardFieldValue["value"]) => api.card.updateField({ cardId, fieldId: def.id, value }),
+    onSuccess: onSaved,
+    onError: (err) => { setDraft(saved); toast(err instanceof Error ? err.message : "Não foi possível salvar", "error"); },
+  });
+
+  const onChange = (v: CardFieldValue["value"]) => {
+    setDraft(v);
+    clearTimeout(timer.current);
+    if (IMMEDIATE.has(def.type)) save.mutate(v);
+    else timer.current = setTimeout(() => save.mutate(v), 700);
+  };
+
+  return <Field def={def} value={draft} onChange={onChange} disabled={disabled} />;
 }
 
 function describe(type: string): string {

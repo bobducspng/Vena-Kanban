@@ -15,7 +15,9 @@ export const userRouter = router({
   get: protectedProcedure.input(z.object({ id: z.string() })).query(async ({ input }) => {
     return (await db.select().from(users).where(eq(users.id, input.id)).limit(1))[0] ?? null;
   }),
+  // The caller, plus their org role (the front hides admin-only screens).
   me: protectedProcedure.query(async ({ ctx }) => {
-    return (await db.select().from(users).where(eq(users.id, ctx.userId)).limit(1))[0] ?? null;
+    const u = (await db.select().from(users).where(eq(users.id, ctx.userId)).limit(1))[0];
+    return u ? { ...u, role: ctx.role } : null;
   }),
 });
