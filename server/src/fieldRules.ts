@@ -26,16 +26,36 @@ export function isValidDocument(raw: string): boolean {
   return digit(d.slice(0, 12), w1) === Number(d[12]) && digit(d.slice(0, 13), w2) === Number(d[13]);
 }
 
-const bad = (field: FieldRow, why: string) => new TRPCError({ code: "BAD_REQUEST", message: `"${field.label}": ${why}` });
+const bad = (field: { label: string }, why: string) => new TRPCError({ code: "BAD_REQUEST", message: `"${field.label}": ${why}` });
 const asList = (v: unknown) => (Array.isArray(v) ? v : null);
 
 /** Types whose value is never written through the card form. */
 export const READ_ONLY_TYPES = new Set(["id", "attachment"]);
 
-/** Shape/meaning of a value by field type, plus regex and "valor único". */
+/** What the shape rules need of a field (a phase field or a database column). */
+export type ShapeField = {
+  id: string; label: string; type: string; options: unknown; validationRegex: string | null; isUnique: boolean;
+  pipeId?: string; // label_select only (labels belong to a pipe)
+};
+
+/** Normalised text for "valor único" (documents compare by digits: 123.456.789-09 == 12345678909). */
+export const uniqueKey = (type: string, v: unknown) => (type === "document" ? String(v).replace(/\D/g, "") : String(v).trim().toLowerCase());
+
+/** Shape/meaning of a value by field type, plus regex and "valor único" (cards of the pipe). */
 export async function validateValue(field: FieldRow, value: unknown, orgId: string, exceptCardId?: string) {
   if (READ_ONLY_TYPES.has(field.type)) throw bad(field, "este campo não é preenchido pelo formulário");
   if (isEmpty(value)) return;
+  await validateShape(field, value, orgId);
+  if (field.isUnique) {
+    const others = await db.select({ cardId: cardFields.cardId, value: cardFields.value })
+      .from(cardFields).where(eq(cardFields.fieldId, field.id));
+    const dup = others.find((o) => o.cardId !== exceptCardId && !isEmpty(o.value) && uniqueKey(field.type, o.value) === uniqueKey(field.type, value));
+    if (dup) throw new TRPCError({ code: "CONFLICT", message: `Já existe um card com este valor em "${field.label}".` });
+  }
+}
+
+/** Type and regex rules only (no uniqueness). `value` is not empty. */
+export async function validateShape(field: ShapeField, value: unknown, orgId: string) {
   const opts = (field.options as string[] | null) ?? [];
 
   switch (field.type) {
@@ -74,7 +94,7 @@ export async function validateValue(field: FieldRow, value: unknown, orgId: stri
       const ids = asList(value);
       if (!ids || ids.some((x) => typeof x !== "string")) throw bad(field, "etiqueta inválida");
       const ok = await db.select({ id: labels.id }).from(labels)
-        .where(and(eq(labels.pipeId, field.pipeId), inArray(labels.id, ids as string[])));
+        .where(and(eq(labels.pipeId, field.pipeId ?? ""), inArray(labels.id, ids as string[])));
       if (ok.length !== new Set(ids).size) throw bad(field, "etiqueta inválida");
       break;
     }
@@ -82,14 +102,6 @@ export async function validateValue(field: FieldRow, value: unknown, orgId: stri
 
   if (field.validationRegex && typeof value === "string" && !new RegExp(field.validationRegex).test(value)) {
     throw bad(field, "formato inválido");
-  }
-  if (field.isUnique) {
-    const others = await db.select({ cardId: cardFields.cardId, value: cardFields.value })
-      .from(cardFields).where(eq(cardFields.fieldId, field.id));
-    // Documents compare by digits only (123.456.789-09 == 12345678909).
-    const norm = (v: unknown) => (field.type === "document" ? String(v).replace(/\D/g, "") : String(v).trim().toLowerCase());
-    const dup = others.find((o) => o.cardId !== exceptCardId && !isEmpty(o.value) && norm(o.value) === norm(value));
-    if (dup) throw new TRPCError({ code: "CONFLICT", message: `Já existe um card com este valor em "${field.label}".` });
   }
 }
 

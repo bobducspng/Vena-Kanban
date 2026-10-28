@@ -9,6 +9,7 @@ import { labelRouter } from "./label.js";
 import { commentRouter } from "./comment.js";
 import { checklistRouter } from "./checklist.js";
 import { conditionRouter } from "./condition.js";
+import { databaseRouter } from "./database.js";
 
 export const appRouter = router({
   user: userRouter,
@@ -21,6 +22,7 @@ export const appRouter = router({
   comment: commentRouter,
   checklist: checklistRouter,
   condition: conditionRouter,
+  database: databaseRouter,
 });
 
 // The front-end imports this type for an end-to-end-typed client.

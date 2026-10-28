@@ -32,6 +32,31 @@ export const EDITABLE_FIELD_TYPES = [
 ] as const;
 export type EditableFieldType = (typeof EDITABLE_FIELD_TYPES)[number]["value"];
 
+/** Column types a database offers (no phase-only types: due date, label, attachment, ID). */
+export const DB_COLUMN_TYPES = EDITABLE_FIELD_TYPES.filter((t) =>
+  !["due_date", "label_select", "attachment", "id"].includes(t.value));
+
+/** A database ("tabela"): org-wide registry that cards connect to. */
+export interface DataTable {
+  id: string;
+  name: string;
+  description?: string | null;
+  icon?: string | null;
+  color?: string | null;
+  titleFieldId?: string | null;
+  summaryFieldIds: string[];
+  createdAt: string;
+}
+
+/** A row of a database. `title` comes from the table's title column. */
+export interface DbRecord {
+  id: string;
+  tableId: string;
+  title: string;
+  values: CardFieldValue[];
+  createdAt: string;
+}
+
 export const PHASE_COLORS = ["gray", "red", "orange", "amber", "green", "teal", "blue", "purple", "pink"] as const;
 export type PhaseColor = (typeof PHASE_COLORS)[number];
 

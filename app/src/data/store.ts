@@ -2,7 +2,7 @@
 // signatures as the previous fake store, so no screen changed. Server outputs
 // are mapped to the app's domain types (src/data/types.ts).
 import { trpc, API_URL } from "../lib/trpc";
-import type { Pipe, Phase, FieldDef, Card, CardFieldValue, CardEvent, User, FieldType, PhaseColor, EditableFieldType, Role, Label, Comment, ChecklistItem, Attachment, TrashedCard } from "./types";
+import type { Pipe, Phase, FieldDef, Card, CardFieldValue, CardEvent, User, FieldType, PhaseColor, EditableFieldType, Role, Label, Comment, ChecklistItem, Attachment, TrashedCard, DataTable, DbRecord } from "./types";
 import type { ConditionDef, Rule, FieldAction } from "../lib/conditions";
 
 /** A phase's conditional, as stored (the evaluator's ConditionDef + a name). */
@@ -69,6 +69,25 @@ async function fileFetch<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) throw new Error((data as { error?: string }).error ?? (res.status === 413 ? "Arquivo grande demais" : "Falha no envio"));
   return data as T;
 }
+
+type SrvTable = { id: string; name: string; description: string | null; icon: string | null; color: string | null; titleFieldId: string | null; summaryFieldIds: unknown; createdAt: Date | string };
+const mapTable = (t: SrvTable): DataTable => ({
+  id: t.id, name: t.name, description: t.description, icon: t.icon, color: t.color, titleFieldId: t.titleFieldId,
+  summaryFieldIds: Array.isArray(t.summaryFieldIds) ? (t.summaryFieldIds as string[]) : [], createdAt: toISO(t.createdAt),
+});
+type SrvColumn = { id: string; tableId: string; label: string; type: string; options: unknown; position: number; required: boolean; description: string | null; help: string | null; isUnique: boolean; validationRegex: string | null; archivedAt: Date | string | null };
+/** A database column, shaped as a FieldDef so the same <Field> renders it (phaseId = table id). */
+const mapColumn = (c: SrvColumn): FieldDef => ({
+  id: c.id, pipeId: "", phaseId: c.tableId, label: c.label, type: c.type as FieldType, required: c.required,
+  options: Array.isArray(c.options) ? (c.options as string[]) : undefined, position: c.position, description: c.description,
+  help: c.help, editableOtherPhases: true, isUnique: c.isUnique, validationRegex: c.validationRegex, archivedAt: toISON(c.archivedAt),
+});
+type SrvRecord = { id: string; tableId: string; title: string; createdAt: Date | string; values: { fieldId: string; value: unknown }[] };
+const mapRecord = (r: SrvRecord): DbRecord => ({
+  id: r.id, tableId: r.tableId, title: r.title, createdAt: toISO(r.createdAt),
+  values: r.values.map((v) => ({ fieldId: v.fieldId, value: v.value as CardFieldValue["value"] })),
+});
+type ColumnProps = { required?: boolean; options?: string[] | null; description?: string | null; help?: string | null; isUnique?: boolean; validationRegex?: string | null };
 
 export const api = {
   user: {
@@ -170,6 +189,40 @@ export const api = {
   event: {
     listByCard: async (cardId: string): Promise<CardEvent[]> =>
       (await trpc.event.listByCard.query({ cardId })).map(mapEvent),
+  },
+
+  database: {
+    list: async (): Promise<DataTable[]> => (await trpc.database.list.query()).map(mapTable),
+    get: async (tableId: string): Promise<DataTable> => mapTable(await trpc.database.get.query({ tableId })),
+    create: async (name: string): Promise<DataTable> => mapTable(await trpc.database.create.mutate({ name })),
+    update: async (input: { tableId: string; name?: string; description?: string | null; icon?: string | null; color?: PhaseColor | null; titleFieldId?: string; summaryFieldIds?: string[] }): Promise<DataTable> =>
+      mapTable(await trpc.database.update.mutate(input)),
+    remove: (tableId: string) => trpc.database.remove.mutate({ tableId }),
+    listDeleted: async (): Promise<DataTable[]> => (await trpc.database.listDeleted.query()).map(mapTable),
+    restore: (tableId: string) => trpc.database.restore.mutate({ tableId }),
+    columns: async (tableId: string, includeArchived = false): Promise<FieldDef[]> =>
+      (await trpc.database.columns.query({ tableId, includeArchived })).map(mapColumn),
+    createColumn: (input: { tableId: string; label: string; type: string } & ColumnProps) =>
+      trpc.database.createColumn.mutate(input as Parameters<typeof trpc.database.createColumn.mutate>[0]),
+    updateColumn: (input: { fieldId: string; label?: string } & ColumnProps) => trpc.database.updateColumn.mutate(input),
+    reorderColumns: (tableId: string, fieldIds: string[]) => trpc.database.reorderColumns.mutate({ tableId, fieldIds }),
+    archiveColumn: (fieldId: string, archived: boolean) => trpc.database.archiveColumn.mutate({ fieldId, archived }),
+    removeColumn: (fieldId: string) => trpc.database.removeColumn.mutate({ fieldId }),
+    records: async (tableId: string): Promise<DbRecord[]> => (await trpc.database.records.query({ tableId })).map(mapRecord),
+    record: async (recordId: string): Promise<DbRecord | null> => {
+      const r = await trpc.database.record.query({ recordId });
+      return r ? mapRecord(r) : null;
+    },
+    createRecord: async (tableId: string, values: CardFieldValue[]): Promise<DbRecord> => {
+      try {
+        return mapRecord(await trpc.database.createRecord.mutate({ tableId, values }));
+      } catch (err) {
+        rethrow(err);
+      }
+    },
+    updateRecordValue: async (input: { recordId: string; fieldId: string; value: CardFieldValue["value"] }): Promise<DbRecord> =>
+      mapRecord(await trpc.database.updateRecordValue.mutate(input)),
+    removeRecord: (recordId: string) => trpc.database.removeRecord.mutate({ recordId }),
   },
 
   condition: {

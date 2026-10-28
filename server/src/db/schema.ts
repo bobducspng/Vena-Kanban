@@ -244,6 +244,14 @@ export const dataTables = mysqlTable("data_tables", {
   id: id(),
   orgId: ref("org_id").notNull(),
   name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  icon: varchar("icon", { length: 16 }),
+  color: varchar("color", { length: 16 }),
+  // Column whose value names each record (shown in lists and connections).
+  titleFieldId: ref("title_field_id"),
+  // Columns shown next to the title when a record appears in a connection.
+  summaryFieldIds: json("summary_field_ids"),
+  deletedAt: datetime("deleted_at", { fsp: 3 }),
   createdAt: createdAt(),
 }, (t) => ({ orgIdx: index("idx_tables_org").on(t.orgId) }));
 
@@ -254,6 +262,13 @@ export const tableFields = mysqlTable("table_fields", {
   type: varchar("type", { length: 32 }).notNull(),
   options: json("options"),
   position: int("position").notNull().default(0),
+  // Same options as phase fields.
+  required: boolean("required").notNull().default(false),
+  description: text("description"),
+  help: varchar("help", { length: 500 }),
+  isUnique: boolean("is_unique").notNull().default(false),
+  validationRegex: varchar("validation_regex", { length: 500 }),
+  archivedAt: datetime("archived_at", { fsp: 3 }),
 }, (t) => ({ tableIdx: index("idx_tablefields_table").on(t.tableId, t.position) }));
 
 export const tableRecords = mysqlTable("table_records", {
