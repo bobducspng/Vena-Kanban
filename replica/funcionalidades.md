@@ -35,7 +35,7 @@ Tirados das dores mais citadas na comunidade [C §2, §4]:
 | Ícone e cor do pipe | aparecem na home, formulários, conexões | ✅ | M2 |
 | Nome do objeto | renomear "card" (ticket, pedido, candidato) | ✅ | M2 |
 | Título do card a partir de um campo | campo do formulário inicial vira o título (vale para cards novos) | ✅ | M2 |
-| Subtítulos do card | campos exibidos no card fechado (e no card conectado) | 🟡 (quadro; card conectado no M4) | M2 |
+| Subtítulos do card | campos exibidos no card fechado (e no card conectado) | 🟡 (quadro; resumo do conectado via database) | M2 |
 | Texto do botão "criar card" | ex.: "Nova solicitação" | ✅ | M2 |
 | Editar/excluir pipe | excluir exige digitar confirmação | ✅ (excluir = ocultar, restaurável) | M2 |
 | Visibilidade público/privado | privado = só admins e convidados | ⬜ | M10 |
@@ -82,7 +82,7 @@ Tipos do Pipefy (23 + fórmula e conteúdo dinâmico):
 | Documento CPF/CNPJ (máscara + validação de dígito) | ✅ | M2 |
 | ID (código do card) | ✅ | M2 |
 | Conteúdo dinâmico (texto rico com variáveis de fases anteriores) | ⬜ | M4 |
-| Conexão de pipe / conexão de database | ⬜ | M4 |
+| Conexão de pipe / conexão de database | ✅ | M4 |
 | **Fórmula** (nativa, recalcula ao salvar) | ⬜ | M5 |
 
 Opções de cada campo:
@@ -130,8 +130,8 @@ Opções de cada campo:
 | Liga/desliga recursos do card por pipe | responsáveis, vencimento, etiquetas, anexos, comentários, checklist | ⬜ | M2 |
 | Excluir card (com lixeira) | lixeira é novidade 2025–26 | ✅ | M2 |
 | Duplicar card | existe na API (`cardDuplicate`) | ✅ | M2 |
-| Cards pai/filho | via conexão; atalhos nos dois lados | ⬜ | M4 |
-| Desconectar card/registro | | ⬜ | M4 |
+| Cards pai/filho | via conexão; atalhos nos dois lados | ✅ | M4 |
+| Desconectar card/registro | ✅ | M4 |
 | Histórico do card | ✅ | M2 |
 | Linha do tempo com métricas | duração, fases visitadas, % automatizado, trocas de responsável, gargalo | ⬜ | M9 |
 | Timers (desde criação, na fase, última atualização) | | ⬜ | M6 |
@@ -149,7 +149,7 @@ Opções de cada campo:
 | Formulário de fase por link (por card) | atualiza o card, não cria | ⬜ | M7 |
 | Tarefa (formulário de fase por e-mail, até 30 pessoas) | página "Tarefas e Solicitações" | ⬜ | M7 |
 | Autenticação por e-mail (link de 30 min) | | ⬜ | M7 |
-| Formulário inicial de outro pipe dentro de uma fase | cria card filho | ⬜ | M4 |
+| Formulário inicial de outro pipe dentro de uma fase | cria card filho | ✅ (Criar novo card na conexão) | M4 |
 | Portal: páginas, texto, link, imagem, vídeo, formulários | até 50 subportais com permissão própria | ⬜ | M7 |
 | Valores padrão fixos/dinâmicos no portal | ex.: nome/e-mail do usuário logado | ⬜ | M7 |
 | Rastreador de solicitações ("meus pedidos") | status, histórico, mensagens solicitante↔equipe | ⬜ | M7 |
@@ -158,17 +158,17 @@ Opções de cada campo:
 ### 2.7 Conexões e databases [A §9, §10, API]
 | Funcionalidade | Detalhe | Status | M |
 | --- | --- | --- | --- |
-| Databases: criar, colunas (campos), registros CRUD | mesmos tipos de campo | ⬜ | M4 |
-| Formulário do database (interno e público) + condicionais | | ⬜ | M4 |
-| Etiquetas e status do registro (ativo/concluído) | | ⬜ | M4 |
-| Layout de resumo do registro | o que aparece na conexão | ⬜ | M4 |
-| Exportar database (xlsx) | | ⬜ | M4 |
+| Databases: criar, colunas (campos), registros CRUD | mesmos tipos de campo | ✅ | M4 |
+| Formulário do database (interno e público) + condicionais | 🟡 (interno; público/condicionais no M7) | M4 |
+| Etiquetas e status do registro (ativo/concluído) | ⬜ | M4 |
+| Layout de resumo do registro | o que aparece na conexão | ✅ | M4 |
+| Exportar database (xlsx) | ✅ (CSV para Excel) | M4 |
 | Importar planilha para database/pipe | | ⬜ | M10 |
-| Conexão pipe↔pipe e pipe↔database | nome, alvo, função buscar/criar/ambos, único/múltiplo | ⬜ | M4 |
-| Campo de conexão em fase/formulário | obrigatório, filtro ativos/concluídos | ⬜ | M4 |
-| **Autopreenchimento (field map)** | copiar do registro/pai, valor fixo — "puxar dados do BD" | ⬜ | M4 |
-| Regras pai/filho | filho deve existir para concluir o pai; todos os filhos concluídos para mover/concluir o pai | ⬜ | M4 |
-| Exibição de dados do conectado no card | subtítulos do conectado | ⬜ | M4 |
+| Conexão pipe↔pipe e pipe↔database | nome, alvo, função buscar/criar/ambos, único/múltiplo | ✅ | M4 |
+| Campo de conexão em fase/formulário | obrigatório, filtro ativos/concluídos | ✅ | M4 |
+| **Autopreenchimento (field map)** | copiar do registro/pai, valor fixo — "puxar dados do BD" | ✅ (cópia + atualizar do cadastro) | M4 |
+| Regras pai/filho | filho deve existir para concluir o pai; todos os filhos concluídos para mover/concluir o pai | ✅ | M4 |
+| Exibição de dados do conectado no card | subtítulos do conectado | ✅ | M4 |
 | Aviso: conectar dá acesso aos dados | | ⬜ | M4 |
 
 ### 2.8 Automações [A §11, API §2.4]
@@ -274,7 +274,7 @@ Ordem pensada para destravar valor cedo e porque cada marco depende do anterior.
 | **M1 ✅** | Editor de fases e campos por fase; #ID; busca | já entregue |
 | **M2 ✅ — Card completo** | ★ transições permitidas ("mover para"), arrastar no kanban, uma fase por vez; opções de campo (descrição, ajuda, editável em outras fases, único, regex); tipos que faltam (checklist, hora, vencimento, responsável, etiqueta, anexo, CPF/CNPJ, ID); responsáveis, etiquetas, comentários com menção, anexos e checklist no card; título/subtítulos do card; config do pipe (ícone, cor, nome do objeto, botão); responsáveis da fase; criar card em outra fase; arquivar campo; excluir/duplicar card com lixeira | é o uso diário; todo o resto (condicionais, automações, relatórios) lê esses dados |
 | **M3 ✅ — Condicionais** | ★ editor com grupos E/OU, 19 operadores, mostrar/ocultar e **obrigar**; servidor valida respeitando ocultos | depende dos tipos de campo do M2 |
-| **M4 — Databases e conexões** | ★ databases (tabelas, registros, formulário, status); campo de conexão pipe/database; ★ autopreenchimento a partir do registro; pai/filho e suas regras; conteúdo dinâmico | "dados vindos do BD" depende de databases + conexão |
+| **M4 ✅ — Databases e conexões** | ★ databases (tabelas, registros, formulário, status); campo de conexão pipe/database; ★ autopreenchimento a partir do registro; pai/filho e suas regras; conteúdo dinâmico | "dados vindos do BD" depende de databases + conexão |
 | **M5 — Automações** | ★ motor e catálogo completo (mover automático, criar card em outro pipe, atualizar campo, mover pai, rodízio, fórmula, HTTP); recorrentes; logs, alerta de falha, testar regra; campo fórmula | precisa de conexões (M4) para as ações entre pipes |
 | **M6 — SLA e trabalho do dia** | vencido/atrasado/expirado, dias úteis + feriados, histórico de tempo por fase, timers, "Meu trabalho", notificações in-app | eventos de alerta alimentam automações |
 | **M7 — Formulários externos e portal** | formulário público e de fase, tarefas, portal com páginas, rastreador "meus pedidos", convidados | precisa de condicionais (M3) e permissões básicas |
