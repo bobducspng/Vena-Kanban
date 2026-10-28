@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
 import { cards, cardFields, cardAssignees, cardLabels, fields, labels, memberships, checklistItems, cardPhaseHistory, phases, pipes } from "../../db/schema.js";
 import { calendarOf, deadlinesOf } from "../../slaService.js";
+import { notifyAssigned } from "../../notify.js";
 import { businessMinutesBetween } from "../../businessTime.js";
 import { cardInOrg, logEvent } from "../cardAccess.js";
 import { linkedFrom } from "../../connections.js";
@@ -90,11 +91,13 @@ export const cardRouter = router({
         ? await db.select({ userId: memberships.userId }).from(memberships).where(and(eq(memberships.orgId, ctx.orgId), inArray(memberships.userId, ids)))
         : [];
       if (members.length !== ids.length) throw new TRPCError({ code: "BAD_REQUEST", message: "Responsável inválido" });
+      const before = new Set((await db.select({ userId: cardAssignees.userId }).from(cardAssignees).where(eq(cardAssignees.cardId, card.id))).map((a) => a.userId));
       await db.transaction(async (tx) => {
         await tx.delete(cardAssignees).where(eq(cardAssignees.cardId, card.id));
         if (ids.length) await tx.insert(cardAssignees).values(ids.map((userId) => ({ cardId: card.id, userId })));
       });
       await logEvent(card.id, "assignees_changed", ctx.userId, { userIds: ids });
+      await notifyAssigned(ids.filter((u) => !before.has(u)), card.id, { userId: ctx.userId });
       return shaped(card.id);
     }),
 
@@ -195,5 +198,21 @@ export const cardRouter = router({
       stays: stays.map((st) => ({ ...st, minutes: businessMinutesBetween(st.enteredAt, st.leftAt ?? now, cal) })),
       businessHours: !!pipe?.business,
     };
+  }),
+
+  /** "Meu trabalho": cards where I am a responsável (not in the trash), across pipes. */
+  myWork: protectedProcedure.query(async ({ ctx }) => {
+    return db.select({
+      id: cards.id, number: cards.number, title: cards.title, pipeId: cards.pipeId, pipeName: pipes.name, pipeIcon: pipes.icon,
+      phaseName: phases.name, dueDate: cards.dueDate, done: cards.done, lateAt: cards.lateAt, expiredAt: cards.expiredAt,
+      overdueAt: cards.overdueAt, updatedAt: cards.updatedAt, createdAt: cards.createdAt,
+    })
+      .from(cardAssignees)
+      .innerJoin(cards, eq(cards.id, cardAssignees.cardId))
+      .innerJoin(pipes, eq(pipes.id, cards.pipeId))
+      .innerJoin(phases, eq(phases.id, cards.currentPhaseId))
+      .where(and(eq(cardAssignees.userId, ctx.userId), eq(pipes.orgId, ctx.orgId), isNull(cards.deletedAt), isNull(pipes.deletedAt)))
+      .orderBy(desc(cards.updatedAt))
+      .limit(500);
   }),
 });

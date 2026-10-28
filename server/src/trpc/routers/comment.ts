@@ -5,6 +5,7 @@ import { db } from "../../db/client.js";
 import { comments, memberships } from "../../db/schema.js";
 import { router, protectedProcedure } from "../trpc.js";
 import { cardInOrg, logEvent } from "../cardAccess.js";
+import { notifyMention } from "../../notify.js";
 
 export const commentRouter = router({
   listByCard: protectedProcedure.input(z.object({ cardId: z.string() })).query(async ({ ctx, input }) => {
@@ -24,6 +25,7 @@ export const commentRouter = router({
       const id = crypto.randomUUID();
       await db.insert(comments).values({ id, cardId: input.cardId, authorId: ctx.userId, body: input.body });
       await logEvent(input.cardId, "commented", ctx.userId, { commentId: id, mentions });
+      await notifyMention(mentions, input.cardId, ctx.userId, input.body);
       return (await db.select().from(comments).where(eq(comments.id, id)).limit(1))[0];
     }),
 

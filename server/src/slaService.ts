@@ -1,6 +1,7 @@
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { db } from "./db/client.js";
-import { businessCalendars, cardEvents, cardPhaseHistory, cards, phases, pipes } from "./db/schema.js";
+import { businessCalendars, cardAssignees, cardEvents, cardPhaseHistory, cards, phases, pipes } from "./db/schema.js";
+import { notifyAlert } from "./notify.js";
 import { addBusinessMinutes, DEFAULT_CALENDAR, nationalHolidays, type Calendar } from "./businessTime.js";
 import { announceHappening } from "./cardService.js";
 
@@ -58,6 +59,8 @@ async function backfill() {
 async function raise(cardId: string, pipeId: string, phaseId: string, kind: "late" | "expired" | "overdue") {
   const label = { late: "Card atrasado na fase", expired: "Card expirado (prazo do pipe)", overdue: "Card vencido" }[kind];
   await db.insert(cardEvents).values({ id: crypto.randomUUID(), cardId, type: kind, actorId: null, data: { alert: label } });
+  const people = (await db.select({ userId: cardAssignees.userId }).from(cardAssignees).where(eq(cardAssignees.cardId, cardId))).map((a) => a.userId);
+  await notifyAlert(people, cardId, kind);
   await announceHappening({ kind: "alert", alertKind: kind, cardId, pipeId, phaseId, depth: 0 });
 }
 

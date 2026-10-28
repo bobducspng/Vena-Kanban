@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Avatar } from "../ui/Avatar";
 import { api } from "../../data/store";
+import { NotificationBell } from "./NotificationBell";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 
@@ -36,6 +37,8 @@ export function Header({ title }: { title?: string }) {
             className="h-9 w-56 rounded-md border border-border-input bg-bg pl-8 pr-3 text-sm text-text placeholder:text-muted focus:border-accent"
           />
         </label>
+
+        <NotificationBell />
 
         <DropdownMenu.Root>
           <DropdownMenu.Trigger

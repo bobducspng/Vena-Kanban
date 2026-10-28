@@ -130,6 +130,9 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
         {/* Right: phase + move, card features, activity */}
         <aside className="flex min-w-0 flex-col gap-5 lg:border-l lg:border-border lg:pl-6">
           <section aria-label="Fase" className="flex flex-col gap-2 rounded-lg bg-surface p-3">
+            <p className="text-xs text-muted" title="Criado · na fase atual · última atualização">
+              Criado {since(card.createdAt)} · nesta fase {card.phaseEnteredAt ? since(card.phaseEnteredAt) : "—"}
+            </p>
             <div className="flex items-center gap-2 text-sm text-muted">
               Fase atual: <Tag color={current.color}>{current.name}</Tag>
               {card.done && <span className="inline-flex items-center gap-1 text-sm font-medium text-success"><CheckCircle2 className="h-4 w-4" aria-hidden="true" /> Concluído</span>}
@@ -200,6 +203,11 @@ const fmtMinutes = (m: number, business: boolean) => {
   const day = business ? 600 : 1440;
   const d = Math.floor(m / day), h = Math.floor((m % day) / 60), mm = m % 60;
   return [d && `${d}${business ? "d úteis" : "d"}`, h && `${h}h`, (!d && mm) || (!d && !h) ? `${mm}min` : ""].filter(Boolean).join(" ");
+};
+/** "há 3 d" style elapsed time. */
+const since = (iso: string) => {
+  const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
+  return m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.round(m / 60)} h` : `há ${Math.round(m / 1440)} d`;
 };
 const when = (iso: string) => new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 

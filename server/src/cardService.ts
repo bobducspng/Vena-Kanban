@@ -8,6 +8,7 @@ import {
 import { isEmpty, validateValue, applySideEffects } from "./fieldRules.js";
 import { fieldStates, mustFill, type ConditionDef } from "./conditions.js";
 import { autofillValues, readSettings, finishBlocker } from "./connections.js";
+import { notifyAssigned } from "./notify.js";
 
 /**
  * Card operations shared by the API (people) and the automation engine.
@@ -89,7 +90,11 @@ export async function syncPhaseAssignees(cardId: string, fromPhaseId: string | n
   if (entering.length) {
     const have = new Set((await db.select().from(cardAssignees).where(eq(cardAssignees.cardId, cardId))).map((a) => a.userId));
     const add = entering.filter((u) => !have.has(u));
-    if (add.length) await db.insert(cardAssignees).values(add.map((userId) => ({ cardId, userId })));
+    if (add.length) {
+      await db.insert(cardAssignees).values(add.map((userId) => ({ cardId, userId })));
+      const phase = (await db.select({ name: phases.name }).from(phases).where(eq(phases.id, toPhaseId)).limit(1))[0];
+      await notifyAssigned(add, cardId, { phase: phase?.name });
+    }
   }
 }
 

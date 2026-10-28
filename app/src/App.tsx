@@ -8,6 +8,7 @@ import { DatabaseView } from "./screens/DatabaseView";
 import { PipeAutomations } from "./screens/PipeAutomations";
 import { AutomationsHome } from "./screens/AutomationsHome";
 import { OrgSettings } from "./screens/OrgSettings";
+import { MyWork } from "./screens/MyWork";
 import { DesignRoute } from "./screens/DesignRoute";
 import { StubScreen } from "./screens/StubScreen";
 import { RequireAuth } from "./components/app/RequireAuth";
@@ -31,6 +32,7 @@ export default function App() {
       <Route path="/reports" element={<RequireAuth><StubScreen id="S16" title="Relatórios" planned={["Relatório de pipe (tabela + filtros)", "Relatório da empresa", "Dashboards com gráficos"]} /></RequireAuth>} />
       <Route path="/automations" element={<RequireAuth><AutomationsHome /></RequireAuth>} />
       <Route path="/settings" element={<RequireAuth><OrgSettings /></RequireAuth>} />
+      <Route path="/my-work" element={<RequireAuth><MyWork /></RequireAuth>} />
       <Route path="*" element={<StubScreen id="404" title="Página não encontrada" planned={[]} />} />
     </Routes>
   );

@@ -9,6 +9,7 @@ import { linkedFrom, readSettings } from "./connections.js";
 import { createCard, moveCard, onCardHappening, setFieldValue, type Actor, type CardHappening } from "./cardService.js";
 import { evaluate, FormulaError, type FValue } from "./formula.js";
 import { sweepAlerts } from "./slaService.js";
+import { notifyAssigned, notifyAutomationFailed, pruneNotifications } from "./notify.js";
 
 /**
  * Automation engine (M5): "quando → se → então".
@@ -123,8 +124,10 @@ async function runAction(rule: typeof automationRules.$inferSelect, a: Action, c
         await db.update(automationRules).set({ state: { ...((rule.state as object | null) ?? {}), cursor: next } }).where(eq(automationRules.id, rule.id));
         chosen = [a.userIds[next]];
       }
+      const before = new Set((await db.select({ userId: cardAssignees.userId }).from(cardAssignees).where(eq(cardAssignees.cardId, card.id))).map((x) => x.userId));
       await db.delete(cardAssignees).where(eq(cardAssignees.cardId, card.id));
       await db.insert(cardAssignees).values(chosen.map((userId) => ({ cardId: card.id, userId })));
+      await notifyAssigned(chosen.filter((u) => !before.has(u)), card.id, { automation: actor.automation });
       await db.insert(cardEvents).values({ id: crypto.randomUUID(), cardId: card.id, type: "assignees_changed", actorId: null, data: { userIds: chosen, automation: actor.automation } });
       return "definiu responsável";
     }
@@ -247,6 +250,12 @@ const matches = (t: Trigger, e: CardHappening) =>
 
 async function log(ruleId: string, cardId: string | null, status: "success" | "failed" | "skipped", message: string, started: number) {
   await db.insert(automationLogs).values({ id: crypto.randomUUID(), ruleId, cardId, status, message, durationMs: Date.now() - started });
+  if (status === "failed") {
+    // Tell the admins when a rule starts failing (not on every failed run).
+    const prev = (await db.select({ lastStatus: automationRules.lastStatus, name: automationRules.name, pipeId: automationRules.pipeId, orgId: pipes.orgId })
+      .from(automationRules).innerJoin(pipes, eq(pipes.id, automationRules.pipeId)).where(eq(automationRules.id, ruleId)).limit(1))[0];
+    if (prev && prev.lastStatus !== "failed") await notifyAutomationFailed(prev.orgId, prev.pipeId, prev.name, message);
+  }
   await db.update(automationRules).set({ lastRunAt: new Date(), lastStatus: status, lastError: status === "failed" ? message : null }).where(eq(automationRules.id, ruleId));
 }
 
@@ -366,6 +375,7 @@ async function tick() {
   if (lastPrune !== today) {
     lastPrune = today;
     await db.delete(automationLogs).where(lt(automationLogs.createdAt, new Date(Date.now() - 90 * 86_400_000)));
+    await pruneNotifications();
   }
 }
 

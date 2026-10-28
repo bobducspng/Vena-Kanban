@@ -2,7 +2,7 @@
 // signatures as the previous fake store, so no screen changed. Server outputs
 // are mapped to the app's domain types (src/data/types.ts).
 import { trpc, API_URL } from "../lib/trpc";
-import type { Pipe, Phase, FieldDef, Card, CardFieldValue, CardEvent, User, FieldType, PhaseColor, EditableFieldType, Role, Label, Comment, ChecklistItem, Attachment, TrashedCard, DataTable, DbRecord, ConnectionSettings, ConnectedItem, Backlink, AutomationRule, AutomationLog, AutomationTrigger, AutomationAction, BusinessCalendar, CardTimeline } from "./types";
+import type { Pipe, Phase, FieldDef, Card, CardFieldValue, CardEvent, User, FieldType, PhaseColor, EditableFieldType, Role, Label, Comment, ChecklistItem, Attachment, TrashedCard, DataTable, DbRecord, ConnectionSettings, ConnectedItem, Backlink, AutomationRule, AutomationLog, AutomationTrigger, AutomationAction, BusinessCalendar, CardTimeline, Notification, MyWorkCard } from "./types";
 import type { ConditionDef, Rule, FieldAction } from "../lib/conditions";
 
 /** A phase's conditional, as stored (the evaluator's ConditionDef + a name). */
@@ -187,6 +187,10 @@ export const api = {
       mapCard(await trpc.card.setLabels.mutate({ cardId, labelIds })),
     remove: (cardId: string) => trpc.card.remove.mutate({ cardId }),
     parents: (cardId: string): Promise<Backlink[]> => trpc.card.parents.query({ cardId }),
+    myWork: async (): Promise<MyWorkCard[]> =>
+      (await trpc.card.myWork.query()).map((c) => ({
+        ...c, dueDate: toISON(c.dueDate), lateAt: toISON(c.lateAt), expiredAt: toISON(c.expiredAt), overdueAt: toISON(c.overdueAt), updatedAt: toISO(c.updatedAt),
+      })),
     timeline: async (cardId: string): Promise<CardTimeline> => {
       const t = await trpc.card.timeline.query({ cardId });
       return {
@@ -248,6 +252,13 @@ export const api = {
       mapRecord(await trpc.database.updateRecordValue.mutate(input)),
     removeRecord: (recordId: string) => trpc.database.removeRecord.mutate({ recordId }),
     recordUsage: (recordId: string): Promise<Backlink[]> => trpc.database.recordUsage.query({ recordId }),
+  },
+
+  notification: {
+    list: async (): Promise<Notification[]> =>
+      (await trpc.notification.list.query()).map((n) => ({ ...n, type: n.type as Notification["type"], readAt: toISON(n.readAt), createdAt: toISO(n.createdAt) })),
+    unread: (): Promise<number> => trpc.notification.unread.query(),
+    markRead: (ids?: string[]) => trpc.notification.markRead.mutate({ ids }),
   },
 
   calendar: {

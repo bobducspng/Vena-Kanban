@@ -156,6 +156,36 @@ export interface Pipe {
   businessHoursOnly?: boolean; // count SLAs in business time (org calendar)
 }
 
+/** A notification of the sino. */
+export interface Notification {
+  id: string;
+  type: "mention" | "assigned" | "late" | "expired" | "overdue" | "automation_failed";
+  title: string;
+  body: string | null;
+  cardId: string | null;
+  pipeId: string | null;
+  link: string | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
+/** A card of "Meu trabalho". */
+export interface MyWorkCard {
+  id: string;
+  number: number;
+  title: string;
+  pipeId: string;
+  pipeName: string;
+  pipeIcon: string | null;
+  phaseName: string;
+  dueDate: string | null;
+  done: boolean;
+  lateAt: string | null;
+  expiredAt: string | null;
+  overdueAt: string | null;
+  updatedAt: string;
+}
+
 /** Expediente + feriados of the organisation. */
 export interface BusinessCalendar {
   weekdays: number[];

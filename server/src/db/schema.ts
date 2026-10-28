@@ -101,6 +101,20 @@ export const cardPhaseHistory = mysqlTable("card_phase_history", {
   becameLate: boolean("became_late").notNull().default(false),
 }, (t) => ({ cardIdx: index("idx_phasehist_card").on(t.cardId, t.enteredAt), phaseIdx: index("idx_phasehist_phase").on(t.phaseId) }));
 
+// In-app notifications (sino): mentions, assignments, alerts, automation failures.
+export const notifications = mysqlTable("notifications", {
+  id: id(),
+  userId: ref("user_id").notNull(),
+  type: varchar("type", { length: 32 }).notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  body: text("body"),
+  cardId: ref("card_id"),
+  pipeId: ref("pipe_id"),
+  link: varchar("link", { length: 255 }), // app path to open (e.g. /pipes/:id/automations)
+  readAt: datetime("read_at", { fsp: 3 }),
+  createdAt: createdAt(),
+}, (t) => ({ userIdx: index("idx_notif_user").on(t.userId, t.createdAt) }));
+
 // Organisation's business calendar (expediente + feriados) for SLAs.
 export const businessCalendars = mysqlTable("business_calendars", {
   orgId: ref("org_id").primaryKey(),

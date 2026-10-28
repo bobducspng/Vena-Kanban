@@ -1,9 +1,10 @@
 import { NavLink } from "react-router-dom";
-import { LayoutGrid, Database, BarChart3, Zap, Settings, Component } from "lucide-react";
+import { LayoutGrid, Database, BarChart3, Zap, Settings, Component, Inbox } from "lucide-react";
 import { cn } from "../../lib/cn";
 
 const nav = [
   { to: "/", label: "Pipes", icon: LayoutGrid, end: true },
+  { to: "/my-work", label: "Meu trabalho", icon: Inbox },
   { to: "/databases", label: "Bancos de dados", icon: Database },
   { to: "/reports", label: "Relatórios", icon: BarChart3 },
   { to: "/automations", label: "Automações", icon: Zap },
