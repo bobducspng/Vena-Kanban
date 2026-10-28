@@ -174,22 +174,22 @@ Opções de cada campo:
 ### 2.8 Automações [A §11, API §2.4]
 | Funcionalidade | Detalhe | Status | M |
 | --- | --- | --- | --- |
-| Motor evento → condições → ação | fila no MySQL + worker; sem limite de uso | ⬜ | M5 |
-| Eventos (10) | card criado; entrou em fase; saiu de fase; campo atualizado; todos os conectados em fase; recorrente (30 min/hora/dia/semana/mês, cron); alerta (vencido/atrasado/expirado); e-mail recebido; resposta HTTP; disparo manual | ⬜ | M5 (e-mail: M8) |
-| Condições em grupos E/OU | mesmos 19 operadores | ⬜ | M5 |
-| Cenários do recorrente | filtro de cards com lista ao vivo; lote de 300 | ⬜ | M5 |
-| Ação mover card / mover vários | | ⬜ | M5 |
-| Ação atualizar campo (card ou conectado) | valor fixo, dinâmico (outro campo, atributo), datas relativas | ⬜ | M5 |
-| Ação criar card/registro e criar conectado | com mapeamento de campos | ⬜ | M5 |
-| Ação mover card pai | | ⬜ | M5 |
-| Ação distribuir responsáveis | rodízio ou aleatório | ⬜ | M5 |
-| Ação fórmula | `+ - * / % ^`, SUM, AVERAGE, MIN, MAX, ROUND, IF_NULL, datas | ⬜ | M5 |
+| Motor evento → condições → ação | fila no MySQL + worker; sem limite de uso | ✅ (sem limite de uso) | M5 |
+| Eventos (10) | card criado; entrou em fase; saiu de fase; campo atualizado; todos os conectados em fase; recorrente (30 min/hora/dia/semana/mês, cron); alerta (vencido/atrasado/expirado); e-mail recebido; resposta HTTP; disparo manual | 🟡 (criado, entrou/saiu de fase, campo, filhos na fase, agendado; alerta no M6, e-mail no M8, manual = executar agora) | M5 (e-mail: M8) |
+| Condições em grupos E/OU | mesmos 19 operadores | ✅ | M5 |
+| Cenários do recorrente | filtro de cards com lista ao vivo; lote de 300 | ✅ (fase + condições, lote 300) | M5 |
+| Ação mover card / mover vários | ✅ | M5 |
+| Ação atualizar campo (card ou conectado) | valor fixo, dinâmico (outro campo, atributo), datas relativas | 🟡 (no próprio card; conectado depois) | M5 |
+| Ação criar card/registro e criar conectado | com mapeamento de campos | 🟡 (card conectado em outro pipe; registro depois) | M5 |
+| Ação mover card pai | ✅ | M5 |
+| Ação distribuir responsáveis | rodízio ou aleatório | ✅ | M5 |
+| Ação fórmula | `+ - * / % ^`, SUM, AVERAGE, MIN, MAX, ROUND, IF_NULL, datas | ✅ | M5 |
 | Ação enviar template de e-mail / enviar tarefa | | ⬜ | M8 / M7 |
-| Ação requisição HTTP | método, headers, corpo, autenticação, schema da resposta | ⬜ | M5 |
+| Ação requisição HTTP | método, headers, corpo, autenticação, schema da resposta | ✅ (bloqueia rede interna) | M5 |
 | Ação aplicar regras de SLA | expediente, feriados, fuso → calcula vencimento | ⬜ | M6 |
 | Ação gerar com IA | | ⬜ | M11 |
-| Gestão | lista com filtros (status/evento/ação), busca, ordenação, ativar/desativar, duplicar (nasce desativada) | ⬜ | M5 |
-| **Logs por execução + alerta de falha + testar regra** | melhoria sobre o Pipefy | ⬜ | M5 |
+| Gestão | lista com filtros (status/evento/ação), busca, ordenação, ativar/desativar, duplicar (nasce desativada) | ✅ | M5 |
+| **Logs por execução + alerta de falha + testar regra** | melhoria sobre o Pipefy | ✅ | M5 |
 | Automações entre pipes | evento num pipe, ação em outro | ⬜ | M5 |
 
 ### 2.9 SLA, alertas e notificações [A §12]
@@ -275,7 +275,7 @@ Ordem pensada para destravar valor cedo e porque cada marco depende do anterior.
 | **M2 ✅ — Card completo** | ★ transições permitidas ("mover para"), arrastar no kanban, uma fase por vez; opções de campo (descrição, ajuda, editável em outras fases, único, regex); tipos que faltam (checklist, hora, vencimento, responsável, etiqueta, anexo, CPF/CNPJ, ID); responsáveis, etiquetas, comentários com menção, anexos e checklist no card; título/subtítulos do card; config do pipe (ícone, cor, nome do objeto, botão); responsáveis da fase; criar card em outra fase; arquivar campo; excluir/duplicar card com lixeira | é o uso diário; todo o resto (condicionais, automações, relatórios) lê esses dados |
 | **M3 ✅ — Condicionais** | ★ editor com grupos E/OU, 19 operadores, mostrar/ocultar e **obrigar**; servidor valida respeitando ocultos | depende dos tipos de campo do M2 |
 | **M4 ✅ — Databases e conexões** | ★ databases (tabelas, registros, formulário, status); campo de conexão pipe/database; ★ autopreenchimento a partir do registro; pai/filho e suas regras; conteúdo dinâmico | "dados vindos do BD" depende de databases + conexão |
-| **M5 — Automações** | ★ motor e catálogo completo (mover automático, criar card em outro pipe, atualizar campo, mover pai, rodízio, fórmula, HTTP); recorrentes; logs, alerta de falha, testar regra; campo fórmula | precisa de conexões (M4) para as ações entre pipes |
+| **M5 ✅ — Automações** | ★ motor e catálogo completo (mover automático, criar card em outro pipe, atualizar campo, mover pai, rodízio, fórmula, HTTP); recorrentes; logs, alerta de falha, testar regra; campo fórmula | precisa de conexões (M4) para as ações entre pipes |
 | **M6 — SLA e trabalho do dia** | vencido/atrasado/expirado, dias úteis + feriados, histórico de tempo por fase, timers, "Meu trabalho", notificações in-app | eventos de alerta alimentam automações |
 | **M7 — Formulários externos e portal** | formulário público e de fase, tarefas, portal com páginas, rastreador "meus pedidos", convidados | precisa de condicionais (M3) e permissões básicas |
 | **M8 — E-mail** | templates, SMTP próprio, envio manual e por automação, caixa de entrada do pipe/card | exige definir provedor de e-mail (decisão abaixo) |
