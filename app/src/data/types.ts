@@ -5,8 +5,8 @@ export type Role = "admin" | "member" | "guest";
 
 export type FieldType =
   | "short_text" | "long_text" | "email" | "phone" | "number" | "currency"
-  | "date" | "datetime" | "due_date" | "select" | "radio" | "checkbox"
-  | "assignee_select" | "attachment" | "statement";
+  | "date" | "datetime" | "time" | "due_date" | "select" | "radio" | "checklist" | "checkbox"
+  | "assignee_select" | "label_select" | "attachment" | "document" | "id" | "statement";
 
 /** Field types the phase editor offers (server validates the same list). */
 export const EDITABLE_FIELD_TYPES = [
@@ -16,11 +16,19 @@ export const EDITABLE_FIELD_TYPES = [
   { value: "currency", label: "Moeda (R$)" },
   { value: "date", label: "Data" },
   { value: "datetime", label: "Data e hora" },
+  { value: "time", label: "Hora" },
+  { value: "due_date", label: "Data de vencimento (alimenta o vencimento do card)" },
   { value: "email", label: "E-mail" },
   { value: "phone", label: "Telefone" },
+  { value: "document", label: "CPF / CNPJ" },
   { value: "select", label: "Lista de opções" },
   { value: "radio", label: "Escolha única (botões)" },
+  { value: "checklist", label: "Múltipla escolha (checklist)" },
   { value: "checkbox", label: "Sim / Não" },
+  { value: "assignee_select", label: "Seleção de responsável" },
+  { value: "label_select", label: "Etiqueta (vira as etiquetas do card)" },
+  { value: "attachment", label: "Anexo" },
+  { value: "id", label: "ID do card (somente leitura)" },
 ] as const;
 export type EditableFieldType = (typeof EDITABLE_FIELD_TYPES)[number]["value"];
 
@@ -49,10 +57,13 @@ export interface FieldDef {
   editableOtherPhases: boolean; // false = only editable while the card is in this phase
   isUnique: boolean;
   validationRegex?: string | null;
+  archivedAt?: string | null;
 }
 
 /** Field types that accept "valor único" (server checks the same list). */
-export const UNIQUE_FIELD_TYPES: FieldType[] = ["short_text", "email", "phone", "number", "currency", "date", "datetime"];
+export const UNIQUE_FIELD_TYPES: FieldType[] = ["short_text", "email", "phone", "document", "number", "currency", "date", "datetime"];
+/** Types with an options list. */
+export const OPTION_FIELD_TYPES: FieldType[] = ["select", "radio", "checklist"];
 
 export interface Phase {
   id: string;
@@ -76,7 +87,8 @@ export interface Pipe {
 
 export interface CardFieldValue {
   fieldId: string;
-  value: string | number | boolean | null;
+  // string[] = checklist options, user ids (responsáveis), label ids or attachment ids.
+  value: string | number | boolean | null | string[];
 }
 
 export interface Card {

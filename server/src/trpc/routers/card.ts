@@ -4,9 +4,11 @@ import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
 import { cards, cardFields, cardAssignees, cardLabels, cardEvents, fields, phases, phaseTransitions, labels, memberships, checklistItems, comments, attachments } from "../../db/schema.js";
 import { cardInOrg, logEvent } from "../cardAccess.js";
+import { isEmpty, validateValue, applySideEffects } from "../../fieldRules.js";
 import { router, protectedProcedure, assertPipeInOrg } from "../trpc.js";
 
-const valueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
+// Lists hold checklist options, user ids (responsáveis) or label ids (etiquetas).
+const valueSchema = z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string().max(255)).max(200)]);
 
 // Shape a card row with its values[] and assigneeIds[] — matches the front-end type.
 type Extra = {
@@ -55,23 +57,6 @@ function missingRequired(
     .map((f) => f.label);
 }
 
-type FieldRow = typeof fields.$inferSelect;
-const isEmpty = (v: unknown) => v === undefined || v === null || v === "";
-
-/** Field-level rules on a value: custom regex and "valor único" within the pipe. */
-async function validateValue(field: FieldRow, value: unknown, exceptCardId?: string) {
-  if (isEmpty(value)) return;
-  if (field.validationRegex && typeof value === "string" && !new RegExp(field.validationRegex).test(value)) {
-    throw new TRPCError({ code: "BAD_REQUEST", message: `"${field.label}" está em formato inválido.` });
-  }
-  if (field.isUnique) {
-    const others = await db.select({ cardId: cardFields.cardId, value: cardFields.value })
-      .from(cardFields).where(eq(cardFields.fieldId, field.id));
-    const norm = (v: unknown) => String(v).trim().toLowerCase();
-    const dup = others.find((o) => o.cardId !== exceptCardId && !isEmpty(o.value) && norm(o.value) === norm(value));
-    if (dup) throw new TRPCError({ code: "CONFLICT", message: `Já existe um card com este valor em "${field.label}".` });
-  }
-}
 
 export const cardRouter = router({
   listByPipe: protectedProcedure.input(z.object({ pipeId: z.string() })).query(async ({ ctx, input }) => {
@@ -111,16 +96,17 @@ export const cardRouter = router({
         landing = ph;
       }
 
-      const required = await db.select({ id: fields.id, label: fields.label }).from(fields)
-        .where(and(eq(fields.phaseId, start.id), eq(fields.required, true)));
+      const required = (await db.select({ id: fields.id, label: fields.label, type: fields.type }).from(fields)
+        .where(and(eq(fields.phaseId, start.id), eq(fields.required, true), isNull(fields.archivedAt))))
+        .filter((f) => f.type !== "attachment" && f.type !== "id");
       const missing = missingRequired(required, input.values);
       if (missing.length) throw new TRPCError({ code: "BAD_REQUEST", message: `Preencha os campos obrigatórios: ${missing.join(", ")}` });
       // Only start-phase fields can be filled on creation.
-      const startFields = await db.select().from(fields).where(eq(fields.phaseId, start.id));
+      const startFields = await db.select().from(fields).where(and(eq(fields.phaseId, start.id), isNull(fields.archivedAt)));
       for (const v of input.values) {
         const f = startFields.find((x) => x.id === v.fieldId);
         if (!f) throw new TRPCError({ code: "BAD_REQUEST", message: "Campo não pertence ao formulário inicial" });
-        await validateValue(f, v.value);
+        await validateValue(f, v.value, ctx.orgId);
       }
 
       return db.transaction(async (tx) => {
@@ -132,13 +118,14 @@ export const cardRouter = router({
         for (const v of input.values) {
           await tx.insert(cardFields).values({
             id: crypto.randomUUID(), cardId, fieldId: v.fieldId, value: v.value,
-            filledAt: v.value === null || v.value === "" ? null : new Date(),
+            filledAt: isEmpty(v.value) ? null : new Date(),
           });
         }
         await tx.insert(cardEvents).values({ id: crypto.randomUUID(), cardId, type: "created", actorId: ctx.userId });
-        const h = await hydrate([cardId]);
-        const row = (await tx.select().from(cards).where(eq(cards.id, cardId)).limit(1))[0];
-        return { ...row, ...h.get(cardId)! };
+        return cardId;
+      }).then(async (cardId) => {
+        for (const v of input.values) await applySideEffects(startFields.find((x) => x.id === v.fieldId)!, cardId, v.value);
+        return shaped(cardId);
       });
     }),
 
@@ -149,7 +136,7 @@ export const cardRouter = router({
 
       // Editability: never a future phase's field; a past phase's only if "editável em outras fases".
       const field = (await db.select().from(fields).where(eq(fields.id, input.fieldId)).limit(1))[0];
-      if (!field || field.pipeId !== card.pipeId) throw new TRPCError({ code: "BAD_REQUEST", message: "Campo inválido" });
+      if (!field || field.pipeId !== card.pipeId || field.archivedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "Campo inválido" });
       if (field.phaseId !== card.currentPhaseId) {
         const ph = await db.select({ id: phases.id, position: phases.position }).from(phases).where(eq(phases.pipeId, card.pipeId));
         const pos = (id: string) => ph.find((x) => x.id === id)?.position ?? 0;
@@ -160,20 +147,20 @@ export const cardRouter = router({
           throw new TRPCError({ code: "FORBIDDEN", message: `"${field.label}" só pode ser editado na fase dele.` });
         }
       }
-      await validateValue(field, input.value, card.id);
+      await validateValue(field, input.value, ctx.orgId, card.id);
 
       const existing = (await db.select().from(cardFields)
         .where(and(eq(cardFields.cardId, input.cardId), eq(cardFields.fieldId, input.fieldId))).limit(1))[0];
-      const filledAt = input.value === null || input.value === "" ? null : new Date();
+      const filledAt = isEmpty(input.value) ? null : new Date();
       if (existing) {
         await db.update(cardFields).set({ value: input.value, filledAt })
           .where(eq(cardFields.id, existing.id));
       } else {
         await db.insert(cardFields).values({ id: crypto.randomUUID(), cardId: input.cardId, fieldId: input.fieldId, value: input.value, filledAt });
       }
-      await db.insert(cardEvents).values({ id: crypto.randomUUID(), cardId: input.cardId, type: "field_updated", actorId: ctx.userId });
-      const h = await hydrate([input.cardId]);
-      return { ...card, ...h.get(input.cardId)! };
+      await applySideEffects(field, card.id, input.value);
+      await logEvent(card.id, "field_updated", ctx.userId, { fieldId: field.id });
+      return shaped(card.id);
     }),
 
   move: protectedProcedure
@@ -190,7 +177,7 @@ export const cardRouter = router({
 
       // Required-field gate on the phase being left.
       const required = await db.select({ id: fields.id, label: fields.label }).from(fields)
-        .where(and(eq(fields.phaseId, card.currentPhaseId), eq(fields.required, true)));
+        .where(and(eq(fields.phaseId, card.currentPhaseId), eq(fields.required, true), isNull(fields.archivedAt)));
       const vals = await db.select().from(cardFields).where(eq(cardFields.cardId, card.id));
       const missing = missingRequired(required, vals.map((v) => ({ fieldId: v.fieldId, value: v.value })));
       if (missing.length) throw new TRPCError({ code: "BAD_REQUEST", message: `Preencha os campos obrigatórios: ${missing.join(", ")}` });
@@ -291,8 +278,9 @@ export const cardRouter = router({
   duplicate: protectedProcedure.input(z.object({ cardId: z.string() })).mutation(async ({ ctx, input }) => {
     const card = await cardInOrg(input.cardId, ctx.orgId);
     const src = (await hydrate([card.id])).get(card.id)!;
-    const uniques = new Set((await db.select({ id: fields.id }).from(fields)
-      .where(and(eq(fields.pipeId, card.pipeId), eq(fields.isUnique, true)))).map((f) => f.id));
+    // Not copied: "valor único" values and attachment fields (files belong to the original).
+    const uniques = new Set((await db.select({ id: fields.id, isUnique: fields.isUnique, type: fields.type }).from(fields)
+      .where(eq(fields.pipeId, card.pipeId))).filter((f) => f.isUnique || f.type === "attachment").map((f) => f.id));
     const items = await db.select().from(checklistItems).where(eq(checklistItems.cardId, card.id));
     const newId = crypto.randomUUID();
     await db.transaction(async (tx) => {

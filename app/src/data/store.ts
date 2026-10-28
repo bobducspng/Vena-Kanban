@@ -34,14 +34,14 @@ const toISON = (d: Date | string | null | undefined): string | null =>
 
 type SrvPipe = { id: string; name: string; description: string | null; createdAt: Date | string };
 type SrvPhase = { id: string; pipeId: string; name: string; color: string | null; position: number; isStart: boolean; isEnd: boolean; description: string | null; canCreateCard: boolean; allowedTo?: string[] };
-type SrvField = { id: string; pipeId: string; phaseId: string; label: string; type: string; required: boolean; options: unknown; position: number; description: string | null; help: string | null; editableOtherPhases: boolean; isUnique: boolean; validationRegex: string | null };
+type SrvField = { id: string; pipeId: string; phaseId: string; label: string; type: string; required: boolean; options: unknown; position: number; description: string | null; help: string | null; editableOtherPhases: boolean; isUnique: boolean; validationRegex: string | null; archivedAt: Date | string | null };
 type SrvCard = { id: string; number: number; pipeId: string; currentPhaseId: string; title: string; dueDate: Date | string | null; done: boolean; version: number; createdAt: Date | string; values: { fieldId: string; value: unknown }[]; assigneeIds: string[]; labelIds: string[]; checklistDone: number; checklistTotal: number; commentCount: number; attachmentCount: number };
 type SrvEvent = { id: string; cardId: string; type: string; fromPhaseId: string | null; toPhaseId: string | null; actorId: string | null; createdAt: Date | string };
 type SrvUser = { id: string; name: string | null; email: string; role?: Role | null };
 
 const mapPipe = (p: SrvPipe): Pipe => ({ id: p.id, name: p.name, description: p.description ?? undefined, createdAt: toISO(p.createdAt) });
 const mapPhase = (p: SrvPhase): Phase => ({ id: p.id, pipeId: p.pipeId, name: p.name, color: p.color ?? "gray", position: p.position, isStart: p.isStart, isEnd: p.isEnd, description: p.description, canCreateCard: p.canCreateCard, allowedTo: p.allowedTo ?? [] });
-const mapField = (f: SrvField): FieldDef => ({ id: f.id, pipeId: f.pipeId, phaseId: f.phaseId, label: f.label, type: f.type as FieldType, required: f.required, options: Array.isArray(f.options) ? (f.options as string[]) : undefined, position: f.position, description: f.description, help: f.help, editableOtherPhases: f.editableOtherPhases, isUnique: f.isUnique, validationRegex: f.validationRegex });
+const mapField = (f: SrvField): FieldDef => ({ id: f.id, pipeId: f.pipeId, phaseId: f.phaseId, label: f.label, type: f.type as FieldType, required: f.required, options: Array.isArray(f.options) ? (f.options as string[]) : undefined, position: f.position, description: f.description, help: f.help, editableOtherPhases: f.editableOtherPhases, isUnique: f.isUnique, validationRegex: f.validationRegex, archivedAt: toISON(f.archivedAt) });
 const mapCard = (c: SrvCard): Card => ({
   id: c.id, number: c.number, pipeId: c.pipeId, currentPhaseId: c.currentPhaseId, title: c.title,
   values: c.values.map((v) => ({ fieldId: v.fieldId, value: v.value as CardFieldValue["value"] })),
@@ -100,8 +100,9 @@ export const api = {
   },
 
   field: {
-    listByPipe: async (pipeId: string): Promise<FieldDef[]> =>
-      (await trpc.field.listByPipe.query({ pipeId })).map(mapField),
+    listByPipe: async (pipeId: string, includeArchived = false): Promise<FieldDef[]> =>
+      (await trpc.field.listByPipe.query({ pipeId, includeArchived })).map(mapField),
+    archive: (fieldId: string, archived: boolean) => trpc.field.archive.mutate({ fieldId, archived }),
     listByPhase: async (phaseId: string): Promise<FieldDef[]> =>
       (await trpc.field.listByPhase.query({ phaseId })).map(mapField),
     create: async (input: { phaseId: string; label: string; type: EditableFieldType; required: boolean; options?: string[] } & FieldProps): Promise<FieldDef> =>
@@ -178,9 +179,11 @@ export const api = {
 
   // Attachments go over plain HTTP (binary body), not tRPC.
   file: {
-    listByCard: async (cardId: string): Promise<Attachment[]> => fileFetch(`/files/cards/${cardId}`),
-    upload: async (cardId: string, file: File): Promise<Attachment> =>
-      fileFetch(`/files/cards/${cardId}?name=${encodeURIComponent(file.name)}`, {
+    // fieldId = attachments of an "Anexo" field; without it, the card's own "Anexos".
+    listByCard: async (cardId: string, fieldId?: string): Promise<Attachment[]> =>
+      fileFetch(`/files/cards/${cardId}${fieldId ? `?fieldId=${fieldId}` : ""}`),
+    upload: async (cardId: string, file: File, fieldId?: string): Promise<Attachment> =>
+      fileFetch(`/files/cards/${cardId}?name=${encodeURIComponent(file.name)}${fieldId ? `&fieldId=${fieldId}` : ""}`, {
         method: "POST", body: file, headers: { "Content-Type": file.type || "application/octet-stream" },
       }),
     remove: async (id: string): Promise<{ ok: true }> => fileFetch(`/files/${id}`, { method: "DELETE" }),

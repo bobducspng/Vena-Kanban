@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, Pencil, Plus, Trash2, Flag, CheckCircle2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Pencil, Plus, Trash2, Flag, CheckCircle2, Archive, ArchiveRestore } from "lucide-react";
 import { api } from "../data/store";
 import { useMe } from "../lib/useMe";
-import { EDITABLE_FIELD_TYPES, PHASE_COLORS, UNIQUE_FIELD_TYPES, type EditableFieldType, type FieldDef, type Phase, type PhaseColor } from "../data/types";
+import { EDITABLE_FIELD_TYPES, OPTION_FIELD_TYPES, PHASE_COLORS, UNIQUE_FIELD_TYPES, type EditableFieldType, type FieldDef, type Phase, type PhaseColor } from "../data/types";
 import { AppShell } from "../components/app/AppShell";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
@@ -40,7 +40,7 @@ export function PipeSettings() {
 
   const { data: pipe } = useQuery({ queryKey: ["pipe", pipeId], queryFn: () => api.pipe.get(pipeId) });
   const { data: phases, isLoading } = useQuery({ queryKey: ["phases", pipeId], queryFn: () => api.phase.listByPipe(pipeId) });
-  const { data: fields } = useQuery({ queryKey: ["fields", pipeId], queryFn: () => api.field.listByPipe(pipeId) });
+  const { data: fields } = useQuery({ queryKey: ["fields", pipeId, "all"], queryFn: () => api.field.listByPipe(pipeId, true) });
 
   useEffect(() => {
     if (phases?.length && !phases.some((p) => p.id === selectedId)) setSelectedId(phases[0].id);
@@ -203,6 +203,14 @@ function PhaseEditor({ phase, phases, fields, onChanged }: { phase: Phase; phase
   const remove = useMutation({ mutationFn: () => api.phase.remove(phase.id), onSuccess: () => { onChanged(); toast("Fase excluída", "success"); }, onError });
   const reorderFields = useMutation({ mutationFn: (ids: string[]) => api.field.reorder(phase.id, ids), onSuccess: onChanged, onError });
   const removeField = useMutation({ mutationFn: (id: string) => api.field.remove(id), onSuccess: () => { onChanged(); toast("Campo excluído", "success"); }, onError });
+  const archiveField = useMutation({
+    mutationFn: (p: { id: string; archived: boolean }) => api.field.archive(p.id, p.archived),
+    onSuccess: (_d, p) => { onChanged(); toast(p.archived ? "Campo arquivado" : "Campo restaurado", "success"); },
+    onError,
+  });
+  const [showArchived, setShowArchived] = useState(false);
+  const active = fields.filter((f) => !f.archivedAt);
+  const archived = fields.filter((f) => f.archivedAt);
 
   const saveName = () => { const n = name.trim(); if (n && n !== phase.name) update.mutate({ name: n }); else setName(phase.name); };
 
@@ -264,11 +272,11 @@ function PhaseEditor({ phase, phases, fields, onChanged }: { phase: Phase; phase
           <h3 className="text-sm font-semibold text-text">Campos desta fase</h3>
           <Button size="sm" onClick={() => setEditing("new")}><Plus className="h-4 w-4" aria-hidden="true" /> Adicionar campo</Button>
         </div>
-        {fields.length === 0 ? (
+        {active.length === 0 ? (
           <p className="rounded-md border border-dashed border-border p-4 text-center text-sm text-muted">Nenhum campo. Adicione o que a equipe deve preencher nesta fase.</p>
         ) : (
           <ol className="flex flex-col divide-y divide-border rounded-md border border-border">
-            {fields.map((f, i) => (
+            {active.map((f, i) => (
               <li key={f.id} className="flex items-center gap-2 px-3 py-2">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm text-text">{f.label}{f.required && <span className="ml-1 text-danger" title="Obrigatório">*</span>}</p>
@@ -277,13 +285,33 @@ function PhaseEditor({ phase, phases, fields, onChanged }: { phase: Phase; phase
                     {f.options?.length ? ` · ${f.options.length} opções` : ""}
                   </p>
                 </div>
-                <button aria-label={`Subir ${f.label}`} disabled={i === 0 || reorderFields.isPending} onClick={() => reorderFields.mutate(moved(fields, i, -1))} className="rounded p-1 text-muted hover:bg-surface disabled:opacity-30"><ArrowUp className="h-4 w-4" /></button>
-                <button aria-label={`Descer ${f.label}`} disabled={i === fields.length - 1 || reorderFields.isPending} onClick={() => reorderFields.mutate(moved(fields, i, 1))} className="rounded p-1 text-muted hover:bg-surface disabled:opacity-30"><ArrowDown className="h-4 w-4" /></button>
+                <button aria-label={`Subir ${f.label}`} disabled={i === 0 || reorderFields.isPending} onClick={() => reorderFields.mutate(moved(active, i, -1))} className="rounded p-1 text-muted hover:bg-surface disabled:opacity-30"><ArrowUp className="h-4 w-4" /></button>
+                <button aria-label={`Descer ${f.label}`} disabled={i === active.length - 1 || reorderFields.isPending} onClick={() => reorderFields.mutate(moved(active, i, 1))} className="rounded p-1 text-muted hover:bg-surface disabled:opacity-30"><ArrowDown className="h-4 w-4" /></button>
                 <button aria-label={`Editar ${f.label}`} onClick={() => setEditing(f)} className="rounded p-1 text-muted hover:bg-surface"><Pencil className="h-4 w-4" /></button>
-                <button aria-label={`Excluir ${f.label}`} onClick={() => { if (confirm(`Excluir o campo "${f.label}"? Os valores preenchidos nos cards serão apagados.`)) removeField.mutate(f.id); }} className="rounded p-1 text-muted hover:bg-surface hover:text-danger"><Trash2 className="h-4 w-4" /></button>
+                <button aria-label={`Arquivar ${f.label}`} title="Arquivar (some dos formulários, mantém os valores)" onClick={() => archiveField.mutate({ id: f.id, archived: true })} className="rounded p-1 text-muted hover:bg-surface"><Archive className="h-4 w-4" /></button>
+                <button aria-label={`Excluir ${f.label}`} onClick={() => { if (confirm(`Excluir o campo "${f.label}"? Os valores preenchidos nos cards serão apagados. Prefira arquivar se quiser guardar os dados.`)) removeField.mutate(f.id); }} className="rounded p-1 text-muted hover:bg-surface hover:text-danger"><Trash2 className="h-4 w-4" /></button>
               </li>
             ))}
           </ol>
+        )}
+        {archived.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <button className="self-start text-xs text-accent" onClick={() => setShowArchived((s) => !s)}>
+              {showArchived ? "Ocultar" : "Mostrar"} campos arquivados ({archived.length})
+            </button>
+            {showArchived && (
+              <ul className="flex flex-col divide-y divide-border rounded-md border border-dashed border-border">
+                {archived.map((f) => (
+                  <li key={f.id} className="flex items-center gap-2 px-3 py-2">
+                    <span className="min-w-0 flex-1 truncate text-sm text-muted">{f.label} · {TYPE_LABEL[f.type] ?? f.type}</span>
+                    <Button size="sm" variant="secondary" onClick={() => archiveField.mutate({ id: f.id, archived: false })}>
+                      <ArchiveRestore className="h-4 w-4" aria-hidden="true" /> Restaurar
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         )}
       </div>
 
@@ -326,7 +354,7 @@ function FieldEditorModal({ phaseId, field, onClose, onSaved }: { phaseId: strin
     setRegex(existing?.validationRegex ?? "");
   }, [field]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const hasOptions = type === "select" || type === "radio";
+  const hasOptions = OPTION_FIELD_TYPES.includes(type);
   const canBeUnique = UNIQUE_FIELD_TYPES.includes(type);
   const canRegex = type === "short_text";
   const options = optionsText.split("\n").map((s) => s.trim()).filter(Boolean);

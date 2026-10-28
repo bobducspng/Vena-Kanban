@@ -103,6 +103,7 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
                     def={f}
                     saved={card.values.find((v) => v.fieldId === f.id)?.value ?? undefined}
                     disabled={f.phaseId !== current.id && !f.editableOtherPhases}
+                    card={card}
                     onSaved={refresh}
                   />
                 ))}
@@ -177,12 +178,12 @@ function TitleEditor({ cardId, title, onSaved }: { cardId: string; title: string
 }
 
 // Typed inputs save after a pause; choices save at once.
-const IMMEDIATE = new Set(["select", "radio", "checkbox", "date", "datetime", "due_date"]);
+const IMMEDIATE = new Set(["select", "radio", "checkbox", "checklist", "date", "datetime", "time", "due_date", "assignee_select", "label_select"]);
 
 /** One field on an open card: local draft, debounced save, server errors as a toast
  *  (and the draft rolls back to the saved value). */
-function CardFieldEditor({ cardId, def, saved, disabled, onSaved }: {
-  cardId: string; def: FieldDef; saved: CardFieldValue["value"] | undefined; disabled: boolean; onSaved: () => void;
+function CardFieldEditor({ cardId, def, saved, disabled, card, onSaved }: {
+  cardId: string; def: FieldDef; saved: CardFieldValue["value"] | undefined; disabled: boolean; card: { id: string; number: number }; onSaved: () => void;
 }) {
   const toast = useToast();
   const [draft, setDraft] = useState(saved);
@@ -203,7 +204,7 @@ function CardFieldEditor({ cardId, def, saved, disabled, onSaved }: {
     else timer.current = setTimeout(() => save.mutate(v), 700);
   };
 
-  return <Field def={def} value={draft} onChange={onChange} disabled={disabled} />;
+  return <Field def={def} value={draft} onChange={onChange} disabled={disabled} card={card} />;
 }
 
 function describe(e: CardEvent, phases: Phase[], members: User[]): string {

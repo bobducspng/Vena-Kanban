@@ -100,6 +100,8 @@ export const fields = mysqlTable("fields", {
   // Rejects a value already used by another card of the pipe.
   isUnique: boolean("is_unique").notNull().default(false),
   validationRegex: varchar("validation_regex", { length: 500 }),
+  // Arquivado: leaves forms and cards, keeps its values; restorable.
+  archivedAt: datetime("archived_at", { fsp: 3 }),
   options: json("options"),
   settings: json("settings"),
   position: int("position").notNull().default(0),

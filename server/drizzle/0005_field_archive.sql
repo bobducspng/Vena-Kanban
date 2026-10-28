@@ -1,0 +1,1 @@
+ALTER TABLE `fields` ADD `archived_at` datetime(3);

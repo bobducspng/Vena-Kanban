@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, asc, sql } from "drizzle-orm";
+import { eq, asc, and, isNull, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
 import { fields, phases, cardFields } from "../../db/schema.js";
@@ -7,12 +7,13 @@ import { router, protectedProcedure, adminProcedure, assertPipeInOrg } from "../
 
 // Types the editor offers (and the card form renders).
 const fieldType = z.enum([
-  "short_text", "long_text", "number", "currency", "date", "datetime",
-  "email", "phone", "select", "radio", "checkbox",
+  "short_text", "long_text", "number", "currency", "date", "datetime", "time", "due_date",
+  "email", "phone", "document", "select", "radio", "checklist", "checkbox",
+  "assignee_select", "label_select", "attachment", "id",
 ]);
 const options = z.array(z.string().trim().min(1).max(255)).max(200);
 // Types where "valor único" makes sense (as in the original).
-const UNIQUE_TYPES = new Set(["short_text", "email", "phone", "number", "currency", "date", "datetime"]);
+const UNIQUE_TYPES = new Set(["short_text", "email", "phone", "document", "number", "currency", "date", "datetime"]);
 const props = {
   description: z.string().max(2000).nullable().optional(),
   help: z.string().max(500).nullable().optional(),
@@ -50,24 +51,33 @@ async function fieldInOrg(fieldId: string, orgId: string) {
   return field;
 }
 
-/** Select/radio need at least one option. */
+/** Select/radio/checklist need at least one option. */
 function checkOptions(type: string, opts: string[] | null | undefined) {
-  if ((type === "select" || type === "radio") && !opts?.length) {
+  if ((type === "select" || type === "radio" || type === "checklist") && !opts?.length) {
     throw new TRPCError({ code: "BAD_REQUEST", message: "Informe ao menos uma opção para a lista." });
   }
 }
 
 export const fieldRouter = router({
-  listByPipe: protectedProcedure.input(z.object({ pipeId: z.string() })).query(async ({ ctx, input }) => {
+  // Archived fields are left out unless asked for (the settings screen lists them to restore).
+  listByPipe: protectedProcedure.input(z.object({ pipeId: z.string(), includeArchived: z.boolean().optional() })).query(async ({ ctx, input }) => {
     await assertPipeInOrg(input.pipeId, ctx.orgId);
-    return db.select().from(fields).where(eq(fields.pipeId, input.pipeId)).orderBy(asc(fields.position));
+    const where = input.includeArchived ? eq(fields.pipeId, input.pipeId) : and(eq(fields.pipeId, input.pipeId), isNull(fields.archivedAt));
+    return db.select().from(fields).where(where).orderBy(asc(fields.position));
   }),
   // Takes only phaseId; resolves the owning pipe to authorize.
   listByPhase: protectedProcedure.input(z.object({ phaseId: z.string() })).query(async ({ ctx, input }) => {
     const phase = (await db.select({ pipeId: phases.pipeId }).from(phases).where(eq(phases.id, input.phaseId)).limit(1))[0];
     if (!phase) return [];
     await assertPipeInOrg(phase.pipeId, ctx.orgId);
-    return db.select().from(fields).where(eq(fields.phaseId, input.phaseId)).orderBy(asc(fields.position));
+    return db.select().from(fields).where(and(eq(fields.phaseId, input.phaseId), isNull(fields.archivedAt))).orderBy(asc(fields.position));
+  }),
+
+  /** Arquivar: safe alternative to deleting; values are kept. */
+  archive: adminProcedure.input(z.object({ fieldId: z.string(), archived: z.boolean() })).mutation(async ({ ctx, input }) => {
+    await fieldInOrg(input.fieldId, ctx.orgId);
+    await db.update(fields).set({ archivedAt: input.archived ? new Date() : null }).where(eq(fields.id, input.fieldId));
+    return { ok: true };
   }),
 
   create: adminProcedure

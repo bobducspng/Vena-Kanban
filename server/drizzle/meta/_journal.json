@@ -36,6 +36,13 @@
       "when": 1793192663252,
       "tag": "0004_card_features",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1793193171063,
+      "tag": "0005_field_archive",
+      "breakpoints": true
     }
   ]
 }
