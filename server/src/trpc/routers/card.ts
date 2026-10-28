@@ -2,7 +2,7 @@ import { z } from "zod";
 import { eq, and, inArray, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
-import { cards, cardFields, cardAssignees, cardEvents, fields, phases } from "../../db/schema.js";
+import { cards, cardFields, cardAssignees, cardEvents, fields, phases, phaseTransitions } from "../../db/schema.js";
 import { router, protectedProcedure, assertPipeInOrg } from "../trpc.js";
 
 const valueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
@@ -70,6 +70,8 @@ export const cardRouter = router({
   create: protectedProcedure
     .input(z.object({
       pipeId: z.string(),
+      // Optional landing phase: the start phase (default) or one that allows creating cards.
+      phaseId: z.string().optional(),
       title: z.string().max(512),
       values: z.array(z.object({ fieldId: z.string(), value: valueSchema })),
     }))
@@ -78,6 +80,14 @@ export const cardRouter = router({
       const start = (await db.select().from(phases)
         .where(and(eq(phases.pipeId, input.pipeId), eq(phases.isStart, true))).limit(1))[0];
       if (!start) throw new TRPCError({ code: "BAD_REQUEST", message: "Pipe sem fase inicial" });
+      let landing = start;
+      if (input.phaseId && input.phaseId !== start.id) {
+        const ph = (await db.select().from(phases).where(eq(phases.id, input.phaseId)).limit(1))[0];
+        if (!ph || ph.pipeId !== input.pipeId || !ph.canCreateCard) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Esta fase não permite criar cards" });
+        }
+        landing = ph;
+      }
 
       const required = await db.select({ id: fields.id, label: fields.label }).from(fields)
         .where(and(eq(fields.phaseId, start.id), eq(fields.required, true)));
@@ -94,7 +104,7 @@ export const cardRouter = router({
       return db.transaction(async (tx) => {
         const cardId = crypto.randomUUID();
         await tx.insert(cards).values({
-          id: cardId, pipeId: input.pipeId, currentPhaseId: start.id,
+          id: cardId, pipeId: input.pipeId, currentPhaseId: landing.id, done: landing.isEnd,
           title: input.title || "(sem título)", createdBy: ctx.userId,
         });
         for (const v of input.values) {
@@ -155,6 +165,10 @@ export const cardRouter = router({
 
       const to = (await db.select().from(phases).where(eq(phases.id, input.toPhaseId)).limit(1))[0];
       if (!to || to.pipeId !== card.pipeId) throw new TRPCError({ code: "BAD_REQUEST", message: "Fase destino inválida" });
+      // "Mover para": only phases this phase is linked to (manual moves; automations will bypass).
+      const link = (await db.select().from(phaseTransitions)
+        .where(and(eq(phaseTransitions.fromPhaseId, card.currentPhaseId), eq(phaseTransitions.toPhaseId, to.id))).limit(1))[0];
+      if (!link) throw new TRPCError({ code: "FORBIDDEN", message: `Não é permitido mover deste ponto para "${to.name}".` });
 
       // Required-field gate on the phase being left.
       const required = await db.select({ id: fields.id, label: fields.label }).from(fields)

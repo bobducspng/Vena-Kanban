@@ -71,8 +71,20 @@ export const phases = mysqlTable("phases", {
   position: int("position").notNull().default(0),
   isStart: boolean("is_start").notNull().default(false),
   isEnd: boolean("is_end").notNull().default(false),
+  // Besides the start phase, new cards may also be created directly here.
+  canCreateCard: boolean("can_create_card").notNull().default(false),
   createdAt: createdAt(),
 }, (t) => ({ pipeIdx: index("idx_phases_pipe").on(t.pipeId, t.position) }));
+
+// "Mover para": where a card in `fromPhaseId` may be moved manually. A new phase
+// is linked to its neighbour, so by default cards walk one phase at a time.
+export const phaseTransitions = mysqlTable("phase_transitions", {
+  fromPhaseId: ref("from_phase_id").notNull(),
+  toPhaseId: ref("to_phase_id").notNull(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.fromPhaseId, t.toPhaseId] }),
+  toIdx: index("idx_transitions_to").on(t.toPhaseId),
+}));
 
 export const fields = mysqlTable("fields", {
   id: id(),

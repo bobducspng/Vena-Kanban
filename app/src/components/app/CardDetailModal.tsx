@@ -43,15 +43,14 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
     onError: (err) => {
       if (err instanceof RequiredFieldError) { toast(err.message, "error"); return; }
       if (isConflict(err)) { refresh(); toast("O card foi alterado por outra pessoa. Recarregado.", "error"); return; }
-      toast("Não foi possível mover", "error");
+      toast(err instanceof Error ? err.message : "Não foi possível mover", "error");
     },
   });
 
   if (!card || !phases) return null;
   const current = phases.find((p) => p.id === card.currentPhaseId)!;
-  const idx = phases.findIndex((p) => p.id === current.id);
-  const prev = phases[idx - 1];
-  const next = phases[idx + 1];
+  // "Mover para": only the phases configured for the current phase, in board order.
+  const targets = phases.filter((p) => current.allowedTo.includes(p.id));
   // Fields of the phases the card has reached (start → current), in order (BUG-003:
   // not only the start phase). Future phases stay hidden, as in the original.
   const groups = phases
@@ -68,18 +67,26 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
       onOpenChange={onOpenChange}
       title={`#${card.number} · ${card.title}`}
       footer={
-        <div className="flex w-full items-center justify-between">
-          <Button variant="secondary" onClick={() => prev && move.mutate(prev.id)} disabled={!prev || move.isPending}>
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {prev ? prev.name : "Início"}
-          </Button>
-          {card.done ? (
-            <span className="inline-flex items-center gap-1.5 text-sm font-medium text-success">
+        <div className="flex w-full flex-wrap items-center gap-2">
+          {card.done && (
+            <span className="mr-auto inline-flex items-center gap-1.5 text-sm font-medium text-success">
               <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> Concluído
             </span>
+          )}
+          {targets.length === 0 ? (
+            <span className="text-sm text-muted">Esta fase não tem destinos configurados.</span>
           ) : (
-            <Button onClick={() => next && move.mutate(next.id)} disabled={!next || move.isPending} loading={move.isPending}>
-              {next ? next.name : "Fim"} <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Button>
+            <>
+              <span className={card.done ? "text-sm text-muted" : "mr-auto text-sm text-muted"}>Mover para:</span>
+              {targets.map((t) => {
+                const back = t.position < current.position;
+                return (
+                  <Button key={t.id} variant={back ? "secondary" : "primary"} disabled={move.isPending} onClick={() => move.mutate(t.id)}>
+                    {back && <ArrowLeft className="h-4 w-4" aria-hidden="true" />} {t.name} {!back && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
+                  </Button>
+                );
+              })}
+            </>
           )}
         </div>
       }

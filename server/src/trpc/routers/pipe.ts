@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { eq, and } from "drizzle-orm";
 import { db } from "../../db/client.js";
-import { pipes, phases, fields } from "../../db/schema.js";
+import { pipes, phases, fields, phaseTransitions } from "../../db/schema.js";
 import { router, protectedProcedure, adminProcedure } from "../trpc.js";
 
 export const pipeRouter = router({
@@ -32,6 +32,13 @@ export const pipeRouter = router({
           const id = crypto.randomUUID();
           phaseIds.push(id);
           await tx.insert(phases).values({ id, pipeId, name: defs[i].name, color: defs[i].color, position: i, isStart: defs[i].isStart, isEnd: defs[i].isEnd });
+        }
+        // Neighbours linked both ways: cards walk one phase at a time by default.
+        for (let i = 1; i < phaseIds.length; i++) {
+          await tx.insert(phaseTransitions).values([
+            { fromPhaseId: phaseIds[i - 1], toPhaseId: phaseIds[i] },
+            { fromPhaseId: phaseIds[i], toPhaseId: phaseIds[i - 1] },
+          ]);
         }
         await tx.insert(fields).values({ id: crypto.randomUUID(), pipeId, phaseId: phaseIds[0], label: "Título", type: "short_text", required: true, position: 0 });
         return (await tx.select().from(pipes).where(eq(pipes.id, pipeId)).limit(1))[0];

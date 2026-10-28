@@ -9,7 +9,7 @@ import { Field } from "../ui/Field";
 import { useToast } from "../ui/Toast";
 
 /** S07 — start form: create a card. Required fields gate submission. */
-export function StartFormModal({ pipeId, open, onOpenChange }: { pipeId: string; open: boolean; onOpenChange: (o: boolean) => void }) {
+export function StartFormModal({ pipeId, phaseId, open, onOpenChange }: { pipeId: string; phaseId?: string; open: boolean; onOpenChange: (o: boolean) => void }) {
   const qc = useQueryClient();
   const toast = useToast();
   const [title, setTitle] = useState("");
@@ -30,6 +30,7 @@ export function StartFormModal({ pipeId, open, onOpenChange }: { pipeId: string;
     mutationFn: () =>
       api.card.create({
         pipeId,
+        phaseId,
         title,
         values: Object.entries(values).map(([fieldId, value]) => ({ fieldId, value })),
       }),

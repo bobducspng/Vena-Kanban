@@ -119,6 +119,7 @@ export function PipeSettings() {
               <PhaseEditor
                 key={selected.id}
                 phase={selected}
+                phases={phases}
                 fields={(fields ?? []).filter((f) => f.phaseId === selected.id).sort((a, b) => a.position - b.position)}
                 onChanged={refresh}
               />
@@ -130,17 +131,30 @@ export function PipeSettings() {
   );
 }
 
-function PhaseEditor({ phase, fields, onChanged }: { phase: Phase; fields: FieldDef[]; onChanged: () => void }) {
+function PhaseEditor({ phase, phases, fields, onChanged }: { phase: Phase; phases: Phase[]; fields: FieldDef[]; onChanged: () => void }) {
   const toast = useToast();
   const [name, setName] = useState(phase.name);
+  const [description, setDescription] = useState(phase.description ?? "");
   const [editing, setEditing] = useState<FieldDef | "new" | null>(null);
   const onError = (e: unknown) => toast(errMsg(e), "error");
 
   const update = useMutation({
-    mutationFn: (patch: { name?: string; color?: PhaseColor; isEnd?: boolean }) => api.phase.update({ phaseId: phase.id, ...patch }),
+    mutationFn: (patch: { name?: string; color?: PhaseColor; isEnd?: boolean; description?: string | null; canCreateCard?: boolean }) =>
+      api.phase.update({ phaseId: phase.id, ...patch }),
     onSuccess: onChanged,
-    onError: (e) => { setName(phase.name); onError(e); },
+    onError: (e) => { setName(phase.name); setDescription(phase.description ?? ""); onError(e); },
   });
+  const transitions = useMutation({
+    mutationFn: (ids: string[]) => api.phase.setTransitions(phase.id, ids),
+    onSuccess: onChanged,
+    onError,
+  });
+  const toggleTarget = (id: string, on: boolean) =>
+    transitions.mutate(on ? [...phase.allowedTo, id] : phase.allowedTo.filter((x) => x !== id));
+  const saveDescription = () => {
+    const d = description.trim();
+    if (d !== (phase.description ?? "")) update.mutate({ description: d || null });
+  };
   const setStart = useMutation({ mutationFn: () => api.phase.setStart(phase.id), onSuccess: () => { onChanged(); toast("Fase inicial alterada", "success"); }, onError });
   const remove = useMutation({ mutationFn: () => api.phase.remove(phase.id), onSuccess: () => { onChanged(); toast("Fase excluída", "success"); }, onError });
   const reorderFields = useMutation({ mutationFn: (ids: string[]) => api.field.reorder(phase.id, ids), onSuccess: onChanged, onError });
@@ -162,11 +176,22 @@ function PhaseEditor({ phase, fields, onChanged }: { phase: Phase; fields: Field
         </div>
       </div>
 
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="phase-description" className="text-sm font-medium text-text">Descrição <span className="text-muted">(opcional, aparece no topo da coluna)</span></label>
+        <Textarea id="phase-description" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} onBlur={saveDescription} />
+      </div>
+
       <div className="flex flex-wrap items-center gap-3">
         <label className="inline-flex items-center gap-2 text-sm text-text">
           <input type="checkbox" className="h-4 w-4 accent-accent" checked={phase.isEnd} onChange={(e) => update.mutate({ isEnd: e.target.checked })} />
           <CheckCircle2 className="h-4 w-4 text-muted" aria-hidden="true" /> Fase final (card chega aqui = concluído)
         </label>
+        {!phase.isStart && (
+          <label className="inline-flex items-center gap-2 text-sm text-text">
+            <input type="checkbox" className="h-4 w-4 accent-accent" checked={phase.canCreateCard} onChange={(e) => update.mutate({ canCreateCard: e.target.checked })} />
+            Permitir criar cards direto nesta fase
+          </label>
+        )}
         {phase.isStart ? (
           <span className="inline-flex items-center gap-1.5 text-sm text-muted"><Flag className="h-4 w-4" aria-hidden="true" /> Fase inicial: novos cards entram aqui, e os campos dela formam o formulário de abertura</span>
         ) : (
@@ -175,6 +200,20 @@ function PhaseEditor({ phase, fields, onChanged }: { phase: Phase; fields: Field
           </Button>
         )}
       </div>
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-sm font-semibold text-text">Mover para</legend>
+        <p className="text-xs text-muted">Para quais fases um card desta fase pode ser movido. Fases novas já vêm ligadas à vizinha, então por padrão o card anda uma fase por vez.</p>
+        <div className="flex flex-wrap gap-x-4 gap-y-2">
+          {phases.filter((p) => p.id !== phase.id).map((p) => (
+            <label key={p.id} className="inline-flex items-center gap-2 text-sm text-text">
+              <input type="checkbox" className="h-4 w-4 accent-accent" disabled={transitions.isPending}
+                checked={phase.allowedTo.includes(p.id)} onChange={(e) => toggleTarget(p.id, e.target.checked)} />
+              <Tag color={p.color}>{p.name}</Tag>
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">

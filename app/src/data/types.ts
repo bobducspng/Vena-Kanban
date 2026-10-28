@@ -62,6 +62,9 @@ export interface Phase {
   position: number;
   isStart: boolean;
   isEnd: boolean;
+  description?: string | null;
+  canCreateCard: boolean; // new cards may also start here
+  allowedTo: string[]; // "Mover para": phases a card here may be moved to
 }
 
 export interface Pipe {

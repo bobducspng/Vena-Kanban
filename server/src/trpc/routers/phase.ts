@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { eq, asc, inArray, sql } from "drizzle-orm";
+import { eq, asc, inArray, or, sql, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
-import { phases, cards, fields, cardFields } from "../../db/schema.js";
+import { phases, cards, fields, cardFields, phaseTransitions } from "../../db/schema.js";
 import { router, protectedProcedure, adminProcedure, assertPipeInOrg } from "../trpc.js";
 
 const color = z.enum(["gray", "red", "orange", "amber", "green", "teal", "blue", "purple", "pink"]);
@@ -16,9 +16,13 @@ async function phaseInOrg(phaseId: string, orgId: string) {
 }
 
 export const phaseRouter = router({
+  // Each phase comes with `allowedTo`: the phases a card in it may be moved to.
   listByPipe: protectedProcedure.input(z.object({ pipeId: z.string() })).query(async ({ ctx, input }) => {
     await assertPipeInOrg(input.pipeId, ctx.orgId);
-    return db.select().from(phases).where(eq(phases.pipeId, input.pipeId)).orderBy(asc(phases.position));
+    const rows = await db.select().from(phases).where(eq(phases.pipeId, input.pipeId)).orderBy(asc(phases.position));
+    const ids = rows.map((r) => r.id);
+    const links = ids.length ? await db.select().from(phaseTransitions).where(inArray(phaseTransitions.fromPhaseId, ids)) : [];
+    return rows.map((r) => ({ ...r, allowedTo: links.filter((l) => l.fromPhaseId === r.id).map((l) => l.toPhaseId) }));
   }),
 
   create: adminProcedure
@@ -27,8 +31,14 @@ export const phaseRouter = router({
       await assertPipeInOrg(input.pipeId, ctx.orgId);
       const [{ max }] = await db.select({ max: sql<number | null>`MAX(${phases.position})` })
         .from(phases).where(eq(phases.pipeId, input.pipeId));
+      const last = (await db.select({ id: phases.id }).from(phases)
+        .where(eq(phases.pipeId, input.pipeId)).orderBy(desc(phases.position)).limit(1))[0];
       const id = crypto.randomUUID();
-      await db.insert(phases).values({ id, pipeId: input.pipeId, name: input.name, color: input.color, position: (max ?? -1) + 1 });
+      await db.transaction(async (tx) => {
+        await tx.insert(phases).values({ id, pipeId: input.pipeId, name: input.name, color: input.color, position: (max ?? -1) + 1 });
+        // Linked to its neighbour both ways, like the original.
+        if (last) await tx.insert(phaseTransitions).values([{ fromPhaseId: last.id, toPhaseId: id }, { fromPhaseId: id, toPhaseId: last.id }]);
+      });
       return (await db.select().from(phases).where(eq(phases.id, id)).limit(1))[0];
     }),
 
@@ -39,6 +49,7 @@ export const phaseRouter = router({
       color: color.optional(),
       description: z.string().max(2000).nullable().optional(),
       isEnd: z.boolean().optional(),
+      canCreateCard: z.boolean().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const phase = await phaseInOrg(input.phaseId, ctx.orgId);
@@ -49,6 +60,26 @@ export const phaseRouter = router({
         await db.update(cards).set({ done: patch.isEnd }).where(eq(cards.currentPhaseId, phaseId));
       }
       return (await db.select().from(phases).where(eq(phases.id, phaseId)).limit(1))[0];
+    }),
+
+  /** Replace "Mover para": the phases a card in this phase may be moved to manually. */
+  setTransitions: adminProcedure
+    .input(z.object({ phaseId: z.string(), toPhaseIds: z.array(z.string()) }))
+    .mutation(async ({ ctx, input }) => {
+      const phase = await phaseInOrg(input.phaseId, ctx.orgId);
+      const siblings = await db.select({ id: phases.id }).from(phases).where(eq(phases.pipeId, phase.pipeId));
+      const valid = new Set(siblings.map((s) => s.id));
+      if (input.toPhaseIds.some((id) => !valid.has(id) || id === phase.id)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Fase de destino inválida" });
+      }
+      const targets = [...new Set(input.toPhaseIds)];
+      await db.transaction(async (tx) => {
+        await tx.delete(phaseTransitions).where(eq(phaseTransitions.fromPhaseId, phase.id));
+        if (targets.length) {
+          await tx.insert(phaseTransitions).values(targets.map((to) => ({ fromPhaseId: phase.id, toPhaseId: to })));
+        }
+      });
+      return { ok: true };
     }),
 
   /** Make this the start phase (where new cards land and the start form lives). */
@@ -91,6 +122,7 @@ export const phaseRouter = router({
         await tx.delete(cardFields).where(inArray(cardFields.fieldId, fieldIds));
         await tx.delete(fields).where(inArray(fields.id, fieldIds));
       }
+      await tx.delete(phaseTransitions).where(or(eq(phaseTransitions.fromPhaseId, phase.id), eq(phaseTransitions.toPhaseId, phase.id)));
       await tx.delete(phases).where(eq(phases.id, phase.id));
     });
     return { ok: true };

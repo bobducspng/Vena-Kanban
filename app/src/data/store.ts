@@ -33,14 +33,14 @@ const toISON = (d: Date | string | null | undefined): string | null =>
   d == null ? null : (d instanceof Date ? d.toISOString() : d);
 
 type SrvPipe = { id: string; name: string; description: string | null; createdAt: Date | string };
-type SrvPhase = { id: string; pipeId: string; name: string; color: string | null; position: number; isStart: boolean; isEnd: boolean };
+type SrvPhase = { id: string; pipeId: string; name: string; color: string | null; position: number; isStart: boolean; isEnd: boolean; description: string | null; canCreateCard: boolean; allowedTo?: string[] };
 type SrvField = { id: string; pipeId: string; phaseId: string; label: string; type: string; required: boolean; options: unknown; position: number; description: string | null; help: string | null; editableOtherPhases: boolean; isUnique: boolean; validationRegex: string | null };
 type SrvCard = { id: string; number: number; pipeId: string; currentPhaseId: string; title: string; dueDate: Date | string | null; done: boolean; version: number; createdAt: Date | string; values: { fieldId: string; value: unknown }[]; assigneeIds: string[] };
 type SrvEvent = { id: string; cardId: string; type: string; fromPhaseId: string | null; toPhaseId: string | null; actorId: string | null; createdAt: Date | string };
 type SrvUser = { id: string; name: string | null; email: string; role?: Role | null };
 
 const mapPipe = (p: SrvPipe): Pipe => ({ id: p.id, name: p.name, description: p.description ?? undefined, createdAt: toISO(p.createdAt) });
-const mapPhase = (p: SrvPhase): Phase => ({ id: p.id, pipeId: p.pipeId, name: p.name, color: p.color ?? "gray", position: p.position, isStart: p.isStart, isEnd: p.isEnd });
+const mapPhase = (p: SrvPhase): Phase => ({ id: p.id, pipeId: p.pipeId, name: p.name, color: p.color ?? "gray", position: p.position, isStart: p.isStart, isEnd: p.isEnd, description: p.description, canCreateCard: p.canCreateCard, allowedTo: p.allowedTo ?? [] });
 const mapField = (f: SrvField): FieldDef => ({ id: f.id, pipeId: f.pipeId, phaseId: f.phaseId, label: f.label, type: f.type as FieldType, required: f.required, options: Array.isArray(f.options) ? (f.options as string[]) : undefined, position: f.position, description: f.description, help: f.help, editableOtherPhases: f.editableOtherPhases, isUnique: f.isUnique, validationRegex: f.validationRegex });
 const mapCard = (c: SrvCard): Card => ({
   id: c.id, number: c.number, pipeId: c.pipeId, currentPhaseId: c.currentPhaseId, title: c.title,
@@ -82,8 +82,9 @@ export const api = {
       (await trpc.phase.listByPipe.query({ pipeId })).map(mapPhase),
     create: async (input: { pipeId: string; name: string; color?: PhaseColor }): Promise<Phase> =>
       mapPhase(await trpc.phase.create.mutate(input)),
-    update: async (input: { phaseId: string; name?: string; color?: PhaseColor; isEnd?: boolean }): Promise<Phase> =>
+    update: async (input: { phaseId: string; name?: string; color?: PhaseColor; isEnd?: boolean; description?: string | null; canCreateCard?: boolean }): Promise<Phase> =>
       mapPhase(await trpc.phase.update.mutate(input)),
+    setTransitions: (phaseId: string, toPhaseIds: string[]) => trpc.phase.setTransitions.mutate({ phaseId, toPhaseIds }),
     setStart: (phaseId: string) => trpc.phase.setStart.mutate({ phaseId }),
     reorder: (pipeId: string, phaseIds: string[]) => trpc.phase.reorder.mutate({ pipeId, phaseIds }),
     remove: (phaseId: string) => trpc.phase.remove.mutate({ phaseId }),
@@ -110,7 +111,7 @@ export const api = {
       const c = await trpc.card.get.query({ cardId });
       return c ? mapCard(c) : null;
     },
-    create: async (input: { pipeId: string; title: string; values: CardFieldValue[] }): Promise<Card> => {
+    create: async (input: { pipeId: string; phaseId?: string; title: string; values: CardFieldValue[] }): Promise<Card> => {
       try {
         return mapCard(await trpc.card.create.mutate(input));
       } catch (err) {
