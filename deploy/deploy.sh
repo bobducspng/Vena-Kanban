@@ -7,20 +7,21 @@ set -euo pipefail
 REPO_DIR="${REPO_DIR:-/opt/fluxos}"
 cd "$REPO_DIR"
 
-# DB_*/PORT etc. do mesmo .env do serviço (a migração precisa deles).
-set -a; . server/.env; set +a
-
 echo "==> git pull"
 git pull --ff-only
 
 echo "==> instala dependências"
-npm ci
+# --include=dev: o build precisa do vite/tsc mesmo se NODE_ENV=production.
+npm ci --include=dev
 
 echo "==> build (server -> app)"
-# O app lê VITE_API_URL de app/.env.production; deixe-o VAZIO (origin único).
+# O app lê VITE_API_URL/VITE_BASE_PATH de app/.env.production (ver replica/deploy.md).
 npm run build
 
 echo "==> migrations"
+# DB_* do mesmo .env do serviço. Carregado SÓ aqui: antes do npm ci, o
+# NODE_ENV=production faria o npm pular as devDependencies (vite, tsc).
+set -a; . server/.env; set +a
 npm run -w server db:migrate
 
 echo "==> restart do serviço"
