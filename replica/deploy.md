@@ -68,14 +68,20 @@ sudo mysql -e "GRANT ALL ON fluxos.* TO 'fluxos'@'localhost'; FLUSH PRIVILEGES;"
 sudo git clone <SEU_REPO> /opt/fluxos         # ou já está clonado
 cd /opt/fluxos
 cp server/.env.example server/.env            # preencha (ver abaixo)
-printf 'VITE_API_URL=\n' > app/.env.production # VAZIO = origin único
+printf 'VITE_API_URL=/fluxos\nVITE_BASE_PATH=/fluxos/\n' > app/.env.production
 ```
+> **Subcaminho atrás do nginx (VM compartilhada com os Indicadores):** o ngrok
+> free só tem 1 domínio estático, já usado pelos Indicadores. Então o ngrok aponta
+> para o nginx (:80), que manda `/` → Indicadores (:3000) e `/fluxos/` → Fluxos
+> (:4000, **removendo** o prefixo). Por isso `VITE_BASE_PATH=/fluxos/` e
+> `VITE_API_URL=/fluxos`; o backend não muda. O serviço `fluxos-ngrok` **não** é
+> usado nesse modo.
 No `server/.env` de produção:
 - `NODE_ENV=production`
 - `DB_*` do banco criado no passo 3
 - `GOOGLE_CLIENT_ID/SECRET`
-- `PUBLIC_BASE_URL=https://SEU-DOMINIO.ngrok-free.app`
-- `APP_ORIGIN=https://SEU-DOMINIO.ngrok-free.app`  ← igual ao de cima
+- `PUBLIC_BASE_URL=https://SEU-DOMINIO.ngrok-free.dev/fluxos`
+- `APP_ORIGIN=https://SEU-DOMINIO.ngrok-free.dev/fluxos`  ← igual ao de cima (com `/fluxos`)
 - `SESSION_SECRET=` (gere: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`)
 - `ALLOWED_EMAIL_DOMAINS=suaempresa.com`  (e/ou `ALLOWED_EMAILS=...`)
 
