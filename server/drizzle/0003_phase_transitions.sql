@@ -12,4 +12,5 @@ INSERT INTO `phase_transitions` (`from_phase_id`, `to_phase_id`)
 WITH r AS (
   SELECT `id`, `pipe_id`, ROW_NUMBER() OVER (PARTITION BY `pipe_id` ORDER BY `position`, `created_at`) AS rn FROM `phases`
 )
-SELECT a.`id`, b.`id` FROM r a JOIN r b ON a.`pipe_id` = b.`pipe_id` AND ABS(a.rn - b.rn) = 1;
+-- ROW_NUMBER() é BIGINT UNSIGNED: subtrair (rn - rn) estoura para negativos, então compara somando.
+SELECT a.`id`, b.`id` FROM r a JOIN r b ON a.`pipe_id` = b.`pipe_id` AND (a.rn + 1 = b.rn OR b.rn + 1 = a.rn);
