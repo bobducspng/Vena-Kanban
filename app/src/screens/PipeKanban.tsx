@@ -18,6 +18,7 @@ import { StartFormModal } from "../components/app/StartFormModal";
 import { CardDetailModal } from "../components/app/CardDetailModal";
 import { TrashModal } from "../components/app/TrashModal";
 import { dueStatus, DUE_CLASS, fmtDate } from "../components/app/CardSections";
+import { formatValue } from "../lib/format";
 
 /** S03 — kanban: phases as columns, cards as tiles. Drag a card to an allowed phase
  *  ("Mover para"), or open it to move with buttons. Add via the start form. */
@@ -42,6 +43,8 @@ export function PipeKanban() {
   const userById = new Map((members ?? []).map((u) => [u.id, u]));
   const { data: labels } = useQuery({ queryKey: ["labels", pipeId], queryFn: () => api.label.listByPipe(pipeId) });
   const labelById = new Map((labels ?? []).map((l) => [l.id, l]));
+  const { data: fields } = useQuery({ queryKey: ["fields", pipeId], queryFn: () => api.field.listByPipe(pipeId) });
+  const subtitleDefs = (pipe?.subtitleFieldIds ?? []).map((id) => fields?.find((f) => f.id === id)).filter((f) => !!f);
 
   // Drop = move, applied optimistically and rolled back if the server refuses.
   const move = useMutation({
@@ -77,7 +80,7 @@ export function PipeKanban() {
         <div className="flex items-center justify-between gap-4 p-4">
           <div className="min-w-0">
             <Link to="/" className="text-xs text-muted hover:text-accent">← Pipes</Link>
-            <h2 className="truncate text-lg text-text">{pipe?.name ?? "…"}</h2>
+            <h2 className="truncate text-lg text-text">{pipe?.icon && <span className="mr-1.5" aria-hidden="true">{pipe.icon}</span>}{pipe?.name ?? "…"}</h2>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative hidden sm:block">
@@ -93,7 +96,7 @@ export function PipeKanban() {
               <Trash2 className="h-4 w-4" aria-hidden="true" />
             </Button>
             <Button onClick={() => setStartFor({})}>
-              <Plus className="h-4 w-4" aria-hidden="true" /> Novo card
+              <Plus className="h-4 w-4" aria-hidden="true" /> {pipe?.createButtonLabel || `Novo ${pipe?.noun || "card"}`}
             </Button>
           </div>
         </div>
@@ -162,6 +165,10 @@ export function PipeKanban() {
                             )}
                             <span className="text-xs text-muted">#{card.number}</span>
                             <span className="text-sm font-semibold text-text">{card.title}</span>
+                            {subtitleDefs.map((f) => {
+                              const text = formatValue(f, card.values.find((v) => v.fieldId === f.id)?.value, { members, labels });
+                              return text ? <span key={f.id} className="line-clamp-1 text-xs text-muted"><span className="font-medium">{f.label}:</span> {text}</span> : null;
+                            })}
                             <div className="flex w-full items-center justify-between gap-2">
                               <span className="flex flex-wrap items-center gap-2 text-xs text-muted">
                                 {card.dueDate ? (

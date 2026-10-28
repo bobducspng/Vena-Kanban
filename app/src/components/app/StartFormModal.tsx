@@ -17,6 +17,8 @@ export function StartFormModal({ pipeId, phaseId, open, onOpenChange }: { pipeId
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { data: phases } = useQuery({ queryKey: ["phases", pipeId], queryFn: () => api.phase.listByPipe(pipeId) });
+  const { data: pipe } = useQuery({ queryKey: ["pipe", pipeId], queryFn: () => api.pipe.get(pipeId) });
+  const titleFromField = !!pipe?.titleFieldId;
   const startPhase = phases?.find((p) => p.isStart);
   const { data: fields } = useQuery({
     queryKey: ["fields", startPhase?.id],
@@ -56,7 +58,7 @@ export function StartFormModal({ pipeId, phaseId, open, onOpenChange }: { pipeId
     <Modal
       open={open}
       onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}
-      title="Novo card"
+      title={`Novo ${pipe?.noun || "card"}`}
       description="Preencha o formulário inicial do processo."
       footer={
         <>
@@ -66,10 +68,12 @@ export function StartFormModal({ pipeId, phaseId, open, onOpenChange }: { pipeId
       }
     >
       <form onSubmit={(e) => { e.preventDefault(); create.mutate(); }} className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="card-title" className="text-sm font-medium text-text">Título do card</label>
-          <Input id="card-title" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Resumo em uma linha" />
-        </div>
+        {!titleFromField && (
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="card-title" className="text-sm font-medium text-text">Título do card</label>
+            <Input id="card-title" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Resumo em uma linha" />
+          </div>
+        )}
         {fields?.map((f) => (
           <Field
             key={f.id}

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Pencil, Plus, Trash2, Flag, CheckCircle2, Archive, ArchiveRestore } from "lucide-react";
 import { api } from "../data/store";
 import { useMe } from "../lib/useMe";
-import { EDITABLE_FIELD_TYPES, OPTION_FIELD_TYPES, PHASE_COLORS, UNIQUE_FIELD_TYPES, type EditableFieldType, type FieldDef, type Phase, type PhaseColor } from "../data/types";
+import { EDITABLE_FIELD_TYPES, OPTION_FIELD_TYPES, PHASE_COLORS, UNIQUE_FIELD_TYPES, type EditableFieldType, type FieldDef, type Phase, type PhaseColor, type Pipe } from "../data/types";
 import { AppShell } from "../components/app/AppShell";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
@@ -15,6 +15,7 @@ import { Modal } from "../components/ui/Modal";
 import { Textarea } from "../components/ui/Textarea";
 import { useToast } from "../components/ui/Toast";
 import { cn } from "../lib/cn";
+import { Avatar } from "../components/ui/Avatar";
 
 const COLOR_LABEL: Record<PhaseColor, string> = {
   gray: "Cinza", red: "Vermelho", orange: "Laranja", amber: "Âmbar", green: "Verde",
@@ -78,9 +79,11 @@ export function PipeSettings() {
       <div className="flex flex-col gap-4 p-4">
         <div>
           <Link to={`/pipes/${pipeId}`} className="text-xs text-muted hover:text-accent">← Voltar ao quadro</Link>
-          <h2 className="text-lg text-text">Fases e campos</h2>
-          <p className="text-sm text-muted">Defina as etapas do processo e o que deve ser preenchido em cada uma.</p>
+          <h2 className="text-lg text-text">Configurações do pipe</h2>
+          <p className="text-sm text-muted">Identidade do pipe, etapas do processo e o que deve ser preenchido em cada uma.</p>
         </div>
+
+        {pipe && phases && fields && <PipeSection key={pipe.id} pipe={pipe} phases={phases} fields={fields.filter((f) => !f.archivedAt)} />}
 
         {isLoading || !phases ? (
           <div className="flex items-center gap-2 text-sm text-muted"><Spinner className="h-4 w-4" label="Carregando" /> Carregando…</div>
@@ -130,6 +133,104 @@ export function PipeSettings() {
         <LabelsManager pipeId={pipeId} />
       </div>
     </AppShell>
+  );
+}
+
+// Types that can name a card (start-form fields only).
+const TITLE_TYPES = ["short_text", "long_text", "select", "radio", "email", "phone", "document", "number", "date"];
+
+/** Pipe identity and how cards look: icon, colour, noun, button text, title field, subtitles; delete. */
+function PipeSection({ pipe, phases, fields }: { pipe: Pipe; phases: Phase[]; fields: FieldDef[] }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const navigate = useNavigate();
+  const [form, setForm] = useState({
+    name: pipe.name, description: pipe.description ?? "", icon: pipe.icon ?? "", noun: pipe.noun ?? "", createButtonLabel: pipe.createButtonLabel ?? "",
+  });
+  const done = () => { qc.invalidateQueries({ queryKey: ["pipe", pipe.id] }); qc.invalidateQueries({ queryKey: ["pipes"] }); };
+  const onError = (e: unknown) => toast(errMsg(e), "error");
+  const update = useMutation({ mutationFn: (patch: Parameters<typeof api.pipe.update>[0]) => api.pipe.update(patch), onSuccess: done, onError });
+  const remove = useMutation({
+    mutationFn: () => api.pipe.remove(pipe.id),
+    onSuccess: () => { done(); toast("Pipe excluído. Um admin pode restaurar na página inicial.", "success"); navigate("/"); },
+    onError,
+  });
+  const save = (key: keyof typeof form) => {
+    const v = form[key].trim();
+    const before = key === "name" ? pipe.name : (pipe[key] ?? "");
+    if (key === "name" && !v) { setForm((f) => ({ ...f, name: pipe.name })); return; }
+    if (v !== before) update.mutate({ pipeId: pipe.id, [key]: key === "name" ? v : v || null });
+  };
+  const bind = (key: keyof typeof form) => ({
+    value: form[key],
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [key]: e.target.value })),
+    onBlur: () => save(key),
+  });
+  const start = phases.find((p) => p.isStart);
+  const titleCandidates = fields.filter((f) => f.phaseId === start?.id && TITLE_TYPES.includes(f.type));
+  const toggleSubtitle = (id: string, on: boolean) => {
+    const next = on ? [...pipe.subtitleFieldIds, id] : pipe.subtitleFieldIds.filter((x) => x !== id);
+    if (next.length > 5) { toast("No máximo 5 subtítulos", "error"); return; }
+    update.mutate({ pipeId: pipe.id, subtitleFieldIds: next });
+  };
+
+  return (
+    <section aria-label="Pipe" className="flex flex-col gap-4 rounded-lg border border-border bg-bg p-4">
+      <h3 className="text-sm font-semibold text-text">Pipe</h3>
+      <div className="grid gap-4 sm:grid-cols-[6rem_minmax(0,1fr)_12rem]">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="pipe-icon" className="text-sm font-medium text-text">Ícone</label>
+          <Input id="pipe-icon" {...bind("icon")} placeholder="📦" maxLength={8} className="text-center text-lg" />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="pipe-name-edit" className="text-sm font-medium text-text">Nome</label>
+          <Input id="pipe-name-edit" {...bind("name")} />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="pipe-color" className="text-sm font-medium text-text">Cor</label>
+          <Select id="pipe-color" value={pipe.color ?? undefined} placeholder="Sem cor" onValueChange={(c) => update.mutate({ pipeId: pipe.id, color: c as PhaseColor })}
+            options={PHASE_COLORS.map((c) => ({ value: c, label: COLOR_LABEL[c] }))} />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="pipe-description" className="text-sm font-medium text-text">Descrição</label>
+        <Input id="pipe-description" {...bind("description")} placeholder="Para que serve este processo" />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="pipe-noun" className="text-sm font-medium text-text">Como os cards se chamam aqui</label>
+          <Input id="pipe-noun" {...bind("noun")} placeholder="card (ex.: pedido, candidato, chamado)" />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="pipe-button" className="text-sm font-medium text-text">Texto do botão de criar</label>
+          <Input id="pipe-button" {...bind("createButtonLabel")} placeholder={`Novo ${form.noun || "card"}`} />
+        </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="pipe-title-field" className="text-sm font-medium text-text">Título do card</label>
+        <Select id="pipe-title-field" value={pipe.titleFieldId ?? "__none"}
+          onValueChange={(v) => update.mutate({ pipeId: pipe.id, titleFieldId: v === "__none" ? null : v })}
+          options={[{ value: "__none", label: "Digitado no formulário (caixa \"Título do card\")" }, ...titleCandidates.map((f) => ({ value: f.id, label: `Campo: ${f.label}` }))]} />
+        <p className="text-xs text-muted">Usar um campo do formulário inicial evita digitar o título duas vezes. Vale para cards novos e quando o campo é editado.</p>
+      </div>
+      <fieldset className="flex flex-col gap-1.5">
+        <legend className="text-sm font-medium text-text">Subtítulos no quadro <span className="text-muted">(até 5 campos exibidos no card fechado)</span></legend>
+        <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+          {fields.filter((f) => f.type !== "attachment" && f.type !== "id").map((f) => (
+            <label key={f.id} className="inline-flex items-center gap-2 text-sm text-text">
+              <input type="checkbox" className="h-4 w-4 accent-accent" checked={pipe.subtitleFieldIds.includes(f.id)} onChange={(e) => toggleSubtitle(f.id, e.target.checked)} />
+              {f.label}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <div className="border-t border-border pt-3">
+        <Button variant="danger" size="sm" loading={remove.isPending}
+          onClick={() => { if (prompt(`Para excluir, digite o nome do pipe: ${pipe.name}`)?.trim() === pipe.name) remove.mutate(); }}>
+          <Trash2 className="h-4 w-4" aria-hidden="true" /> Excluir pipe
+        </Button>
+      </div>
+    </section>
   );
 }
 
@@ -193,6 +294,8 @@ function PhaseEditor({ phase, phases, fields, onChanged }: { phase: Phase; phase
     onSuccess: onChanged,
     onError,
   });
+  const { data: members } = useQuery({ queryKey: ["users"], queryFn: api.user.list });
+  const phaseAssignees = useMutation({ mutationFn: (ids: string[]) => api.phase.setAssignees(phase.id, ids), onSuccess: onChanged, onError });
   const toggleTarget = (id: string, on: boolean) =>
     transitions.mutate(on ? [...phase.allowedTo, id] : phase.allowedTo.filter((x) => x !== id));
   const saveDescription = () => {
@@ -252,6 +355,23 @@ function PhaseEditor({ phase, phases, fields, onChanged }: { phase: Phase; phase
           </Button>
         )}
       </div>
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-sm font-semibold text-text">Responsáveis da fase</legend>
+        <p className="text-xs text-muted">Entram como responsáveis de todo card que chega nesta fase e saem quando ele vai embora.</p>
+        <div className="flex flex-wrap gap-2">
+          {(members ?? []).map((u) => {
+            const on = phase.assigneeIds.includes(u.id);
+            return (
+              <button key={u.id} type="button" aria-pressed={on} disabled={phaseAssignees.isPending}
+                onClick={() => phaseAssignees.mutate(on ? phase.assigneeIds.filter((x) => x !== u.id) : [...phase.assigneeIds, u.id])}
+                className={cn("inline-flex items-center gap-1.5 rounded-pill border px-2 py-1 text-sm", on ? "border-accent bg-surface text-text" : "border-border text-muted hover:text-text")}>
+                <Avatar name={u.name} color={u.avatarColor} size="sm" /> {u.name}
+              </button>
+            );
+          })}
+        </div>
+      </fieldset>
 
       <fieldset className="flex flex-col gap-2">
         <legend className="text-sm font-semibold text-text">Mover para</legend>

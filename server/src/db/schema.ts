@@ -57,6 +57,15 @@ export const pipes = mysqlTable("pipes", {
   orgId: ref("org_id").notNull(),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
+  icon: varchar("icon", { length: 16 }), // an emoji
+  color: varchar("color", { length: 16 }),
+  noun: varchar("noun", { length: 64 }), // what a card is called here ("pedido", "candidato")
+  createButtonLabel: varchar("create_button_label", { length: 64 }),
+  // Start-form field whose value becomes the card title (new cards).
+  titleFieldId: ref("title_field_id"),
+  // Fields shown on the closed card in the board.
+  subtitleFieldIds: json("subtitle_field_ids"),
+  deletedAt: datetime("deleted_at", { fsp: 3 }),
   createdBy: ref("created_by"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
@@ -75,6 +84,12 @@ export const phases = mysqlTable("phases", {
   canCreateCard: boolean("can_create_card").notNull().default(false),
   createdAt: createdAt(),
 }, (t) => ({ pipeIdx: index("idx_phases_pipe").on(t.pipeId, t.position) }));
+
+// Responsáveis da fase: added to a card while it sits in the phase.
+export const phaseAssignees = mysqlTable("phase_assignees", {
+  phaseId: ref("phase_id").notNull(),
+  userId: ref("user_id").notNull(),
+}, (t) => ({ pk: primaryKey({ columns: [t.phaseId, t.userId] }) }));
 
 // "Mover para": where a card in `fromPhaseId` may be moved manually. A new phase
 // is linked to its neighbour, so by default cards walk one phase at a time.

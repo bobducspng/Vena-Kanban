@@ -16,14 +16,15 @@ export const pipes: Pipe[] = [
     name: "Solicitações de compra",
     description: "Pedidos de compra do início à aprovação.",
     createdAt: "2026-10-01T12:00:00Z",
+    subtitleFieldIds: [],
   },
 ];
 
 export const phases: Phase[] = [
-  { id: "ph1", pipeId: "p1", name: "Novo pedido", color: "gray", position: 0, isStart: true, isEnd: false, canCreateCard: false, allowedTo: [] },
-  { id: "ph2", pipeId: "p1", name: "Em análise", color: "blue", position: 1, isStart: false, isEnd: false, canCreateCard: false, allowedTo: [] },
-  { id: "ph3", pipeId: "p1", name: "Aprovação", color: "amber", position: 2, isStart: false, isEnd: false, canCreateCard: false, allowedTo: [] },
-  { id: "ph4", pipeId: "p1", name: "Concluído", color: "green", position: 3, isStart: false, isEnd: true, canCreateCard: false, allowedTo: [] },
+  { id: "ph1", pipeId: "p1", name: "Novo pedido", color: "gray", position: 0, isStart: true, isEnd: false, canCreateCard: false, allowedTo: [], assigneeIds: [] },
+  { id: "ph2", pipeId: "p1", name: "Em análise", color: "blue", position: 1, isStart: false, isEnd: false, canCreateCard: false, allowedTo: [], assigneeIds: [] },
+  { id: "ph3", pipeId: "p1", name: "Aprovação", color: "amber", position: 2, isStart: false, isEnd: false, canCreateCard: false, allowedTo: [], assigneeIds: [] },
+  { id: "ph4", pipeId: "p1", name: "Concluído", color: "green", position: 3, isStart: false, isEnd: true, canCreateCard: false, allowedTo: [], assigneeIds: [] },
 ];
 
 export const fields: FieldDef[] = [

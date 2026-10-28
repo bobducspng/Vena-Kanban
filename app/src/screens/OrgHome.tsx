@@ -12,6 +12,12 @@ import { Spinner } from "../components/ui/Spinner";
 import { useToast } from "../components/ui/Toast";
 
 /** S02 — organization home: the list of pipes, and creating one. */
+// Left stripe colour of a pipe tile.
+const STRIPE: Record<string, string> = {
+  gray: "border-l-label-gray", red: "border-l-label-red", orange: "border-l-label-orange", amber: "border-l-label-amber",
+  green: "border-l-label-green", teal: "border-l-label-teal", blue: "border-l-label-blue", purple: "border-l-label-purple", pink: "border-l-label-pink",
+};
+
 export function OrgHome() {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -64,15 +70,16 @@ export function OrgHome() {
               <li key={p.id}>
                 <button
                   onClick={() => navigate(`/pipes/${p.id}`)}
-                  className="flex w-full flex-col items-start rounded-lg border border-border bg-surface-raised p-4 text-left shadow-card hover:border-accent"
+                  className={`flex w-full flex-col items-start rounded-lg border border-l-4 border-border bg-surface-raised p-4 text-left shadow-card hover:border-accent ${STRIPE[p.color ?? ""] ?? ""}`}
                 >
-                  <span className="text-base font-semibold text-text">{p.name}</span>
+                  <span className="text-base font-semibold text-text">{p.icon && <span className="mr-1.5" aria-hidden="true">{p.icon}</span>}{p.name}</span>
                   {p.description && <span className="mt-1 text-sm text-muted">{p.description}</span>}
                 </button>
               </li>
             ))}
           </ul>
         )}
+        {isAdmin && <DeletedPipes />}
       </div>
 
       <Modal
@@ -104,5 +111,30 @@ export function OrgHome() {
         </form>
       </Modal>
     </AppShell>
+  );
+}
+
+/** Admins: pipes sent to "excluídos", with restore. Hidden when there are none. */
+function DeletedPipes() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const { data } = useQuery({ queryKey: ["pipes", "deleted"], queryFn: api.pipe.listDeleted });
+  const restore = useMutation({
+    mutationFn: api.pipe.restore,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["pipes"] }); toast("Pipe restaurado", "success"); },
+  });
+  if (!data?.length) return null;
+  return (
+    <details className="mt-8 text-sm">
+      <summary className="cursor-pointer text-muted">Pipes excluídos ({data.length})</summary>
+      <ul className="mt-2 flex flex-col divide-y divide-border rounded-md border border-border">
+        {data.map((p) => (
+          <li key={p.id} className="flex items-center gap-3 px-3 py-2">
+            <span className="min-w-0 flex-1 truncate text-text">{p.name}</span>
+            <Button size="sm" variant="secondary" loading={restore.isPending} onClick={() => restore.mutate(p.id)}>Restaurar</Button>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }

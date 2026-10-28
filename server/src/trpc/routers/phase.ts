@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { eq, asc, inArray, or, sql, desc } from "drizzle-orm";
+import { eq, asc, inArray, or, and, sql, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
-import { phases, cards, fields, cardFields, phaseTransitions } from "../../db/schema.js";
+import { phases, cards, fields, cardFields, phaseTransitions, phaseAssignees, memberships } from "../../db/schema.js";
 import { router, protectedProcedure, adminProcedure, assertPipeInOrg } from "../trpc.js";
 
 const color = z.enum(["gray", "red", "orange", "amber", "green", "teal", "blue", "purple", "pink"]);
@@ -22,7 +22,12 @@ export const phaseRouter = router({
     const rows = await db.select().from(phases).where(eq(phases.pipeId, input.pipeId)).orderBy(asc(phases.position));
     const ids = rows.map((r) => r.id);
     const links = ids.length ? await db.select().from(phaseTransitions).where(inArray(phaseTransitions.fromPhaseId, ids)) : [];
-    return rows.map((r) => ({ ...r, allowedTo: links.filter((l) => l.fromPhaseId === r.id).map((l) => l.toPhaseId) }));
+    const people = ids.length ? await db.select().from(phaseAssignees).where(inArray(phaseAssignees.phaseId, ids)) : [];
+    return rows.map((r) => ({
+      ...r,
+      allowedTo: links.filter((l) => l.fromPhaseId === r.id).map((l) => l.toPhaseId),
+      assigneeIds: people.filter((a) => a.phaseId === r.id).map((a) => a.userId),
+    }));
   }),
 
   create: adminProcedure
@@ -82,6 +87,22 @@ export const phaseRouter = router({
       return { ok: true };
     }),
 
+  /** Responsáveis da fase: assigned to every card while it is in this phase. */
+  setAssignees: adminProcedure
+    .input(z.object({ phaseId: z.string(), userIds: z.array(z.string()).max(50) }))
+    .mutation(async ({ ctx, input }) => {
+      const phase = await phaseInOrg(input.phaseId, ctx.orgId);
+      const ids = [...new Set(input.userIds)];
+      const ok = ids.length ? await db.select({ userId: memberships.userId }).from(memberships)
+        .where(and(eq(memberships.orgId, ctx.orgId), inArray(memberships.userId, ids))) : [];
+      if (ok.length !== ids.length) throw new TRPCError({ code: "BAD_REQUEST", message: "Responsável inválido" });
+      await db.transaction(async (tx) => {
+        await tx.delete(phaseAssignees).where(eq(phaseAssignees.phaseId, phase.id));
+        if (ids.length) await tx.insert(phaseAssignees).values(ids.map((userId) => ({ phaseId: phase.id, userId })));
+      });
+      return { ok: true };
+    }),
+
   /** Make this the start phase (where new cards land and the start form lives). */
   setStart: adminProcedure.input(z.object({ phaseId: z.string() })).mutation(async ({ ctx, input }) => {
     const phase = await phaseInOrg(input.phaseId, ctx.orgId);
@@ -123,6 +144,7 @@ export const phaseRouter = router({
         await tx.delete(fields).where(inArray(fields.id, fieldIds));
       }
       await tx.delete(phaseTransitions).where(or(eq(phaseTransitions.fromPhaseId, phase.id), eq(phaseTransitions.toPhaseId, phase.id)));
+      await tx.delete(phaseAssignees).where(eq(phaseAssignees.phaseId, phase.id));
       await tx.delete(phases).where(eq(phases.id, phase.id));
     });
     return { ok: true };

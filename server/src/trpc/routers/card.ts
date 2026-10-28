@@ -2,7 +2,7 @@ import { z } from "zod";
 import { eq, and, inArray, isNull, isNotNull, desc, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
-import { cards, cardFields, cardAssignees, cardLabels, cardEvents, fields, phases, phaseTransitions, labels, memberships, checklistItems, comments, attachments } from "../../db/schema.js";
+import { cards, cardFields, cardAssignees, cardLabels, cardEvents, fields, phases, phaseTransitions, phaseAssignees, pipes, labels, memberships, checklistItems, comments, attachments } from "../../db/schema.js";
 import { cardInOrg, logEvent } from "../cardAccess.js";
 import { isEmpty, validateValue, applySideEffects } from "../../fieldRules.js";
 import { router, protectedProcedure, assertPipeInOrg } from "../trpc.js";
@@ -35,6 +35,23 @@ async function hydrate(cardIds: string[]) {
   att.forEach((a) => { if (a.cardId) map.get(a.cardId)!.attachmentCount++; });
   return map;
 }
+
+/** Responsáveis da fase: entering a phase adds its people; leaving removes them. */
+async function syncPhaseAssignees(cardId: string, fromPhaseId: string | null, toPhaseId: string) {
+  if (fromPhaseId) {
+    const leaving = (await db.select().from(phaseAssignees).where(eq(phaseAssignees.phaseId, fromPhaseId))).map((a) => a.userId);
+    if (leaving.length) await db.delete(cardAssignees).where(and(eq(cardAssignees.cardId, cardId), inArray(cardAssignees.userId, leaving)));
+  }
+  const entering = (await db.select().from(phaseAssignees).where(eq(phaseAssignees.phaseId, toPhaseId))).map((a) => a.userId);
+  if (entering.length) {
+    const have = new Set((await db.select().from(cardAssignees).where(eq(cardAssignees.cardId, cardId))).map((a) => a.userId));
+    const add = entering.filter((u) => !have.has(u));
+    if (add.length) await db.insert(cardAssignees).values(add.map((userId) => ({ cardId, userId })));
+  }
+}
+
+/** Title shown for a value of the pipe's title field. */
+const titleOf = (v: unknown) => (v === null || v === undefined || v === "" ? null : String(v).slice(0, 512));
 
 /** One card, shaped for the front-end. */
 async function shaped(cardId: string) {
@@ -109,11 +126,15 @@ export const cardRouter = router({
         await validateValue(f, v.value, ctx.orgId);
       }
 
+      // Pipe's title field (if set) names the card.
+      const pipe = (await db.select({ titleFieldId: pipes.titleFieldId }).from(pipes).where(eq(pipes.id, input.pipeId)).limit(1))[0];
+      const titleFromField = pipe?.titleFieldId ? titleOf(input.values.find((v) => v.fieldId === pipe.titleFieldId)?.value) : null;
+
       return db.transaction(async (tx) => {
         const cardId = crypto.randomUUID();
         await tx.insert(cards).values({
           id: cardId, pipeId: input.pipeId, currentPhaseId: landing.id, done: landing.isEnd,
-          title: input.title || "(sem título)", createdBy: ctx.userId,
+          title: titleFromField ?? (input.title || "(sem título)"), createdBy: ctx.userId,
         });
         for (const v of input.values) {
           await tx.insert(cardFields).values({
@@ -125,6 +146,7 @@ export const cardRouter = router({
         return cardId;
       }).then(async (cardId) => {
         for (const v of input.values) await applySideEffects(startFields.find((x) => x.id === v.fieldId)!, cardId, v.value);
+        await syncPhaseAssignees(cardId, null, landing.id);
         return shaped(cardId);
       });
     }),
@@ -159,6 +181,9 @@ export const cardRouter = router({
         await db.insert(cardFields).values({ id: crypto.randomUUID(), cardId: input.cardId, fieldId: input.fieldId, value: input.value, filledAt });
       }
       await applySideEffects(field, card.id, input.value);
+      const pipe = (await db.select({ titleFieldId: pipes.titleFieldId }).from(pipes).where(eq(pipes.id, card.pipeId)).limit(1))[0];
+      const newTitle = pipe?.titleFieldId === field.id ? titleOf(input.value) : null;
+      if (newTitle && newTitle !== card.title) await db.update(cards).set({ title: newTitle }).where(eq(cards.id, card.id));
       await logEvent(card.id, "field_updated", ctx.userId, { fieldId: field.id });
       return shaped(card.id);
     }),
@@ -194,6 +219,7 @@ export const cardRouter = router({
       if (affected === 0) throw new TRPCError({ code: "CONFLICT", message: "O card foi alterado por outra pessoa. Recarregue." });
 
       await db.insert(cardEvents).values({ id: crypto.randomUUID(), cardId: card.id, type: "moved", fromPhaseId: card.currentPhaseId, toPhaseId: to.id, actorId: ctx.userId });
+      await syncPhaseAssignees(card.id, card.currentPhaseId, to.id);
       const h = await hydrate([card.id]);
       const row = (await db.select().from(cards).where(eq(cards.id, card.id)).limit(1))[0];
       return { ...row, ...h.get(card.id)! };

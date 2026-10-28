@@ -76,6 +76,7 @@ export interface Phase {
   description?: string | null;
   canCreateCard: boolean; // new cards may also start here
   allowedTo: string[]; // "Mover para": phases a card here may be moved to
+  assigneeIds: string[]; // responsáveis da fase
 }
 
 export interface Pipe {
@@ -83,6 +84,13 @@ export interface Pipe {
   name: string;
   description?: string;
   createdAt: string;
+  icon?: string | null; // emoji
+  color?: string | null;
+  noun?: string | null; // what a card is called here, e.g. "pedido"
+  createButtonLabel?: string | null;
+  titleFieldId?: string | null; // start-form field that names new cards
+  subtitleFieldIds: string[]; // fields shown on the board tile
+  deletedAt?: string | null;
 }
 
 export interface CardFieldValue {

@@ -43,6 +43,13 @@
       "when": 1793193171063,
       "tag": "0005_field_archive",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1793193461935,
+      "tag": "0006_pipe_config",
+      "breakpoints": true
     }
   ]
 }
