@@ -12,6 +12,7 @@ import { Tag } from "./Tag";
 import { Avatar } from "./Avatar";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
+import { ConnectionInput } from "../app/ConnectionInput";
 
 type Value = CardFieldValue["value"];
 
@@ -82,7 +83,7 @@ export function Field({ def, value, onChange, error, disabled, card }: FieldProp
   }
 
   // Option groups: radio (one) and checklist (many), plus the pickers (people, labels).
-  if (def.type === "radio" || def.type === "checklist" || def.type === "assignee_select" || def.type === "label_select") {
+  if (def.type === "radio" || def.type === "checklist" || def.type === "assignee_select" || def.type === "label_select" || def.type === "connection") {
     return (
       <fieldset className="flex flex-col gap-1.5" aria-describedby={describedBy} disabled={disabled}>
         <legend className="text-sm font-medium text-text">{def.label}{required}</legend>
@@ -113,6 +114,7 @@ export function Field({ def, value, onChange, error, disabled, card }: FieldProp
         )}
         {def.type === "assignee_select" && <PeoplePicker value={asList(value)} onChange={onChange} disabled={disabled} />}
         {def.type === "label_select" && <LabelPicker pipeId={def.pipeId} value={asList(value)} onChange={onChange} disabled={disabled} />}
+        {def.type === "connection" && <ConnectionInput def={def} value={asList(value)} onChange={onChange} disabled={disabled} />}
         {footer}
       </fieldset>
     );

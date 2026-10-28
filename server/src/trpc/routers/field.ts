@@ -4,12 +4,13 @@ import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
 import { fields, phases, cardFields } from "../../db/schema.js";
 import { router, protectedProcedure, adminProcedure, assertPipeInOrg } from "../trpc.js";
+import { connectionSettings, checkTarget, readSettings } from "../../connections.js";
 
 // Types the editor offers (and the card form renders).
 const fieldType = z.enum([
   "short_text", "long_text", "number", "currency", "date", "datetime", "time", "due_date",
   "email", "phone", "document", "select", "radio", "checklist", "checkbox",
-  "assignee_select", "label_select", "attachment", "id",
+  "assignee_select", "label_select", "attachment", "id", "connection",
 ]);
 const options = z.array(z.string().trim().min(1).max(255)).max(200);
 // Types where "valor único" makes sense (as in the original).
@@ -87,12 +88,18 @@ export const fieldRouter = router({
       type: fieldType,
       required: z.boolean().default(false),
       options: options.optional(),
+      // "Conexão" only: target (database/pipe) and switches.
+      settings: connectionSettings.optional(),
       ...props,
     }))
     .mutation(async ({ ctx, input }) => {
       const phase = await phaseInOrg(input.phaseId, ctx.orgId);
       checkOptions(input.type, input.options);
       checkProps(input.type, input);
+      if (input.type === "connection") {
+        if (!input.settings) throw new TRPCError({ code: "BAD_REQUEST", message: "Escolha o database ou pipe da conexão." });
+        await checkTarget(input.settings, ctx.orgId);
+      }
       const [{ max }] = await db.select({ max: sql<number | null>`MAX(${fields.position})` })
         .from(fields).where(eq(fields.phaseId, phase.id));
       const id = crypto.randomUUID();
@@ -102,6 +109,7 @@ export const fieldRouter = router({
         description: input.description || null, help: input.help || null,
         editableOtherPhases: input.editableOtherPhases ?? true, isUnique: input.isUnique ?? false,
         validationRegex: input.validationRegex || null,
+        settings: input.type === "connection" ? input.settings : null,
       });
       return (await db.select().from(fields).where(eq(fields.id, id)).limit(1))[0];
     }),
@@ -113,6 +121,8 @@ export const fieldRouter = router({
       // No `type`: a field's type cannot change after creation.
       required: z.boolean().optional(),
       options: options.nullable().optional(),
+      // Connection switches; the target itself is fixed after creation.
+      settings: connectionSettings.pick({ canSearch: true, canCreate: true, multiple: true }).partial().optional(),
       ...props,
     }))
     .mutation(async ({ ctx, input }) => {
@@ -123,7 +133,15 @@ export const fieldRouter = router({
         isUnique: patch.isUnique ?? field.isUnique,
         validationRegex: patch.validationRegex === undefined ? field.validationRegex : patch.validationRegex,
       });
-      if (Object.keys(patch).length) await db.update(fields).set(patch).where(eq(fields.id, fieldId));
+      const { settings: switches, ...rest } = patch;
+      let settings: unknown;
+      if (switches && field.type === "connection") {
+        const merged = { ...readSettings(field.settings)!, ...switches };
+        if (!merged.canSearch && !merged.canCreate) throw new TRPCError({ code: "BAD_REQUEST", message: "Permita buscar, criar ou os dois." });
+        settings = merged;
+      }
+      const set = settings ? { ...rest, settings } : rest;
+      if (Object.keys(set).length) await db.update(fields).set(set).where(eq(fields.id, fieldId));
       return (await db.select().from(fields).where(eq(fields.id, fieldId)).limit(1))[0];
     }),
 

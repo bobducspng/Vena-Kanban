@@ -2,7 +2,7 @@
 // signatures as the previous fake store, so no screen changed. Server outputs
 // are mapped to the app's domain types (src/data/types.ts).
 import { trpc, API_URL } from "../lib/trpc";
-import type { Pipe, Phase, FieldDef, Card, CardFieldValue, CardEvent, User, FieldType, PhaseColor, EditableFieldType, Role, Label, Comment, ChecklistItem, Attachment, TrashedCard, DataTable, DbRecord } from "./types";
+import type { Pipe, Phase, FieldDef, Card, CardFieldValue, CardEvent, User, FieldType, PhaseColor, EditableFieldType, Role, Label, Comment, ChecklistItem, Attachment, TrashedCard, DataTable, DbRecord, ConnectionSettings, ConnectedItem } from "./types";
 import type { ConditionDef, Rule, FieldAction } from "../lib/conditions";
 
 /** A phase's conditional, as stored (the evaluator's ConditionDef + a name). */
@@ -39,7 +39,7 @@ const toISON = (d: Date | string | null | undefined): string | null =>
 
 type SrvPipe = { id: string; name: string; description: string | null; createdAt: Date | string; icon?: string | null; color?: string | null; noun?: string | null; createButtonLabel?: string | null; titleFieldId?: string | null; subtitleFieldIds?: unknown; deletedAt?: Date | string | null };
 type SrvPhase = { id: string; pipeId: string; name: string; color: string | null; position: number; isStart: boolean; isEnd: boolean; description: string | null; canCreateCard: boolean; allowedTo?: string[]; assigneeIds?: string[] };
-type SrvField = { id: string; pipeId: string; phaseId: string; label: string; type: string; required: boolean; options: unknown; position: number; description: string | null; help: string | null; editableOtherPhases: boolean; isUnique: boolean; validationRegex: string | null; archivedAt: Date | string | null };
+type SrvField = { id: string; pipeId: string; phaseId: string; label: string; type: string; required: boolean; options: unknown; position: number; description: string | null; help: string | null; editableOtherPhases: boolean; isUnique: boolean; validationRegex: string | null; archivedAt: Date | string | null; settings?: unknown };
 type SrvCard = { id: string; number: number; pipeId: string; currentPhaseId: string; title: string; dueDate: Date | string | null; done: boolean; version: number; createdAt: Date | string; values: { fieldId: string; value: unknown }[]; assigneeIds: string[]; labelIds: string[]; checklistDone: number; checklistTotal: number; commentCount: number; attachmentCount: number };
 type SrvEvent = { id: string; cardId: string; type: string; fromPhaseId: string | null; toPhaseId: string | null; actorId: string | null; createdAt: Date | string };
 type SrvUser = { id: string; name: string | null; email: string; role?: Role | null };
@@ -50,7 +50,8 @@ const mapPipe = (p: SrvPipe): Pipe => ({
   subtitleFieldIds: Array.isArray(p.subtitleFieldIds) ? (p.subtitleFieldIds as string[]) : [], deletedAt: toISON(p.deletedAt),
 });
 const mapPhase = (p: SrvPhase): Phase => ({ id: p.id, pipeId: p.pipeId, name: p.name, color: p.color ?? "gray", position: p.position, isStart: p.isStart, isEnd: p.isEnd, description: p.description, canCreateCard: p.canCreateCard, allowedTo: p.allowedTo ?? [], assigneeIds: p.assigneeIds ?? [] });
-const mapField = (f: SrvField): FieldDef => ({ id: f.id, pipeId: f.pipeId, phaseId: f.phaseId, label: f.label, type: f.type as FieldType, required: f.required, options: Array.isArray(f.options) ? (f.options as string[]) : undefined, position: f.position, description: f.description, help: f.help, editableOtherPhases: f.editableOtherPhases, isUnique: f.isUnique, validationRegex: f.validationRegex, archivedAt: toISON(f.archivedAt) });
+const mapField = (f: SrvField): FieldDef => ({ id: f.id, pipeId: f.pipeId, phaseId: f.phaseId, label: f.label, type: f.type as FieldType, required: f.required, options: Array.isArray(f.options) ? (f.options as string[]) : undefined, position: f.position, description: f.description, help: f.help, editableOtherPhases: f.editableOtherPhases, isUnique: f.isUnique, validationRegex: f.validationRegex, archivedAt: toISON(f.archivedAt),
+  settings: (f.settings as ConnectionSettings | null | undefined) ?? null });
 const mapCard = (c: SrvCard): Card => ({
   id: c.id, number: c.number, pipeId: c.pipeId, currentPhaseId: c.currentPhaseId, title: c.title,
   values: c.values.map((v) => ({ fieldId: v.fieldId, value: v.value as CardFieldValue["value"] })),
@@ -141,10 +142,10 @@ export const api = {
     archive: (fieldId: string, archived: boolean) => trpc.field.archive.mutate({ fieldId, archived }),
     listByPhase: async (phaseId: string): Promise<FieldDef[]> =>
       (await trpc.field.listByPhase.query({ phaseId })).map(mapField),
-    create: async (input: { phaseId: string; label: string; type: EditableFieldType; required: boolean; options?: string[] } & FieldProps): Promise<FieldDef> =>
+    create: async (input: { phaseId: string; label: string; type: EditableFieldType; required: boolean; options?: string[]; settings?: ConnectionSettings } & FieldProps): Promise<FieldDef> =>
       mapField(await trpc.field.create.mutate(input)),
     // The type is immutable after creation.
-    update: async (input: { fieldId: string; label?: string; required?: boolean; options?: string[] | null } & FieldProps): Promise<FieldDef> =>
+    update: async (input: { fieldId: string; label?: string; required?: boolean; options?: string[] | null; settings?: Partial<Pick<ConnectionSettings, "canSearch" | "canCreate" | "multiple">> } & FieldProps): Promise<FieldDef> =>
       mapField(await trpc.field.update.mutate(input)),
     reorder: (phaseId: string, fieldIds: string[]) => trpc.field.reorder.mutate({ phaseId, fieldIds }),
     remove: (fieldId: string) => trpc.field.remove.mutate({ fieldId }),
@@ -223,6 +224,11 @@ export const api = {
     updateRecordValue: async (input: { recordId: string; fieldId: string; value: CardFieldValue["value"] }): Promise<DbRecord> =>
       mapRecord(await trpc.database.updateRecordValue.mutate(input)),
     removeRecord: (recordId: string) => trpc.database.removeRecord.mutate({ recordId }),
+  },
+
+  connection: {
+    search: (fieldId: string, q: string): Promise<ConnectedItem[]> => trpc.connection.search.query({ fieldId, q }),
+    describe: (fieldId: string, ids: string[]): Promise<ConnectedItem[]> => trpc.connection.describe.query({ fieldId, ids }),
   },
 
   condition: {

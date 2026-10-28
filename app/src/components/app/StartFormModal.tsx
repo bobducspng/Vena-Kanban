@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, RequiredFieldError } from "../../data/store";
-import type { CardFieldValue } from "../../data/types";
+import type { Card, CardFieldValue } from "../../data/types";
 import { Modal } from "../ui/Modal";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
@@ -10,7 +10,11 @@ import { useToast } from "../ui/Toast";
 import { useFieldStates, withState } from "../../lib/useFieldStates";
 
 /** S07 — start form: create a card. Required fields gate submission. */
-export function StartFormModal({ pipeId, phaseId, open, onOpenChange }: { pipeId: string; phaseId?: string; open: boolean; onOpenChange: (o: boolean) => void }) {
+export function StartFormModal({ pipeId, phaseId, open, onOpenChange, onCreated }: {
+  pipeId: string; phaseId?: string; open: boolean; onOpenChange: (o: boolean) => void;
+  /** Called with the new card (e.g. a connection field connects it). */
+  onCreated?: (card: Card) => void;
+}) {
   const qc = useQueryClient();
   const toast = useToast();
   const [title, setTitle] = useState("");
@@ -41,9 +45,10 @@ export function StartFormModal({ pipeId, phaseId, open, onOpenChange }: { pipeId
         title,
         values: visible.filter((f) => f.id in values).map((f) => ({ fieldId: f.id, value: values[f.id] })),
       }),
-    onSuccess: () => {
+    onSuccess: (card) => {
       qc.invalidateQueries({ queryKey: ["cards", pipeId] });
       toast("Card criado", "success");
+      onCreated?.(card);
       reset();
       onOpenChange(false);
     },

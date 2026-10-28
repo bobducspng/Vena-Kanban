@@ -2,6 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "./db/client.js";
 import { cardFields, cardLabels, cards, fields, labels, memberships } from "./db/schema.js";
+import { validateConnection } from "./connections.js";
 
 type FieldRow = typeof fields.$inferSelect;
 
@@ -36,6 +37,7 @@ export const READ_ONLY_TYPES = new Set(["id", "attachment"]);
 export type ShapeField = {
   id: string; label: string; type: string; options: unknown; validationRegex: string | null; isUnique: boolean;
   pipeId?: string; // label_select only (labels belong to a pipe)
+  settings?: unknown; // connection only
 };
 
 /** Normalised text for "valor único" (documents compare by digits: 123.456.789-09 == 12345678909). */
@@ -90,6 +92,9 @@ export async function validateShape(field: ShapeField, value: unknown, orgId: st
       if (ok.length !== new Set(ids).size) throw bad(field, "responsável inválido");
       break;
     }
+    case "connection":
+      await validateConnection({ label: field.label, settings: field.settings }, value);
+      break;
     case "label_select": {
       const ids = asList(value);
       if (!ids || ids.some((x) => typeof x !== "string")) throw bad(field, "etiqueta inválida");

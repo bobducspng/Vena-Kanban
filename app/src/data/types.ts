@@ -6,7 +6,7 @@ export type Role = "admin" | "member" | "guest";
 export type FieldType =
   | "short_text" | "long_text" | "email" | "phone" | "number" | "currency"
   | "date" | "datetime" | "time" | "due_date" | "select" | "radio" | "checklist" | "checkbox"
-  | "assignee_select" | "label_select" | "attachment" | "document" | "id" | "statement";
+  | "assignee_select" | "label_select" | "attachment" | "document" | "id" | "connection" | "statement";
 
 /** Field types the phase editor offers (server validates the same list). */
 export const EDITABLE_FIELD_TYPES = [
@@ -29,12 +29,30 @@ export const EDITABLE_FIELD_TYPES = [
   { value: "label_select", label: "Etiqueta (vira as etiquetas do card)" },
   { value: "attachment", label: "Anexo" },
   { value: "id", label: "ID do card (somente leitura)" },
+  { value: "connection", label: "Conexão (database ou outro pipe)" },
 ] as const;
 export type EditableFieldType = (typeof EDITABLE_FIELD_TYPES)[number]["value"];
 
 /** Column types a database offers (no phase-only types: due date, label, attachment, ID). */
 export const DB_COLUMN_TYPES = EDITABLE_FIELD_TYPES.filter((t) =>
-  !["due_date", "label_select", "attachment", "id"].includes(t.value));
+  !["due_date", "label_select", "attachment", "id", "connection"].includes(t.value));
+
+/** "Conexão" field: what it points to and how items get connected. */
+export interface ConnectionSettings {
+  target: "table" | "pipe";
+  targetId: string;
+  canSearch: boolean;
+  canCreate: boolean;
+  multiple: boolean;
+}
+
+/** A connected record/card as shown on the card. */
+export interface ConnectedItem {
+  id: string;
+  title: string;
+  details: string[];
+  number?: number;
+}
 
 /** A database ("tabela"): org-wide registry that cards connect to. */
 export interface DataTable {
@@ -83,6 +101,7 @@ export interface FieldDef {
   isUnique: boolean;
   validationRegex?: string | null;
   archivedAt?: string | null;
+  settings?: ConnectionSettings | null; // connection fields
 }
 
 /** Field types that accept "valor único" (server checks the same list). */

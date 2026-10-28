@@ -27,7 +27,7 @@ function operatorsFor(type: string): Operator[] {
   if (["date", "due_date", "datetime"].includes(type)) return [...DATE_OPS, "present", "blank"];
   if (["number", "currency"].includes(type)) return ["equals", "not_equals", "number_greater_than", "number_less_than", "present", "blank"];
   if (type === "checkbox") return ["equals"];
-  if (type === "attachment") return ["present", "blank"];
+  if (type === "attachment" || type === "connection") return ["present", "blank"];
   if (["select", "radio", "time", ...LIST_TYPES].includes(type)) return ["equals", "not_equals", "present", "blank"];
   return ["equals", "not_equals", "string_contains", "string_not_contains", "present", "blank"];
 }

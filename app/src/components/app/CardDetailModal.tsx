@@ -188,7 +188,7 @@ function TitleEditor({ cardId, title, onSaved }: { cardId: string; title: string
 }
 
 // Typed inputs save after a pause; choices save at once.
-const IMMEDIATE = new Set(["select", "radio", "checkbox", "checklist", "date", "datetime", "time", "due_date", "assignee_select", "label_select"]);
+const IMMEDIATE = new Set(["select", "radio", "checkbox", "checklist", "date", "datetime", "time", "due_date", "assignee_select", "label_select", "connection"]);
 
 /** One field on an open card: local draft, debounced save, server errors as a toast
  *  (and the draft rolls back to the saved value). */

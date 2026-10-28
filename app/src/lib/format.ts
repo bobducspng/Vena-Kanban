@@ -13,6 +13,7 @@ export function formatValue(
     if (def.type === "assignee_select") return value.map((id) => ctx.members?.find((m) => m.id === id)?.name ?? "?").join(", ");
     if (def.type === "label_select") return value.map((id) => ctx.labels?.find((l) => l.id === id)?.name ?? "?").join(", ");
     if (def.type === "attachment") return value.length ? `${value.length} arquivo(s)` : "";
+    if (def.type === "connection") return value.length ? `${value.length} conectado(s)` : "";
     return value.join(", ");
   }
   if (typeof value === "boolean") return value ? "Sim" : "Não";

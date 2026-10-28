@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { EDITABLE_FIELD_TYPES, OPTION_FIELD_TYPES, UNIQUE_FIELD_TYPES, type EditableFieldType, type FieldDef } from "../../data/types";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../../data/store";
+import { EDITABLE_FIELD_TYPES, OPTION_FIELD_TYPES, UNIQUE_FIELD_TYPES, type ConnectionSettings, type EditableFieldType, type FieldDef } from "../../data/types";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
@@ -21,6 +23,7 @@ export interface FieldDraft {
   editableOtherPhases: boolean;
   isUnique: boolean;
   validationRegex: string | null;
+  settings: ConnectionSettings | null; // connection fields
 }
 
 /** Create or edit one field. The type is chosen on creation and cannot change afterwards. */
@@ -44,6 +47,10 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
   const [editableOtherPhases, setEditableOtherPhases] = useState(true);
   const [isUnique, setIsUnique] = useState(false);
   const [regex, setRegex] = useState("");
+  const [conn, setConn] = useState<ConnectionSettings>({ target: "table", targetId: "", canSearch: true, canCreate: true, multiple: false });
+  const isConnection = type === "connection";
+  const { data: tables } = useQuery({ queryKey: ["databases"], queryFn: api.database.list, enabled: isConnection });
+  const { data: pipes } = useQuery({ queryKey: ["pipes"], queryFn: api.pipe.list, enabled: isConnection });
 
   useEffect(() => {
     setLabel(existing?.label ?? "");
@@ -55,6 +62,7 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
     setEditableOtherPhases(existing?.editableOtherPhases ?? true);
     setIsUnique(existing?.isUnique ?? false);
     setRegex(existing?.validationRegex ?? "");
+    setConn(existing?.settings ?? { target: "table", targetId: "", canSearch: true, canCreate: true, multiple: false });
   }, [field]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasOptions = OPTION_FIELD_TYPES.includes(type);
@@ -69,6 +77,7 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
     editableOtherPhases,
     isUnique: canBeUnique && isUnique,
     validationRegex: canRegex && regex ? regex : null,
+    settings: isConnection ? conn : null,
   };
   const save = useMutation({
     mutationFn: () => persist({ label: label.trim(), type, required, options: hasOptions ? options : null, ...props }, existing),
@@ -84,7 +93,7 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => save.mutate()} loading={save.isPending} disabled={!label.trim() || (hasOptions && options.length === 0) || !!regexError}>Salvar</Button>
+          <Button onClick={() => save.mutate()} loading={save.isPending} disabled={!label.trim() || (hasOptions && options.length === 0) || !!regexError || (isConnection && (!conn.targetId || (!conn.canSearch && !conn.canCreate)))}>Salvar</Button>
         </>
       }
     >
@@ -98,6 +107,33 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
           <Select id="field-type" value={type} disabled={!!existing} onValueChange={(v) => setType(v as EditableFieldType)} options={types.map((t) => ({ value: t.value, label: t.label }))} />
           {existing && <p className="text-xs text-muted">O tipo não pode ser alterado depois de criado. Para mudar, crie um campo novo.</p>}
         </div>
+        {isConnection && (
+          <fieldset className="flex flex-col gap-3 rounded-md border border-border p-3">
+            <legend className="px-1 text-sm font-medium text-text">Conexão</legend>
+            <div className="grid gap-3 sm:grid-cols-[10rem_minmax(0,1fr)]">
+              <Select aria-label="Conectar com" value={conn.target} disabled={!!existing}
+                onValueChange={(v) => setConn((c) => ({ ...c, target: v as "table" | "pipe", targetId: "" }))}
+                options={[{ value: "table", label: "Database" }, { value: "pipe", label: "Pipe" }]} />
+              <Select aria-label={conn.target === "table" ? "Database" : "Pipe"} value={conn.targetId || undefined} disabled={!!existing}
+                placeholder={conn.target === "table" ? "Escolha o database" : "Escolha o pipe"}
+                onValueChange={(v) => setConn((c) => ({ ...c, targetId: v }))}
+                options={(conn.target === "table" ? tables ?? [] : pipes ?? []).map((t) => ({ value: t.id, label: t.name }))} />
+            </div>
+            {existing && <p className="text-xs text-muted">O destino não muda depois de criado (as conexões já feitas apontam para ele).</p>}
+            <label className="inline-flex items-center gap-2 text-sm text-text">
+              <input type="checkbox" className="h-4 w-4 accent-accent" checked={conn.canSearch} onChange={(e) => setConn((c) => ({ ...c, canSearch: e.target.checked }))} />
+              Buscar itens existentes
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm text-text">
+              <input type="checkbox" className="h-4 w-4 accent-accent" checked={conn.canCreate} onChange={(e) => setConn((c) => ({ ...c, canCreate: e.target.checked }))} />
+              Criar novos {conn.target === "table" ? "registros" : "cards"} a partir do card
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm text-text">
+              <input type="checkbox" className="h-4 w-4 accent-accent" checked={conn.multiple} onChange={(e) => setConn((c) => ({ ...c, multiple: e.target.checked }))} />
+              Permitir vários itens
+            </label>
+          </fieldset>
+        )}
         {hasOptions && (
           <div className="flex flex-col gap-1.5">
             <label htmlFor="field-options" className="text-sm font-medium text-text">Opções (uma por linha)</label>
