@@ -88,7 +88,7 @@ export function ConditionsSection({ phase, phases, fields }: { phase: Phase; pha
   );
 }
 
-const emptyRule = (f?: FieldDef): Rule => ({ fieldId: f?.id ?? "", operator: f ? operatorsFor(f.type)[0] : "equals", value: "" });
+export const emptyRule = (f?: FieldDef): Rule => ({ fieldId: f?.id ?? "", operator: f ? operatorsFor(f.type)[0] : "equals", value: "" });
 
 function ConditionModal({ phaseId, editing, sources, targets, onClose, onSaved }: {
   phaseId: string; editing: Condition | "new" | null; sources: FieldDef[]; targets: FieldDef[]; onClose: () => void; onSaved: () => void;
@@ -172,7 +172,7 @@ function ConditionModal({ phaseId, editing, sources, targets, onClose, onSaved }
   );
 }
 
-function RuleRow({ rule, sources, onChange, onRemove }: { rule: Rule; sources: FieldDef[]; onChange: (p: Partial<Rule>) => void; onRemove: () => void }) {
+export function RuleRow({ rule, sources, onChange, onRemove }: { rule: Rule; sources: FieldDef[]; onChange: (p: Partial<Rule>) => void; onRemove: () => void }) {
   const field = sources.find((f) => f.id === rule.fieldId);
   const ops = field ? operatorsFor(field.type) : [];
   return (

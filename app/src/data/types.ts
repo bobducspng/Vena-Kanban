@@ -226,5 +226,34 @@ export interface CardEvent {
   toPhaseId?: string | null;
   actorId?: string | null;
   text?: string;
+  automation?: string; // name of the automation that did it (no actor)
   createdAt: string;
+}
+
+/** Automation rule (M5): when (trigger) → if (conditions) → then (actions). */
+export type AutomationTrigger = { type: "card_created" | "card_entered_phase" | "card_left_phase" | "field_updated"; phaseId?: string; fieldId?: string };
+export type AutomationAction =
+  | { type: "move_card"; phaseId: string }
+  | { type: "update_field"; fieldId: string; mode: "fixed" | "copy" | "date_offset" | "clear"; value?: string | number | boolean | null | string[]; fromFieldId?: string; days?: number }
+  | { type: "assign"; mode: "round_robin" | "random" | "set"; userIds: string[] }
+  | { type: "create_connected_card"; connectionFieldId: string; values: { toFieldId: string; fromFieldId?: string; value?: string | number | boolean | null | string[] }[] }
+  | { type: "move_parent"; phaseId: string };
+export interface AutomationRule {
+  id: string;
+  pipeId: string;
+  name: string;
+  active: boolean;
+  trigger: AutomationTrigger;
+  groups: { fieldId: string; operator: string; value?: string | number | null }[][];
+  actions: AutomationAction[];
+  lastRunAt: string | null;
+  lastStatus: "success" | "failed" | "skipped" | null;
+  lastError: string | null;
+}
+export interface AutomationLog {
+  id: string;
+  status: "success" | "failed" | "skipped";
+  message: string | null;
+  createdAt: string;
+  card: { id: string; number: number; title: string } | null;
 }

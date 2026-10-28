@@ -2,7 +2,7 @@
 // signatures as the previous fake store, so no screen changed. Server outputs
 // are mapped to the app's domain types (src/data/types.ts).
 import { trpc, API_URL } from "../lib/trpc";
-import type { Pipe, Phase, FieldDef, Card, CardFieldValue, CardEvent, User, FieldType, PhaseColor, EditableFieldType, Role, Label, Comment, ChecklistItem, Attachment, TrashedCard, DataTable, DbRecord, ConnectionSettings, ConnectedItem, Backlink } from "./types";
+import type { Pipe, Phase, FieldDef, Card, CardFieldValue, CardEvent, User, FieldType, PhaseColor, EditableFieldType, Role, Label, Comment, ChecklistItem, Attachment, TrashedCard, DataTable, DbRecord, ConnectionSettings, ConnectedItem, Backlink, AutomationRule, AutomationLog, AutomationTrigger, AutomationAction } from "./types";
 import type { ConditionDef, Rule, FieldAction } from "../lib/conditions";
 
 /** A phase's conditional, as stored (the evaluator's ConditionDef + a name). */
@@ -41,7 +41,7 @@ type SrvPipe = { id: string; name: string; description: string | null; createdAt
 type SrvPhase = { id: string; pipeId: string; name: string; color: string | null; position: number; isStart: boolean; isEnd: boolean; description: string | null; canCreateCard: boolean; allowedTo?: string[]; assigneeIds?: string[] };
 type SrvField = { id: string; pipeId: string; phaseId: string; label: string; type: string; required: boolean; options: unknown; position: number; description: string | null; help: string | null; editableOtherPhases: boolean; isUnique: boolean; validationRegex: string | null; archivedAt: Date | string | null; settings?: unknown };
 type SrvCard = { id: string; number: number; pipeId: string; currentPhaseId: string; title: string; dueDate: Date | string | null; done: boolean; version: number; createdAt: Date | string; values: { fieldId: string; value: unknown }[]; assigneeIds: string[]; labelIds: string[]; checklistDone: number; checklistTotal: number; commentCount: number; attachmentCount: number };
-type SrvEvent = { id: string; cardId: string; type: string; fromPhaseId: string | null; toPhaseId: string | null; actorId: string | null; createdAt: Date | string };
+type SrvEvent = { id: string; cardId: string; type: string; fromPhaseId: string | null; toPhaseId: string | null; actorId: string | null; data?: unknown; createdAt: Date | string };
 type SrvUser = { id: string; name: string | null; email: string; role?: Role | null };
 
 const mapPipe = (p: SrvPipe): Pipe => ({
@@ -63,7 +63,10 @@ const mapCard = (c: SrvCard): Card => ({
   assigneeIds: c.assigneeIds, dueDate: toISON(c.dueDate), done: c.done, version: c.version, createdAt: toISO(c.createdAt),
   labelIds: c.labelIds, checklistDone: c.checklistDone, checklistTotal: c.checklistTotal, commentCount: c.commentCount, attachmentCount: c.attachmentCount,
 });
-const mapEvent = (e: SrvEvent): CardEvent => ({ id: e.id, cardId: e.cardId, type: e.type as CardEvent["type"], fromPhaseId: e.fromPhaseId, toPhaseId: e.toPhaseId, actorId: e.actorId, createdAt: toISO(e.createdAt) });
+const mapEvent = (e: SrvEvent): CardEvent => ({
+  id: e.id, cardId: e.cardId, type: e.type as CardEvent["type"], fromPhaseId: e.fromPhaseId, toPhaseId: e.toPhaseId, actorId: e.actorId, createdAt: toISO(e.createdAt),
+  automation: (e.data as { automation?: string } | null)?.automation,
+});
 const mapUser = (u: SrvUser): User => ({ id: u.id, name: u.name ?? u.email, email: u.email, avatarColor: "blue", role: u.role });
 
 type FieldProps = { description?: string | null; help?: string | null; editableOtherPhases?: boolean; isUnique?: boolean; validationRegex?: string | null };
@@ -233,6 +236,25 @@ export const api = {
       mapRecord(await trpc.database.updateRecordValue.mutate(input)),
     removeRecord: (recordId: string) => trpc.database.removeRecord.mutate({ recordId }),
     recordUsage: (recordId: string): Promise<Backlink[]> => trpc.database.recordUsage.query({ recordId }),
+  },
+
+  automation: {
+    list: async (pipeId: string): Promise<AutomationRule[]> =>
+      (await trpc.automation.list.query({ pipeId })).map((r) => ({
+        id: r.id, pipeId: r.pipeId, name: r.name, active: r.active,
+        trigger: r.trigger as AutomationTrigger, groups: r.groups as AutomationRule["groups"], actions: r.actions as AutomationAction[],
+        lastRunAt: toISON(r.lastRunAt), lastStatus: r.lastStatus as AutomationRule["lastStatus"], lastError: r.lastError,
+      })),
+    create: (input: { pipeId: string; name: string; trigger: AutomationTrigger; groups: Rule[][]; actions: AutomationAction[] }) =>
+      trpc.automation.create.mutate(input as Parameters<typeof trpc.automation.create.mutate>[0]),
+    update: (input: { ruleId: string; name: string; trigger: AutomationTrigger; groups: Rule[][]; actions: AutomationAction[] }) =>
+      trpc.automation.update.mutate(input as Parameters<typeof trpc.automation.update.mutate>[0]),
+    setActive: (ruleId: string, active: boolean) => trpc.automation.setActive.mutate({ ruleId, active }),
+    duplicate: (ruleId: string) => trpc.automation.duplicate.mutate({ ruleId }),
+    remove: (ruleId: string) => trpc.automation.remove.mutate({ ruleId }),
+    logs: async (ruleId: string): Promise<AutomationLog[]> =>
+      (await trpc.automation.logs.query({ ruleId })).map((l) => ({ id: l.id, status: l.status as AutomationLog["status"], message: l.message, createdAt: toISO(l.createdAt), card: l.card })),
+    test: (ruleId: string, cardNumber: number, execute = false) => trpc.automation.test.mutate({ ruleId, cardNumber, execute }),
   },
 
   connection: {

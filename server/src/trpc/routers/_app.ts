@@ -11,6 +11,7 @@ import { checklistRouter } from "./checklist.js";
 import { conditionRouter } from "./condition.js";
 import { databaseRouter } from "./database.js";
 import { connectionRouter } from "./connection.js";
+import { automationRouter } from "./automation.js";
 
 export const appRouter = router({
   user: userRouter,
@@ -25,6 +26,7 @@ export const appRouter = router({
   condition: conditionRouter,
   database: databaseRouter,
   connection: connectionRouter,
+  automation: automationRouter,
 });
 
 // The front-end imports this type for an end-to-end-typed client.

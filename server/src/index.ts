@@ -11,6 +11,7 @@ import { appRouter } from "./trpc/routers/_app.js";
 import { createContext } from "./trpc/trpc.js";
 import { authRoutes } from "./http/authRoutes.js";
 import { fileRoutes } from "./http/fileRoutes.js";
+import { startAutomations } from "./automations.js";
 
 const app = express();
 
@@ -49,6 +50,9 @@ if (existsSync(spaDir)) {
 } else {
   console.log("SPA dist not found — API-only (dev uses the Vite server).");
 }
+
+// Automations listen to card events from cardService.
+startAutomations();
 
 app.listen(env.PORT, () => {
   console.log(`Server on :${env.PORT} — public: ${env.PUBLIC_BASE_URL}`);

@@ -333,6 +333,36 @@ export const automationRuns = mysqlTable("automation_runs", {
   automIdx: index("idx_runs_autom").on(t.automationId, t.createdAt),
 }));
 
+// Automations v2 (M5). The two tables above came from the first sketch (fixed enums,
+// one action per rule) and were never used; these replace them.
+export const automationRules = mysqlTable("automation_rules", {
+  id: id(),
+  pipeId: ref("pipe_id").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  active: boolean("active").notNull().default(true),
+  trigger: json("trigger").notNull(), // { type, phaseId?, fieldId? }
+  groups: json("groups").notNull(), // conditions: Rule[][] (same evaluator as conditionals)
+  actions: json("actions").notNull(), // Action[] run in order
+  state: json("state"), // e.g. round-robin cursor
+  lastRunAt: datetime("last_run_at", { fsp: 3 }),
+  lastStatus: varchar("last_status", { length: 16 }), // success | failed | skipped
+  lastError: text("last_error"),
+  createdBy: ref("created_by"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => ({ pipeIdx: index("idx_rules_pipe").on(t.pipeId, t.active) }));
+
+// One row per rule evaluation: what happened and why (kept 90 days).
+export const automationLogs = mysqlTable("automation_logs", {
+  id: id(),
+  ruleId: ref("rule_id").notNull(),
+  cardId: ref("card_id"),
+  status: varchar("status", { length: 16 }).notNull(), // success | failed | skipped
+  message: text("message"),
+  durationMs: int("duration_ms"),
+  createdAt: createdAt(),
+}, (t) => ({ ruleIdx: index("idx_autolog_rule").on(t.ruleId, t.createdAt), cardIdx: index("idx_autolog_card").on(t.cardId) }));
+
 // Public forms + portals -----------------------------------------------------
 export const publicForms = mysqlTable("public_forms", {
   id: id(),

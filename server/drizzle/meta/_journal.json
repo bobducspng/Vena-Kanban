@@ -64,6 +64,13 @@
       "when": 1793196535100,
       "tag": "0008_databases",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1793199396585,
+      "tag": "0009_automation_rules",
+      "breakpoints": true
     }
   ]
 }

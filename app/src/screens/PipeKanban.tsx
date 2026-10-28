@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Settings, Search, Trash2, CheckSquare, MessageSquare, Paperclip, CalendarClock } from "lucide-react";
+import { Plus, Settings, Search, Trash2, CheckSquare, MessageSquare, Paperclip, CalendarClock, Zap } from "lucide-react";
 import { api, RequiredFieldError } from "../data/store";
 import type { Card } from "../data/types";
 import { useMe } from "../lib/useMe";
@@ -95,6 +95,11 @@ export function PipeKanban() {
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
               <Input aria-label="Buscar card por número ou título" placeholder="Buscar #ID ou título" value={query} onChange={(e) => setQuery(e.target.value)} className="w-56 pl-8" />
             </div>
+            {isAdmin && (
+              <Link to={`/pipes/${pipeId}/automations`} className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-surface px-4 text-sm text-text hover:bg-bg">
+                <Zap className="h-4 w-4" aria-hidden="true" /> Automações
+              </Link>
+            )}
             {isAdmin && (
               <Link to={`/pipes/${pipeId}/settings`} className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-surface px-4 text-sm text-text hover:bg-bg">
                 <Settings className="h-4 w-4" aria-hidden="true" /> Configurar

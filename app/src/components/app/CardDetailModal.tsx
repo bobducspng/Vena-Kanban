@@ -242,7 +242,7 @@ function CardFieldEditor({ cardId, def, saved, disabled, card, onSaved }: {
 }
 
 function describe(e: CardEvent, phases: Phase[], members: User[]): string {
-  const who = members.find((m) => m.id === e.actorId)?.name ?? "Alguém";
+  const who = e.automation ? `Automação "${e.automation}"` : members.find((m) => m.id === e.actorId)?.name ?? "Alguém";
   const phase = (id?: string | null) => phases.find((p) => p.id === id)?.name ?? "?";
   switch (e.type) {
     case "created": return `${who} criou o card`;
