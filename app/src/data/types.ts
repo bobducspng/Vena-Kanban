@@ -231,13 +231,22 @@ export interface CardEvent {
 }
 
 /** Automation rule (M5): when (trigger) → if (conditions) → then (actions). */
-export type AutomationTrigger = { type: "card_created" | "card_entered_phase" | "card_left_phase" | "field_updated"; phaseId?: string; fieldId?: string };
+export type AutomationTrigger = {
+  type: "card_created" | "card_entered_phase" | "card_left_phase" | "field_updated" | "scheduled" | "children_in_phase";
+  phaseId?: string;
+  fieldId?: string;
+  frequency?: "hourly" | "daily" | "weekly";
+  time?: string; // "HH:MM", Brasília
+  weekdays?: number[]; // 0 = domingo
+};
 export type AutomationAction =
   | { type: "move_card"; phaseId: string }
   | { type: "update_field"; fieldId: string; mode: "fixed" | "copy" | "date_offset" | "clear"; value?: string | number | boolean | null | string[]; fromFieldId?: string; days?: number }
   | { type: "assign"; mode: "round_robin" | "random" | "set"; userIds: string[] }
   | { type: "create_connected_card"; connectionFieldId: string; values: { toFieldId: string; fromFieldId?: string; value?: string | number | boolean | null | string[] }[] }
-  | { type: "move_parent"; phaseId: string };
+  | { type: "move_parent"; phaseId: string }
+  | { type: "formula"; fieldId: string; expression: string }
+  | { type: "http"; method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; url: string; headers: { name: string; value: string }[]; body?: string; saveToFieldId?: string };
 export interface AutomationRule {
   id: string;
   pipeId: string;

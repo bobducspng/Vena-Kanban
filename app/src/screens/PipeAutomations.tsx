@@ -24,13 +24,19 @@ const TRIGGER_LABEL: Record<AutomationTrigger["type"], string> = {
   card_entered_phase: "Card entrou na fase",
   card_left_phase: "Card saiu da fase",
   field_updated: "Campo atualizado",
+  scheduled: "Agendado (de tempos em tempos)",
+  children_in_phase: "Todos os cards filhos chegaram numa fase",
 };
+const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const FREQ_LABEL = { hourly: "de hora em hora", daily: "todo dia", weekly: "toda semana" } as const;
 const ACTION_LABEL: Record<AutomationAction["type"], string> = {
   move_card: "Mover card",
   update_field: "Atualizar campo",
   assign: "Definir responsável",
   create_connected_card: "Criar card conectado (outro pipe)",
   move_parent: "Mover o card pai",
+  formula: "Calcular fórmula",
+  http: "Chamar outro sistema (HTTP)",
 };
 const NOT_WRITABLE = ["connection", "attachment", "id"];
 
@@ -61,6 +67,8 @@ export function PipeAutomations() {
   const fieldName = (id?: string) => fields?.find((f) => f.id === id)?.label ?? "qualquer campo";
   const when = (t: AutomationTrigger) =>
     t.type === "field_updated" ? `${TRIGGER_LABEL[t.type]}: ${fieldName(t.fieldId)}`
+      : t.type === "scheduled" ? `Agendado ${FREQ_LABEL[t.frequency ?? "daily"]}${t.time ? ` às ${t.time}` : ""}${t.frequency === "weekly" ? ` (${(t.weekdays ?? []).map((d) => WEEKDAYS[d]).join(", ")})` : ""}`
+      : t.type === "children_in_phase" ? "Todos os filhos chegaram na fase escolhida"
       : t.phaseId ? `${TRIGGER_LABEL[t.type]}: ${phaseName(t.phaseId)}` : TRIGGER_LABEL[t.type];
 
   return (
@@ -153,7 +161,8 @@ function RuleModal({ pipeId, phases, fields, editing, onClose, onSaved }: {
   return (
     <Modal open={!!editing} onOpenChange={(o) => !o && onClose()} title={existing ? "Editar automação" : "Nova automação"} size="wide"
       footer={<><Button variant="secondary" onClick={onClose}>Cancelar</Button>
-        <Button onClick={() => save.mutate()} loading={save.isPending} disabled={!name.trim() || !actions.length || (needsPhase && !trig.phaseId)}>Salvar</Button></>}>
+        <Button onClick={() => save.mutate()} loading={save.isPending}
+          disabled={!name.trim() || !actions.length || (needsPhase && !trig.phaseId) || (trig.type === "children_in_phase" && !trig.phaseId) || (trig.type === "scheduled" && trig.frequency === "weekly" && !trig.weekdays?.length)}>Salvar</Button></>}>
       <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="auto-name" className="text-sm font-medium text-text">Nome</label>
@@ -164,17 +173,50 @@ function RuleModal({ pipeId, phases, fields, editing, onClose, onSaved }: {
           <h3 className="text-sm font-semibold text-text">Quando</h3>
           <div className="grid gap-2 sm:grid-cols-2">
             <Select aria-label="Gatilho" value={trig.type}
-              onValueChange={(v) => setTrig({ type: v as AutomationTrigger["type"], phaseId: v === "card_created" || v === "field_updated" ? undefined : phases[0]?.id })}
+              onValueChange={(v) => setTrig(v === "scheduled" ? { type: "scheduled", frequency: "daily", time: "08:00", weekdays: [1, 2, 3, 4, 5] }
+                : { type: v as AutomationTrigger["type"], phaseId: v === "card_entered_phase" || v === "card_left_phase" ? phases[0]?.id : undefined })}
               options={(Object.keys(TRIGGER_LABEL) as AutomationTrigger["type"][]).map((t) => ({ value: t, label: TRIGGER_LABEL[t] }))} />
             {needsPhase && (
               <Select aria-label="Fase" value={trig.phaseId} placeholder="Fase" onValueChange={(v) => setTrig((t) => ({ ...t, phaseId: v }))}
                 options={phases.map((p) => ({ value: p.id, label: p.name }))} />
             )}
+            {trig.type === "scheduled" && (
+              <Select aria-label="Frequência" value={trig.frequency} onValueChange={(v) => setTrig((t) => ({ ...t, frequency: v as "daily" }))}
+                options={(Object.keys(FREQ_LABEL) as (keyof typeof FREQ_LABEL)[]).map((k) => ({ value: k, label: FREQ_LABEL[k] }))} />
+            )}
+            {trig.type === "children_in_phase" && <ChildPhasePicker value={trig.phaseId} onChange={(id) => setTrig((t) => ({ ...t, phaseId: id }))} />}
             {trig.type === "field_updated" && (
               <Select aria-label="Campo" value={trig.fieldId ?? "__any"} onValueChange={(v) => setTrig((t) => ({ ...t, fieldId: v === "__any" ? undefined : v }))}
                 options={[{ value: "__any", label: "Qualquer campo" }, ...sources.map((f) => ({ value: f.id, label: f.label }))]} />
             )}
           </div>
+          {trig.type === "scheduled" && (
+            <div className="flex flex-col gap-2 rounded-md border border-border p-3">
+              {trig.frequency !== "hourly" && (
+                <label className="flex items-center gap-2 text-sm text-text">Horário (Brasília)
+                  <Input type="time" aria-label="Horário" value={trig.time ?? ""} onChange={(e) => setTrig((t) => ({ ...t, time: e.target.value }))} className="w-32" />
+                </label>
+              )}
+              {trig.frequency === "weekly" && (
+                <div className="flex flex-wrap gap-2">
+                  {WEEKDAYS.map((d, i) => {
+                    const on = (trig.weekdays ?? []).includes(i);
+                    return (
+                      <button key={d} type="button" aria-pressed={on}
+                        onClick={() => setTrig((t) => ({ ...t, weekdays: on ? (t.weekdays ?? []).filter((x) => x !== i) : [...(t.weekdays ?? []), i].sort() }))}
+                        className={cn("rounded-pill border px-3 py-1 text-sm", on ? "border-accent bg-surface text-text" : "border-border text-muted")}>{d}</button>
+                    );
+                  })}
+                </div>
+              )}
+              <Select aria-label="Cards de qual fase" value={trig.phaseId ?? "__all"} onValueChange={(v) => setTrig((t) => ({ ...t, phaseId: v === "__all" ? undefined : v }))}
+                options={[{ value: "__all", label: "Cards de todas as fases" }, ...phases.map((p) => ({ value: p.id, label: `Só cards em ${p.name}` }))]} />
+              <p className="text-xs text-muted">A cada execução, a regra passa pelos cards (até 300) e age nos que atendem às condições abaixo. Ex.: todo dia às 08:00, cards vencidos → mover para "Atrasados".</p>
+            </div>
+          )}
+          {trig.type === "children_in_phase" && (
+            <p className="text-xs text-muted">Dispara no card pai quando o último dos filhos conectados (do pipe da fase escolhida) chega nela. Ex.: todos os pagamentos concluídos → mover a compra para Concluído.</p>
+          )}
         </section>
 
         <section aria-label="Se" className="flex flex-col gap-2">
@@ -225,7 +267,24 @@ function blank(type: AutomationAction["type"], phases: Phase[]): AutomationActio
     case "assign": return { type, mode: "round_robin", userIds: [] };
     case "create_connected_card": return { type, connectionFieldId: "", values: [] };
     case "move_parent": return { type, phaseId: "" };
+    case "formula": return { type, fieldId: "", expression: "" };
+    case "http": return { type, method: "POST", url: "https://", headers: [{ name: "Content-Type", value: "application/json" }], body: "" };
   }
+}
+
+/** Phase of another pipe (the children's pipe), picked pipe first. */
+function ChildPhasePicker({ value, onChange }: { value?: string; onChange: (phaseId: string) => void }) {
+  const { data: pipes } = useQuery({ queryKey: ["pipes"], queryFn: api.pipe.list });
+  const [pipeId, setPipeId] = useState("");
+  const { data: phases } = useQuery({ queryKey: ["phases", pipeId], queryFn: () => api.phase.listByPipe(pipeId), enabled: !!pipeId });
+  return (
+    <div className="grid gap-2 sm:col-span-2 sm:grid-cols-2">
+      <Select aria-label="Pipe dos filhos" value={pipeId || undefined} placeholder="Pipe dos filhos" onValueChange={setPipeId}
+        options={(pipes ?? []).map((p) => ({ value: p.id, label: p.name }))} />
+      <Select aria-label="Fase dos filhos" value={value} placeholder={value && !pipeId ? "(fase escolhida)" : "Fase"} onValueChange={onChange}
+        options={(phases ?? []).map((p) => ({ value: p.id, label: p.name }))} />
+    </div>
+  );
 }
 
 function ActionEditor({ index, action, phases, fields, onChange, onRemove }: {
@@ -343,6 +402,49 @@ function ActionEditor({ index, action, phases, fields, onChange, onRemove }: {
               </Button>
             </>
           )}
+        </div>
+      )}
+
+      {action.type === "formula" && (
+        <div className="flex flex-col gap-2">
+          <Select aria-label="Gravar o resultado em" value={action.fieldId || undefined} placeholder="Gravar o resultado em"
+            onValueChange={(v) => onChange({ ...action, fieldId: v })}
+            options={fields.filter((f) => ["number", "currency", "date", "due_date", "checkbox", "short_text", "long_text"].includes(f.type)).map((f) => ({ value: f.id, label: f.label }))} />
+          <Input aria-label="Fórmula" className="font-mono" placeholder="Ex.: ROUND({Valor} * 1.1, 2)" value={action.expression} onChange={(e) => onChange({ ...action, expression: e.target.value })} />
+          <div className="flex flex-wrap gap-1">
+            {fields.filter((f) => !["attachment", "id", "connection"].includes(f.type)).map((f) => (
+              <button key={f.id} type="button" onClick={() => onChange({ ...action, expression: `${action.expression}{${f.label}}` })}
+                className="rounded-pill border border-border px-2 py-0.5 text-xs text-muted hover:text-text">{`{${f.label}}`}</button>
+            ))}
+          </div>
+          <p className="text-xs text-muted">Operadores + - * / % ^ e parênteses; funções SUM, AVERAGE, MIN, MAX, ROUND(x, casas), IF_NULL(x, padrão), ABS, COUNT, TODAY(). Datas: data + 30 = data; data − data = dias. Decimal com ponto (1.5).</p>
+        </div>
+      )}
+
+      {action.type === "http" && (
+        <div className="flex flex-col gap-2">
+          <div className="grid gap-2 sm:grid-cols-[8rem_minmax(0,1fr)]">
+            <Select aria-label="Método" value={action.method} onValueChange={(v) => onChange({ ...action, method: v as "POST" })}
+              options={["GET", "POST", "PUT", "PATCH", "DELETE"].map((m) => ({ value: m, label: m }))} />
+            <Input aria-label="URL" className="font-mono" value={action.url} onChange={(e) => onChange({ ...action, url: e.target.value })} placeholder="https://api.exemplo.com/pedidos/{#}" />
+          </div>
+          {action.headers.map((h, j) => (
+            <div key={j} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto]">
+              <Input aria-label="Cabeçalho" value={h.name} placeholder="Authorization" onChange={(e) => onChange({ ...action, headers: action.headers.map((x, k) => (k === j ? { ...x, name: e.target.value } : x)) })} />
+              <Input aria-label="Valor do cabeçalho" value={h.value} placeholder="Bearer ..." onChange={(e) => onChange({ ...action, headers: action.headers.map((x, k) => (k === j ? { ...x, value: e.target.value } : x)) })} />
+              <button aria-label="Remover cabeçalho" onClick={() => onChange({ ...action, headers: action.headers.filter((_, k) => k !== j) })} className="rounded p-1 text-muted hover:text-danger"><X className="h-4 w-4" /></button>
+            </div>
+          ))}
+          <Button size="sm" variant="ghost" className="self-start" onClick={() => onChange({ ...action, headers: [...action.headers, { name: "", value: "" }] })}>
+            <Plus className="h-4 w-4" aria-hidden="true" /> Cabeçalho
+          </Button>
+          {action.method !== "GET" && action.method !== "DELETE" && (
+            <textarea aria-label="Corpo" rows={5} className="w-full rounded-md border border-border-input bg-bg p-2 font-mono text-xs text-text"
+              placeholder={'{ "pedido": "{#}", "valor": "{Valor}" }'} value={action.body ?? ""} onChange={(e) => onChange({ ...action, body: e.target.value })} />
+          )}
+          <Select aria-label="Guardar a resposta em" value={action.saveToFieldId ?? "__none"} onValueChange={(v) => onChange({ ...action, saveToFieldId: v === "__none" ? undefined : v })}
+            options={[{ value: "__none", label: "Não guardar a resposta" }, ...fields.filter((f) => ["short_text", "long_text"].includes(f.type)).map((f) => ({ value: f.id, label: `Guardar a resposta em "${f.label}"` }))]} />
+          <p className="text-xs text-muted">{"Use {Nome do campo}, {#} (número do card) e {Título}. Resposta fora de 2xx conta como falha. Endereços internos da rede são bloqueados por segurança."}</p>
         </div>
       )}
 

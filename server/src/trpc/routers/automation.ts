@@ -22,8 +22,18 @@ async function checkRefs(pipeId: string, orgId: string, b: Body) {
   const fl = await db.select({ id: fields.id, type: fields.type, settings: fields.settings }).from(fields).where(eq(fields.pipeId, pipeId));
   const hasPhase = (id?: string) => !id || ph.some((p) => p.id === id);
   const field = (id?: string) => fl.find((f) => f.id === id);
-  if (["card_entered_phase", "card_left_phase"].includes(b.trigger.type) && !b.trigger.phaseId) throw bad("Escolha a fase do gatilho.");
-  if (!hasPhase(b.trigger.phaseId) || (b.trigger.fieldId && !field(b.trigger.fieldId))) throw bad("Gatilho aponta para fase ou campo de outro pipe.");
+  const t = b.trigger;
+  if (["card_entered_phase", "card_left_phase", "children_in_phase"].includes(t.type) && !t.phaseId) throw bad("Escolha a fase do gatilho.");
+  if (t.type === "children_in_phase") {
+    // The phase belongs to the CHILD pipe (another pipe of the org).
+    const p = (await db.select({ orgId: pipes.orgId, pipeId: phases.pipeId }).from(phases).innerJoin(pipes, eq(pipes.id, phases.pipeId)).where(eq(phases.id, t.phaseId!)).limit(1))[0];
+    if (p?.orgId !== orgId) throw bad("Fase dos filhos inválida.");
+  } else if (!hasPhase(t.phaseId) || (t.fieldId && !field(t.fieldId))) throw bad("Gatilho aponta para fase ou campo de outro pipe.");
+  if (t.type === "scheduled") {
+    if (!t.frequency) throw bad("Escolha a frequência.");
+    if (t.frequency !== "hourly" && !t.time) throw bad("Escolha o horário.");
+    if (t.frequency === "weekly" && !t.weekdays?.length) throw bad("Escolha ao menos um dia da semana.");
+  }
   for (const g of b.groups) for (const r of g) if (!field(r.fieldId)) throw bad("Condição usa campo de outro pipe.");
   for (const a of b.actions) {
     if (a.type === "move_card" && !hasPhase(a.phaseId)) throw bad("Mover card: fase de outro pipe.");
@@ -41,6 +51,16 @@ async function checkRefs(pipeId: string, orgId: string, b: Body) {
       for (const m of a.values) {
         if (!targetFields.some((t) => t.id === m.toFieldId) || (m.fromFieldId && !field(m.fromFieldId))) throw bad("Criar card conectado: mapeamento inválido.");
       }
+    }
+    if (a.type === "formula") {
+      const f = field(a.fieldId);
+      if (!f || !["number", "currency", "date", "due_date", "checkbox", "short_text", "long_text"].includes(f.type)) {
+        throw bad("Fórmula: o destino precisa ser número, moeda, data, Sim/Não ou texto.");
+      }
+    }
+    if (a.type === "http" && a.saveToFieldId) {
+      const f = field(a.saveToFieldId);
+      if (!f || !["short_text", "long_text"].includes(f.type)) throw bad("HTTP: a resposta só pode ir para um campo de texto.");
     }
     if (a.type === "move_parent") {
       const p = (await db.select({ orgId: pipes.orgId }).from(phases).innerJoin(pipes, eq(pipes.id, phases.pipeId)).where(eq(phases.id, a.phaseId)).limit(1))[0];
@@ -116,4 +136,12 @@ export const automationRouter = router({
     if (!card) throw new TRPCError({ code: "NOT_FOUND", message: `Card #${input.cardNumber} não encontrado neste pipe.` });
     return runRule(r, card.id, 0, !input.execute);
   }),
+
+  /** Rules whose last run failed, across the org (for the warnings on Home/board). */
+  failures: adminProcedure.query(({ ctx }) =>
+    db.select({ ruleId: automationRules.id, name: automationRules.name, pipeId: pipes.id, pipeName: pipes.name, lastError: automationRules.lastError, lastRunAt: automationRules.lastRunAt })
+      .from(automationRules).innerJoin(pipes, eq(pipes.id, automationRules.pipeId))
+      .where(and(eq(pipes.orgId, ctx.orgId), eq(automationRules.active, true), eq(automationRules.lastStatus, "failed"), isNull(pipes.deletedAt)))
+      .orderBy(desc(automationRules.lastRunAt))
+  ),
 });

@@ -1,0 +1,36 @@
+// Checks for the formula interpreter. Run: npm run -w server test:formula
+import { evaluate, FormulaError } from "../src/formula.js";
+let fail = 0;
+const vals: Record<string, string | number | boolean | null> = { Valor: 1500, Desconto: null, Pedido: "2026-10-01", Entrega: "2026-10-28", Qtd: 3, Preço: 12.5 };
+const ref = (n: string) => { if (!(n in vals)) throw new FormulaError(`campo "${n}" não existe`); return vals[n]; };
+const t = (src: string, exp: unknown) => { let got: unknown; try { got = evaluate(src, ref); } catch (e) { got = `ERRO: ${(e as Error).message}`; }
+  const ok = typeof exp === "string" && exp.startsWith("ERRO") ? String(got).startsWith("ERRO") : JSON.stringify(got) === JSON.stringify(exp);
+  if (!ok) fail++; console.log(ok ? "ok   " : "FALHA", src, "=>", got); };
+t("{Valor} * 1.1", 1650.0000000000002);
+t("ROUND({Valor} * 1.1, 2)", 1650);
+t("{Qtd} * {Preço}", 37.5);
+t("2 + 3 * 4", 14);
+t("(2 + 3) * 4", 20);
+t("2 ^ 3 ^ 2", 512);
+t("-{Qtd} + 10", 7);
+t("10 % 4", 2);
+t("SUM({Valor}, 500, {Qtd})", 2003);
+t("AVERAGE(2, 4, 6)", 4);
+t("MAX({Valor}, 2000; 10)", 2000);
+t("IF_NULL({Desconto}, 0) + {Valor}", 1500);
+t("{Entrega} - {Pedido}", 27);
+t("{Pedido} + 30", "2026-10-31");
+t("{Pedido} - 1", "2026-09-30");
+t("{Valor} > 1000", true);
+t("{Entrega} > {Pedido}", true);
+t("1.5 * 2", 3);
+t("MAX(1,5)", 5);
+t("1,5 * 2", "ERRO");
+t("{Desconto} + 1", "ERRO");
+t("{Valor} / 0", "ERRO");
+t("{Inexistente} + 1", "ERRO");
+t("2 +", "ERRO");
+t("process.exit(1)", "ERRO");
+t("constructor", "ERRO");
+console.log(fail ? `${fail} FALHA(S)` : "TODOS OK");
+if (fail) process.exit(1);

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, LayoutGrid } from "lucide-react";
 import { api } from "../data/store";
@@ -80,6 +80,7 @@ export function OrgHome() {
           </ul>
         )}
         {isAdmin && <DeletedPipes />}
+        {isAdmin && <AutomationFailures />}
       </div>
 
       <Modal
@@ -136,5 +137,25 @@ function DeletedPipes() {
         ))}
       </ul>
     </details>
+  );
+}
+
+/** Admins: automations whose last run failed (the original's most-voted request). */
+function AutomationFailures() {
+  const { data } = useQuery({ queryKey: ["automationFailures"], queryFn: api.automation.failures, refetchInterval: 60_000 });
+  if (!data?.length) return null;
+  return (
+    <section aria-label="Automações com falha" className="mt-6 rounded-lg border border-danger p-4">
+      <h3 className="text-sm font-semibold text-danger">{data.length} automação(ões) com falha na última execução</h3>
+      <ul className="mt-2 flex flex-col gap-1 text-sm">
+        {data.map((f) => (
+          <li key={f.ruleId}>
+            <Link to={`/pipes/${f.pipeId}/automations`} className="text-text hover:text-accent">
+              <span className="font-medium">{f.pipeName}</span> · {f.name}: <span className="text-muted">{f.lastError}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

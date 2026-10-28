@@ -50,6 +50,8 @@ export function PipeKanban() {
   const { data: members } = useQuery({ queryKey: ["users"], queryFn: api.user.list });
   const userById = new Map((members ?? []).map((u) => [u.id, u]));
   const { data: labels } = useQuery({ queryKey: ["labels", pipeId], queryFn: () => api.label.listByPipe(pipeId) });
+  const { data: failures } = useQuery({ queryKey: ["automationFailures"], queryFn: api.automation.failures, enabled: isAdmin, refetchInterval: 60_000 });
+  const pipeFailures = (failures ?? []).filter((f) => f.pipeId === pipeId);
   const labelById = new Map((labels ?? []).map((l) => [l.id, l]));
   const { data: fields } = useQuery({ queryKey: ["fields", pipeId], queryFn: () => api.field.listByPipe(pipeId) });
   const subtitleDefs = (pipe?.subtitleFieldIds ?? []).map((id) => fields?.find((f) => f.id === id)).filter((f) => !!f);
@@ -98,6 +100,9 @@ export function PipeKanban() {
             {isAdmin && (
               <Link to={`/pipes/${pipeId}/automations`} className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-surface px-4 text-sm text-text hover:bg-bg">
                 <Zap className="h-4 w-4" aria-hidden="true" /> Automações
+                {pipeFailures.length > 0 && (
+                  <span className="rounded-pill bg-danger px-1.5 text-xs font-semibold text-on-accent" title={`${pipeFailures.length} com falha`}>{pipeFailures.length}</span>
+                )}
               </Link>
             )}
             {isAdmin && (

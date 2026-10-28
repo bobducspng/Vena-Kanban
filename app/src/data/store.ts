@@ -255,6 +255,7 @@ export const api = {
     logs: async (ruleId: string): Promise<AutomationLog[]> =>
       (await trpc.automation.logs.query({ ruleId })).map((l) => ({ id: l.id, status: l.status as AutomationLog["status"], message: l.message, createdAt: toISO(l.createdAt), card: l.card })),
     test: (ruleId: string, cardNumber: number, execute = false) => trpc.automation.test.mutate({ ruleId, cardNumber, execute }),
+    failures: async () => (await trpc.automation.failures.query()).map((f) => ({ ...f, lastRunAt: toISON(f.lastRunAt) })),
   },
 
   connection: {
