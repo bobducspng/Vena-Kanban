@@ -55,6 +55,8 @@ export const phaseRouter = router({
       description: z.string().max(2000).nullable().optional(),
       isEnd: z.boolean().optional(),
       canCreateCard: z.boolean().optional(),
+      // SLA da fase in minutes (null = none); up to 1 year.
+      slaMinutes: z.number().int().min(1).max(525_600).nullable().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const phase = await phaseInOrg(input.phaseId, ctx.orgId);

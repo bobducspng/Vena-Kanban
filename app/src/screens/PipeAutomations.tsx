@@ -26,7 +26,9 @@ const TRIGGER_LABEL: Record<AutomationTrigger["type"], string> = {
   field_updated: "Campo atualizado",
   scheduled: "Agendado (de tempos em tempos)",
   children_in_phase: "Todos os cards filhos chegaram numa fase",
+  alert: "Alerta de prazo (atrasado, expirado ou vencido)",
 };
+const ALERT_LABEL = { late: "Atrasado na fase", expired: "Expirado (prazo do pipe)", overdue: "Vencido (data de vencimento)" } as const;
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const FREQ_LABEL = { hourly: "de hora em hora", daily: "todo dia", weekly: "toda semana" } as const;
 const ACTION_LABEL: Record<AutomationAction["type"], string> = {
@@ -69,6 +71,7 @@ export function PipeAutomations() {
     t.type === "field_updated" ? `${TRIGGER_LABEL[t.type]}: ${fieldName(t.fieldId)}`
       : t.type === "scheduled" ? `Agendado ${FREQ_LABEL[t.frequency ?? "daily"]}${t.time ? ` às ${t.time}` : ""}${t.frequency === "weekly" ? ` (${(t.weekdays ?? []).map((d) => WEEKDAYS[d]).join(", ")})` : ""}`
       : t.type === "children_in_phase" ? "Todos os filhos chegaram na fase escolhida"
+      : t.type === "alert" ? `Alerta: ${t.alertKind ? ALERT_LABEL[t.alertKind] : "qualquer"}${t.phaseId ? ` em ${phaseName(t.phaseId)}` : ""}`
       : t.phaseId ? `${TRIGGER_LABEL[t.type]}: ${phaseName(t.phaseId)}` : TRIGGER_LABEL[t.type];
 
   return (
@@ -183,6 +186,14 @@ function RuleModal({ pipeId, phases, fields, editing, onClose, onSaved }: {
             {trig.type === "scheduled" && (
               <Select aria-label="Frequência" value={trig.frequency} onValueChange={(v) => setTrig((t) => ({ ...t, frequency: v as "daily" }))}
                 options={(Object.keys(FREQ_LABEL) as (keyof typeof FREQ_LABEL)[]).map((k) => ({ value: k, label: FREQ_LABEL[k] }))} />
+            )}
+            {trig.type === "alert" && (
+              <Select aria-label="Qual alerta" value={trig.alertKind ?? "__any"} onValueChange={(v) => setTrig((t) => ({ ...t, alertKind: v === "__any" ? undefined : v as "late" }))}
+                options={[{ value: "__any", label: "Qualquer alerta" }, ...(Object.keys(ALERT_LABEL) as (keyof typeof ALERT_LABEL)[]).map((k) => ({ value: k, label: ALERT_LABEL[k] }))]} />
+            )}
+            {trig.type === "alert" && (
+              <Select aria-label="Em qual fase" value={trig.phaseId ?? "__all"} onValueChange={(v) => setTrig((t) => ({ ...t, phaseId: v === "__all" ? undefined : v }))}
+                options={[{ value: "__all", label: "Em qualquer fase" }, ...phases.map((p) => ({ value: p.id, label: `Só em ${p.name}` }))]} />
             )}
             {trig.type === "children_in_phase" && <ChildPhasePicker value={trig.phaseId} onChange={(id) => setTrig((t) => ({ ...t, phaseId: id }))} />}
             {trig.type === "field_updated" && (

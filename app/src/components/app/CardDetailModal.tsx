@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, CheckCircle2, Copy, Link2, Trash2 } from "lucide-react";
+import { AlarmClock, ArrowLeft, ArrowRight, CheckCircle2, Clock, Copy, Link2, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { api, RequiredFieldError } from "../../data/store";
 import { isConflict } from "../../lib/trpc";
@@ -10,7 +10,7 @@ import { Field } from "../ui/Field";
 import { Input } from "../ui/Input";
 import { Tag } from "../ui/Tag";
 import { useToast } from "../ui/Toast";
-import type { CardEvent, CardFieldValue, FieldDef, Phase, User } from "../../data/types";
+import type { Card, CardEvent, CardFieldValue, CardTimeline, FieldDef, Phase, User } from "../../data/types";
 import { AssigneesSection, AttachmentsSection, ChecklistSection, CommentsSection, DueDateSection, LabelsSection } from "./CardSections";
 import { fieldStates } from "../../lib/conditions";
 import { withState } from "../../lib/useFieldStates";
@@ -32,6 +32,7 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
   const { data: members } = useQuery({ queryKey: ["users"], queryFn: api.user.list });
   const { data: conditions } = useQuery({ queryKey: ["conditions", pipeId], queryFn: () => api.condition.listByPipe(pipeId) });
   const { data: parents } = useQuery({ queryKey: ["parents", cardId], queryFn: () => api.card.parents(cardId!), enabled: !!cardId });
+  const { data: timeline } = useQuery({ queryKey: ["timeline", cardId, card?.currentPhaseId], queryFn: () => api.card.timeline(cardId!), enabled: !!cardId });
   const { data: events } = useQuery({
     queryKey: ["events", cardId],
     queryFn: () => api.event.listByCard(cardId!),
@@ -170,6 +171,8 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
             </section>
           )}
 
+          <AlertsSection card={card} timeline={timeline} />
+
           <AssigneesSection card={card} members={members ?? []} onChanged={refresh} />
           <LabelsSection card={card} pipeId={pipeId} onChanged={refresh} />
           <DueDateSection card={card} onChanged={refresh} />
@@ -190,6 +193,43 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
         </aside>
       </div>
     </Modal>
+  );
+}
+
+const fmtMinutes = (m: number, business: boolean) => {
+  const day = business ? 600 : 1440;
+  const d = Math.floor(m / day), h = Math.floor((m % day) / 60), mm = m % 60;
+  return [d && `${d}${business ? "d úteis" : "d"}`, h && `${h}h`, (!d && mm) || (!d && !h) ? `${mm}min` : ""].filter(Boolean).join(" ");
+};
+const when = (iso: string) => new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+
+/** Alerts (atrasado/expirado/vencido), the next deadlines and time spent in each phase. */
+function AlertsSection({ card, timeline }: { card: Card; timeline?: CardTimeline }) {
+  const d = timeline?.deadlines;
+  const business = !!timeline?.businessHours;
+  const hasSomething = card.lateAt || card.expiredAt || card.overdueAt || d?.lateBy || d?.expiresBy || (timeline?.stays.length ?? 0) > 1;
+  if (!hasSomething) return null;
+  return (
+    <section aria-label="Prazos" className="flex flex-col gap-2">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Prazos</h3>
+      {card.lateAt && <p className="inline-flex items-center gap-1.5 text-sm font-medium text-warning"><Clock className="h-4 w-4" aria-hidden="true" />Atrasado nesta fase desde {when(card.lateAt)}</p>}
+      {card.expiredAt && <p className="inline-flex items-center gap-1.5 text-sm font-medium text-danger"><AlarmClock className="h-4 w-4" aria-hidden="true" />Expirado desde {when(card.expiredAt)}</p>}
+      {!card.lateAt && d?.lateBy && <p className="text-xs text-muted">SLA da fase: até {when(d.lateBy)}{business ? " (horário útil)" : ""}</p>}
+      {!card.expiredAt && d?.expiresBy && <p className="text-xs text-muted">Prazo total: até {when(d.expiresBy)}{business ? " (horário útil)" : ""}</p>}
+      {timeline && timeline.stays.length > 0 && (
+        <details className="text-xs">
+          <summary className="cursor-pointer text-muted">Tempo em cada fase{business ? " (horário útil)" : ""}</summary>
+          <ul className="mt-1 flex flex-col gap-0.5">
+            {timeline.stays.map((s, i) => (
+              <li key={i} className="flex justify-between gap-2">
+                <span className={s.leftAt ? "text-muted" : "font-medium text-text"}>{s.name}{!s.leftAt && " (agora)"}</span>
+                <span className={s.becameLate ? "text-warning" : "text-muted"}>{fmtMinutes(s.minutes, business)}{s.becameLate ? " · atrasou" : ""}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </section>
   );
 }
 
@@ -258,6 +298,10 @@ function describe(e: CardEvent, phases: Phase[], members: User[]): string {
     case "attachment_removed": return `${who} removeu um anexo`;
     case "deleted": return `${who} enviou para a lixeira`;
     case "restored": return `${who} restaurou da lixeira`;
+    case "late": return "Card ficou atrasado na fase";
+    case "expired": return "Card expirou (prazo do pipe)";
+    case "overdue": return "Card venceu (data de vencimento)";
+    case "autofill_refreshed": return `${who} atualizou dados do cadastro`;
     default: return e.type;
   }
 }

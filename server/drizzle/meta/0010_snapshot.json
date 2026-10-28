@@ -1,0 +1,2911 @@
+{
+  "version": "5",
+  "dialect": "mysql",
+  "id": "f125e622-51be-4134-a4a0-7174a8e94e3f",
+  "prevId": "e252b9bb-3b17-4a64-8c70-d7e31ec381be",
+  "tables": {
+    "attachments": {
+      "name": "attachments",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "card_id": {
+          "name": "card_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "card_field_id": {
+          "name": "card_field_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "filename": {
+          "name": "filename",
+          "type": "varchar(512)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "url": {
+          "name": "url",
+          "type": "varchar(2048)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "size_bytes": {
+          "name": "size_bytes",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "uploaded_by": {
+          "name": "uploaded_by",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "idx_attach_card": {
+          "name": "idx_attach_card",
+          "columns": [
+            "card_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "attachments_id": {
+          "name": "attachments_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "automation_logs": {
+      "name": "automation_logs",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rule_id": {
+          "name": "rule_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "card_id": {
+          "name": "card_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "duration_ms": {
+          "name": "duration_ms",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "idx_autolog_rule": {
+          "name": "idx_autolog_rule",
+          "columns": [
+            "rule_id",
+            "created_at"
+          ],
+          "isUnique": false
+        },
+        "idx_autolog_card": {
+          "name": "idx_autolog_card",
+          "columns": [
+            "card_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "automation_logs_id": {
+          "name": "automation_logs_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "automation_rules": {
+      "name": "automation_rules",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pipe_id": {
+          "name": "pipe_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "trigger": {
+          "name": "trigger",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "groups": {
+          "name": "groups",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "actions": {
+          "name": "actions",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "state": {
+          "name": "state",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_run_at": {
+          "name": "last_run_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_status": {
+          "name": "last_status",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_error": {
+          "name": "last_error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "idx_rules_pipe": {
+          "name": "idx_rules_pipe",
+          "columns": [
+            "pipe_id",
+            "active"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "automation_rules_id": {
+          "name": "automation_rules_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "automation_runs": {
+      "name": "automation_runs",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "automation_id": {
+          "name": "automation_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "card_id": {
+          "name": "card_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "enum('success','skipped','failed')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "counted_task": {
+          "name": "counted_task",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "dedupe_key": {
+          "name": "dedupe_key",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "error": {
+          "name": "error",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "uq_run_dedupe": {
+          "name": "uq_run_dedupe",
+          "columns": [
+            "dedupe_key"
+          ],
+          "isUnique": true
+        },
+        "idx_runs_autom": {
+          "name": "idx_runs_autom",
+          "columns": [
+            "automation_id",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "automation_runs_id": {
+          "name": "automation_runs_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "automations": {
+      "name": "automations",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pipe_id": {
+          "name": "pipe_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "event_type": {
+          "name": "event_type",
+          "type": "enum('card_enters_phase','field_updated','card_created','schedule','alert')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "event_config": {
+          "name": "event_config",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "cond_json": {
+          "name": "cond_json",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "action_type": {
+          "name": "action_type",
+          "type": "enum('move_card','update_field','create_connected_card','create_record','notify')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "action_config": {
+          "name": "action_config",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "idx_autom_pipe": {
+          "name": "idx_autom_pipe",
+          "columns": [
+            "pipe_id",
+            "active"
+          ],
+          "isUnique": false
+        },
+        "idx_autom_event": {
+          "name": "idx_autom_event",
+          "columns": [
+            "pipe_id",
+            "event_type"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "automations_id": {
+          "name": "automations_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "business_calendars": {
+      "name": "business_calendars",
+      "columns": {
+        "org_id": {
+          "name": "org_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "weekdays": {
+          "name": "weekdays",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "start_time": {
+          "name": "start_time",
+          "type": "varchar(5)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "end_time": {
+          "name": "end_time",
+          "type": "varchar(5)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "holidays": {
+          "name": "holidays",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "business_calendars_org_id": {
+          "name": "business_calendars_org_id",
+          "columns": [
+            "org_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "card_assignees": {
+      "name": "card_assignees",
+      "columns": {
+        "card_id": {
+          "name": "card_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_assignee_user": {
+          "name": "idx_assignee_user",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "card_assignees_card_id_user_id_pk": {
+          "name": "card_assignees_card_id_user_id_pk",
+          "columns": [
+            "card_id",
+            "user_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "card_events": {
+      "name": "card_events",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "card_id": {
+          "name": "card_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "varchar(48)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "from_phase_id": {
+          "name": "from_phase_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "to_phase_id": {
+          "name": "to_phase_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "actor_id": {
+          "name": "actor_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "data": {
+          "name": "data",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "idx_events_card": {
+          "name": "idx_events_card",
+          "columns": [
+            "card_id",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "card_events_id": {
+          "name": "card_events_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "card_fields": {
+      "name": "card_fields",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "card_id": {
+          "name": "card_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "field_id": {
+          "name": "field_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "filled_at": {
+          "name": "filled_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "uq_card_field": {
+          "name": "uq_card_field",
+          "columns": [
+            "card_id",
+            "field_id"
+          ],
+          "isUnique": true
+        },
+        "idx_card_fields_field": {
+          "name": "idx_card_fields_field",
+          "columns": [
+            "field_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "card_fields_id": {
+          "name": "card_fields_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "card_labels": {
+      "name": "card_labels",
+      "columns": {
+        "card_id": {
+          "name": "card_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "label_id": {
+          "name": "label_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_cardlabels_label": {
+          "name": "idx_cardlabels_label",
+          "columns": [
+            "label_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "card_labels_card_id_label_id_pk": {
+          "name": "card_labels_card_id_label_id_pk",
+          "columns": [
+            "card_id",
+            "label_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "card_phase_history": {
+      "name": "card_phase_history",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "card_id": {
+          "name": "card_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "phase_id": {
+          "name": "phase_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entered_at": {
+          "name": "entered_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "left_at": {
+          "name": "left_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "became_late": {
+          "name": "became_late",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        }
+      },
+      "indexes": {
+        "idx_phasehist_card": {
+          "name": "idx_phasehist_card",
+          "columns": [
+            "card_id",
+            "entered_at"
+          ],
+          "isUnique": false
+        },
+        "idx_phasehist_phase": {
+          "name": "idx_phasehist_phase",
+          "columns": [
+            "phase_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "card_phase_history_id": {
+          "name": "card_phase_history_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "cards": {
+      "name": "cards",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "number": {
+          "name": "number",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "pipe_id": {
+          "name": "pipe_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "current_phase_id": {
+          "name": "current_phase_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "varchar(512)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "due_date": {
+          "name": "due_date",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "done": {
+          "name": "done",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "late": {
+          "name": "late",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "version": {
+          "name": "version",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "phase_entered_at": {
+          "name": "phase_entered_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "late_at": {
+          "name": "late_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "expired_at": {
+          "name": "expired_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "overdue_at": {
+          "name": "overdue_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "deleted_by": {
+          "name": "deleted_by",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "uq_cards_number": {
+          "name": "uq_cards_number",
+          "columns": [
+            "number"
+          ],
+          "isUnique": true
+        },
+        "idx_cards_pipe": {
+          "name": "idx_cards_pipe",
+          "columns": [
+            "pipe_id"
+          ],
+          "isUnique": false
+        },
+        "idx_cards_phase": {
+          "name": "idx_cards_phase",
+          "columns": [
+            "current_phase_id"
+          ],
+          "isUnique": false
+        },
+        "idx_cards_due": {
+          "name": "idx_cards_due",
+          "columns": [
+            "pipe_id",
+            "due_date"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "cards_id": {
+          "name": "cards_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "checklist_items": {
+      "name": "checklist_items",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "card_id": {
+          "name": "card_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "text": {
+          "name": "text",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "done": {
+          "name": "done",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "position": {
+          "name": "position",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "idx_checklist_card": {
+          "name": "idx_checklist_card",
+          "columns": [
+            "card_id",
+            "position"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "checklist_items_id": {
+          "name": "checklist_items_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "comments": {
+      "name": "comments",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "card_id": {
+          "name": "card_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "author_id": {
+          "name": "author_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "idx_comments_card": {
+          "name": "idx_comments_card",
+          "columns": [
+            "card_id",
+            "created_at"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "comments_id": {
+          "name": "comments_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "dashboard_widgets": {
+      "name": "dashboard_widgets",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "dashboard_id": {
+          "name": "dashboard_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "enum('line','bar','area','table','calendar','number')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "config": {
+          "name": "config",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {
+        "idx_widgets_dash": {
+          "name": "idx_widgets_dash",
+          "columns": [
+            "dashboard_id",
+            "position"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "dashboard_widgets_id": {
+          "name": "dashboard_widgets_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "dashboards": {
+      "name": "dashboards",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "idx_dash_org": {
+          "name": "idx_dash_org",
+          "columns": [
+            "org_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "dashboards_id": {
+          "name": "dashboards_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "data_tables": {
+      "name": "data_tables",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "icon": {
+          "name": "icon",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "color": {
+          "name": "color",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "title_field_id": {
+          "name": "title_field_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "summary_field_ids": {
+          "name": "summary_field_ids",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "idx_tables_org": {
+          "name": "idx_tables_org",
+          "columns": [
+            "org_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "data_tables_id": {
+          "name": "data_tables_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "field_conditions": {
+      "name": "field_conditions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pipe_id": {
+          "name": "pipe_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "phase_id": {
+          "name": "phase_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "groups": {
+          "name": "groups",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "on_true": {
+          "name": "on_true",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "on_false": {
+          "name": "on_false",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "idx_conditions_phase": {
+          "name": "idx_conditions_phase",
+          "columns": [
+            "phase_id",
+            "position"
+          ],
+          "isUnique": false
+        },
+        "idx_conditions_pipe": {
+          "name": "idx_conditions_pipe",
+          "columns": [
+            "pipe_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "field_conditions_id": {
+          "name": "field_conditions_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "fields": {
+      "name": "fields",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pipe_id": {
+          "name": "pipe_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "phase_id": {
+          "name": "phase_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "label": {
+          "name": "label",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "required": {
+          "name": "required",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "help": {
+          "name": "help",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "editable_other_phases": {
+          "name": "editable_other_phases",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "is_unique": {
+          "name": "is_unique",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "validation_regex": {
+          "name": "validation_regex",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "options": {
+          "name": "options",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "settings": {
+          "name": "settings",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "idx_fields_pipe": {
+          "name": "idx_fields_pipe",
+          "columns": [
+            "pipe_id"
+          ],
+          "isUnique": false
+        },
+        "idx_fields_phase": {
+          "name": "idx_fields_phase",
+          "columns": [
+            "phase_id",
+            "position"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "fields_id": {
+          "name": "fields_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "item_links": {
+      "name": "item_links",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "field_id": {
+          "name": "field_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "from_item_type": {
+          "name": "from_item_type",
+          "type": "enum('card','record')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "from_item_id": {
+          "name": "from_item_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "to_item_type": {
+          "name": "to_item_type",
+          "type": "enum('card','record')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "to_item_id": {
+          "name": "to_item_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "uq_link": {
+          "name": "uq_link",
+          "columns": [
+            "field_id",
+            "from_item_id",
+            "to_item_id"
+          ],
+          "isUnique": true
+        },
+        "idx_link_from": {
+          "name": "idx_link_from",
+          "columns": [
+            "from_item_type",
+            "from_item_id"
+          ],
+          "isUnique": false
+        },
+        "idx_link_to": {
+          "name": "idx_link_to",
+          "columns": [
+            "to_item_type",
+            "to_item_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "item_links_id": {
+          "name": "item_links_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "labels": {
+      "name": "labels",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pipe_id": {
+          "name": "pipe_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "color": {
+          "name": "color",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_labels_pipe": {
+          "name": "idx_labels_pipe",
+          "columns": [
+            "pipe_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "labels_id": {
+          "name": "labels_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "memberships": {
+      "name": "memberships",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "role": {
+          "name": "role",
+          "type": "enum('admin','member','guest')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'member'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "uq_membership": {
+          "name": "uq_membership",
+          "columns": [
+            "org_id",
+            "user_id"
+          ],
+          "isUnique": true
+        },
+        "idx_membership_user": {
+          "name": "idx_membership_user",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "memberships_id": {
+          "name": "memberships_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "organizations": {
+      "name": "organizations",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "organizations_id": {
+          "name": "organizations_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "phase_assignees": {
+      "name": "phase_assignees",
+      "columns": {
+        "phase_id": {
+          "name": "phase_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "phase_assignees_phase_id_user_id_pk": {
+          "name": "phase_assignees_phase_id_user_id_pk",
+          "columns": [
+            "phase_id",
+            "user_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "phase_transitions": {
+      "name": "phase_transitions",
+      "columns": {
+        "from_phase_id": {
+          "name": "from_phase_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "to_phase_id": {
+          "name": "to_phase_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_transitions_to": {
+          "name": "idx_transitions_to",
+          "columns": [
+            "to_phase_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "phase_transitions_from_phase_id_to_phase_id_pk": {
+          "name": "phase_transitions_from_phase_id_to_phase_id_pk",
+          "columns": [
+            "from_phase_id",
+            "to_phase_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "phases": {
+      "name": "phases",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pipe_id": {
+          "name": "pipe_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "color": {
+          "name": "color",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "is_start": {
+          "name": "is_start",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "is_end": {
+          "name": "is_end",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "can_create_card": {
+          "name": "can_create_card",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "sla_minutes": {
+          "name": "sla_minutes",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "idx_phases_pipe": {
+          "name": "idx_phases_pipe",
+          "columns": [
+            "pipe_id",
+            "position"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "phases_id": {
+          "name": "phases_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "pipes": {
+      "name": "pipes",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "icon": {
+          "name": "icon",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "color": {
+          "name": "color",
+          "type": "varchar(16)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "noun": {
+          "name": "noun",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "create_button_label": {
+          "name": "create_button_label",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "title_field_id": {
+          "name": "title_field_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "subtitle_field_ids": {
+          "name": "subtitle_field_ids",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "expiration_minutes": {
+          "name": "expiration_minutes",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "business_hours_only": {
+          "name": "business_hours_only",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "idx_pipes_org": {
+          "name": "idx_pipes_org",
+          "columns": [
+            "org_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "pipes_id": {
+          "name": "pipes_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "portal_forms": {
+      "name": "portal_forms",
+      "columns": {
+        "portal_id": {
+          "name": "portal_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "form_id": {
+          "name": "form_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "portal_forms_portal_id_form_id_pk": {
+          "name": "portal_forms_portal_id_form_id_pk",
+          "columns": [
+            "portal_id",
+            "form_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "portals": {
+      "name": "portals",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "slug": {
+          "name": "slug",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "branding": {
+          "name": "branding",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "uq_portal_slug": {
+          "name": "uq_portal_slug",
+          "columns": [
+            "slug"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "portals_id": {
+          "name": "portals_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "public_forms": {
+      "name": "public_forms",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pipe_id": {
+          "name": "pipe_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "phase_id": {
+          "name": "phase_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "slug": {
+          "name": "slug",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "branding": {
+          "name": "branding",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_public": {
+          "name": "is_public",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "closed": {
+          "name": "closed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "uq_form_slug": {
+          "name": "uq_form_slug",
+          "columns": [
+            "slug"
+          ],
+          "isUnique": true
+        },
+        "idx_forms_pipe": {
+          "name": "idx_forms_pipe",
+          "columns": [
+            "pipe_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "public_forms_id": {
+          "name": "public_forms_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "reports": {
+      "name": "reports",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "org_id": {
+          "name": "org_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "scope": {
+          "name": "scope",
+          "type": "enum('pipe','company')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'pipe'"
+        },
+        "pipe_id": {
+          "name": "pipe_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "config": {
+          "name": "config",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "idx_reports_org": {
+          "name": "idx_reports_org",
+          "columns": [
+            "org_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "reports_id": {
+          "name": "reports_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "sessions": {
+      "name": "sessions",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "idx_sessions_user": {
+          "name": "idx_sessions_user",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "sessions_id": {
+          "name": "sessions_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "table_fields": {
+      "name": "table_fields",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "table_id": {
+          "name": "table_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "label": {
+          "name": "label",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "type": {
+          "name": "type",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "options": {
+          "name": "options",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "required": {
+          "name": "required",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "help": {
+          "name": "help",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_unique": {
+          "name": "is_unique",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
+        },
+        "validation_regex": {
+          "name": "validation_regex",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "idx_tablefields_table": {
+          "name": "idx_tablefields_table",
+          "columns": [
+            "table_id",
+            "position"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "table_fields_id": {
+          "name": "table_fields_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "table_record_fields": {
+      "name": "table_record_fields",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "record_id": {
+          "name": "record_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "field_id": {
+          "name": "field_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "value": {
+          "name": "value",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "uq_record_field": {
+          "name": "uq_record_field",
+          "columns": [
+            "record_id",
+            "field_id"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "table_record_fields_id": {
+          "name": "table_record_fields_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "table_records": {
+      "name": "table_records",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "table_id": {
+          "name": "table_id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "varchar(512)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_by": {
+          "name": "created_by",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "idx_records_table": {
+          "name": "idx_records_table",
+          "columns": [
+            "table_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "table_records_id": {
+          "name": "table_records_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "users": {
+      "name": "users",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "char(36)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "google_sub": {
+          "name": "google_sub",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(320)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "avatar_url": {
+          "name": "avatar_url",
+          "type": "varchar(1024)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "datetime(3)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "CURRENT_TIMESTAMP(3)"
+        }
+      },
+      "indexes": {
+        "uq_users_google_sub": {
+          "name": "uq_users_google_sub",
+          "columns": [
+            "google_sub"
+          ],
+          "isUnique": true
+        },
+        "uq_users_email": {
+          "name": "uq_users_email",
+          "columns": [
+            "email"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "users_id": {
+          "name": "users_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    }
+  },
+  "views": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "tables": {},
+    "indexes": {}
+  }
+}

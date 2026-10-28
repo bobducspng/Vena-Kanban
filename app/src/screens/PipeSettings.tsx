@@ -14,6 +14,7 @@ import { Tag } from "../components/ui/Tag";
 import { Textarea } from "../components/ui/Textarea";
 import { useToast } from "../components/ui/Toast";
 import { ConditionsSection } from "../components/app/ConditionsEditor";
+import { DurationInput } from "../components/ui/DurationInput";
 import { FieldEditorModal } from "../components/app/FieldEditorModal";
 import { cn } from "../lib/cn";
 import { Avatar } from "../components/ui/Avatar";
@@ -64,6 +65,8 @@ export function PipeSettings() {
 
   const selected = phases?.find((p) => p.id === selectedId);
   const { me, isAdmin } = useMe();
+  const { data: calendar } = useQuery({ queryKey: ["calendar"], queryFn: api.calendar.get });
+  const workday = calendar ? (() => { const m = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3)); return m(calendar.endTime) - m(calendar.startTime) || 600; })() : 600;
 
   if (me && !isAdmin) {
     return (
@@ -126,6 +129,7 @@ export function PipeSettings() {
                 phases={phases}
                 fields={(fields ?? []).filter((f) => f.phaseId === selected.id).sort((a, b) => a.position - b.position)}
                 allFields={(fields ?? []).filter((f) => !f.archivedAt)}
+                businessDay={pipe?.businessHoursOnly ? workday : null}
                 onChanged={refresh}
               />
             )}
@@ -168,6 +172,9 @@ function PipeSection({ pipe, phases, fields }: { pipe: Pipe; phases: Phase[]; fi
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [key]: e.target.value })),
     onBlur: () => save(key),
   });
+  const { data: calendar } = useQuery({ queryKey: ["calendar"], queryFn: api.calendar.get });
+  // A "dia útil" lasts one expediente (e.g. 08:00–18:00 = 600 min).
+  const workday = calendar ? (() => { const m = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3)); return m(calendar.endTime) - m(calendar.startTime) || 600; })() : 600;
   const start = phases.find((p) => p.isStart);
   const titleCandidates = fields.filter((f) => f.phaseId === start?.id && TITLE_TYPES.includes(f.type));
   const toggleSubtitle = (id: string, on: boolean) => {
@@ -214,6 +221,18 @@ function PipeSection({ pipe, phases, fields }: { pipe: Pipe; phases: Phase[]; fi
           onValueChange={(v) => update.mutate({ pipeId: pipe.id, titleFieldId: v === "__none" ? null : v })}
           options={[{ value: "__none", label: "Digitado no formulário (caixa \"Título do card\")" }, ...titleCandidates.map((f) => ({ value: f.id, label: `Campo: ${f.label}` }))]} />
         <p className="text-xs text-muted">Usar um campo do formulário inicial evita digitar o título duas vezes. Vale para cards novos e quando o campo é editado.</p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="pipe-expiration" className="text-sm font-medium text-text">Prazo total do card</label>
+          <DurationInput id="pipe-expiration" value={pipe.expirationMinutes} dayMinutes={pipe.businessHoursOnly ? workday : 1440} dayLabel={pipe.businessHoursOnly ? "dias úteis" : "dias"}
+            onChange={(m) => update.mutate({ pipeId: pipe.id, expirationMinutes: m })} />
+          <p className="text-xs text-muted">Da criação até uma fase final. Passou disso, o card fica "expirado" (relógio vermelho).</p>
+        </div>
+        <label className="inline-flex items-start gap-2 pt-7 text-sm text-text">
+          <input type="checkbox" className="mt-0.5 h-4 w-4 accent-accent" checked={!!pipe.businessHoursOnly} onChange={(e) => update.mutate({ pipeId: pipe.id, businessHoursOnly: e.target.checked })} />
+          <span>Contar prazos só em horário útil <span className="block text-xs text-muted">Usa o expediente e os feriados de Configurações. Vale para o SLA das fases e o prazo total.</span></span>
+        </label>
       </div>
       <fieldset className="flex flex-col gap-1.5">
         <legend className="text-sm font-medium text-text">Subtítulos no quadro <span className="text-muted">(até 5 campos exibidos no card fechado)</span></legend>
@@ -278,7 +297,11 @@ function LabelsManager({ pipeId }: { pipeId: string }) {
   );
 }
 
-function PhaseEditor({ phase, phases, fields, allFields, onChanged }: { phase: Phase; phases: Phase[]; fields: FieldDef[]; allFields: FieldDef[]; onChanged: () => void }) {
+function PhaseEditor({ phase, phases, fields, allFields, businessDay, onChanged }: {
+  phase: Phase; phases: Phase[]; fields: FieldDef[]; allFields: FieldDef[]; onChanged: () => void;
+  /** Workday length in minutes when the pipe counts business hours ("dias úteis"), else null. */
+  businessDay: number | null;
+}) {
   const toast = useToast();
   const [name, setName] = useState(phase.name);
   const [description, setDescription] = useState(phase.description ?? "");
@@ -286,7 +309,7 @@ function PhaseEditor({ phase, phases, fields, allFields, onChanged }: { phase: P
   const onError = (e: unknown) => toast(errMsg(e), "error");
 
   const update = useMutation({
-    mutationFn: (patch: { name?: string; color?: PhaseColor; isEnd?: boolean; description?: string | null; canCreateCard?: boolean }) =>
+    mutationFn: (patch: { name?: string; color?: PhaseColor; isEnd?: boolean; description?: string | null; canCreateCard?: boolean; slaMinutes?: number | null }) =>
       api.phase.update({ phaseId: phase.id, ...patch }),
     onSuccess: onChanged,
     onError: (e) => { setName(phase.name); setDescription(phase.description ?? ""); onError(e); },
@@ -356,6 +379,13 @@ function PhaseEditor({ phase, phases, fields, allFields, onChanged }: { phase: P
             <Flag className="h-4 w-4" aria-hidden="true" /> Tornar fase inicial
           </Button>
         )}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="phase-sla" className="text-sm font-semibold text-text">SLA da fase</label>
+        <p className="text-xs text-muted">Tempo máximo que um card pode ficar aqui. Passou disso, ele fica "atrasado" (relógio amarelo e contador na coluna). Vazio = sem limite.</p>
+        <DurationInput id="phase-sla" value={phase.slaMinutes} dayMinutes={businessDay ?? 1440} dayLabel={businessDay ? "dias úteis" : "dias"}
+          onChange={(m) => update.mutate({ slaMinutes: m })} />
       </div>
 
       <fieldset className="flex flex-col gap-2">

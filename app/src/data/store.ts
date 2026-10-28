@@ -2,7 +2,7 @@
 // signatures as the previous fake store, so no screen changed. Server outputs
 // are mapped to the app's domain types (src/data/types.ts).
 import { trpc, API_URL } from "../lib/trpc";
-import type { Pipe, Phase, FieldDef, Card, CardFieldValue, CardEvent, User, FieldType, PhaseColor, EditableFieldType, Role, Label, Comment, ChecklistItem, Attachment, TrashedCard, DataTable, DbRecord, ConnectionSettings, ConnectedItem, Backlink, AutomationRule, AutomationLog, AutomationTrigger, AutomationAction } from "./types";
+import type { Pipe, Phase, FieldDef, Card, CardFieldValue, CardEvent, User, FieldType, PhaseColor, EditableFieldType, Role, Label, Comment, ChecklistItem, Attachment, TrashedCard, DataTable, DbRecord, ConnectionSettings, ConnectedItem, Backlink, AutomationRule, AutomationLog, AutomationTrigger, AutomationAction, BusinessCalendar, CardTimeline } from "./types";
 import type { ConditionDef, Rule, FieldAction } from "../lib/conditions";
 
 /** A phase's conditional, as stored (the evaluator's ConditionDef + a name). */
@@ -37,10 +37,11 @@ const toISO = (d: Date | string | null | undefined): string =>
 const toISON = (d: Date | string | null | undefined): string | null =>
   d == null ? null : (d instanceof Date ? d.toISOString() : d);
 
-type SrvPipe = { id: string; name: string; description: string | null; createdAt: Date | string; icon?: string | null; color?: string | null; noun?: string | null; createButtonLabel?: string | null; titleFieldId?: string | null; subtitleFieldIds?: unknown; deletedAt?: Date | string | null };
-type SrvPhase = { id: string; pipeId: string; name: string; color: string | null; position: number; isStart: boolean; isEnd: boolean; description: string | null; canCreateCard: boolean; allowedTo?: string[]; assigneeIds?: string[] };
+type SrvPipe = { id: string; name: string; description: string | null; createdAt: Date | string; icon?: string | null; color?: string | null; noun?: string | null; createButtonLabel?: string | null; titleFieldId?: string | null; subtitleFieldIds?: unknown; deletedAt?: Date | string | null; expirationMinutes?: number | null; businessHoursOnly?: boolean };
+type SrvPhase = { id: string; pipeId: string; name: string; color: string | null; position: number; isStart: boolean; isEnd: boolean; description: string | null; canCreateCard: boolean; allowedTo?: string[]; assigneeIds?: string[]; slaMinutes?: number | null };
 type SrvField = { id: string; pipeId: string; phaseId: string; label: string; type: string; required: boolean; options: unknown; position: number; description: string | null; help: string | null; editableOtherPhases: boolean; isUnique: boolean; validationRegex: string | null; archivedAt: Date | string | null; settings?: unknown };
-type SrvCard = { id: string; number: number; pipeId: string; currentPhaseId: string; title: string; dueDate: Date | string | null; done: boolean; version: number; createdAt: Date | string; values: { fieldId: string; value: unknown }[]; assigneeIds: string[]; labelIds: string[]; checklistDone: number; checklistTotal: number; commentCount: number; attachmentCount: number };
+type SrvCard = { id: string; number: number; pipeId: string; currentPhaseId: string; title: string; dueDate: Date | string | null; done: boolean; version: number; createdAt: Date | string; values: { fieldId: string; value: unknown }[]; assigneeIds: string[]; labelIds: string[]; checklistDone: number; checklistTotal: number; commentCount: number; attachmentCount: number;
+  phaseEnteredAt?: Date | string | null; lateAt?: Date | string | null; expiredAt?: Date | string | null; overdueAt?: Date | string | null };
 type SrvEvent = { id: string; cardId: string; type: string; fromPhaseId: string | null; toPhaseId: string | null; actorId: string | null; data?: unknown; createdAt: Date | string };
 type SrvUser = { id: string; name: string | null; email: string; role?: Role | null };
 
@@ -48,8 +49,9 @@ const mapPipe = (p: SrvPipe): Pipe => ({
   id: p.id, name: p.name, description: p.description ?? undefined, createdAt: toISO(p.createdAt),
   icon: p.icon, color: p.color, noun: p.noun, createButtonLabel: p.createButtonLabel, titleFieldId: p.titleFieldId,
   subtitleFieldIds: Array.isArray(p.subtitleFieldIds) ? (p.subtitleFieldIds as string[]) : [], deletedAt: toISON(p.deletedAt),
+  expirationMinutes: p.expirationMinutes ?? null, businessHoursOnly: !!p.businessHoursOnly,
 });
-const mapPhase = (p: SrvPhase): Phase => ({ id: p.id, pipeId: p.pipeId, name: p.name, color: p.color ?? "gray", position: p.position, isStart: p.isStart, isEnd: p.isEnd, description: p.description, canCreateCard: p.canCreateCard, allowedTo: p.allowedTo ?? [], assigneeIds: p.assigneeIds ?? [] });
+const mapPhase = (p: SrvPhase): Phase => ({ id: p.id, pipeId: p.pipeId, name: p.name, color: p.color ?? "gray", position: p.position, isStart: p.isStart, isEnd: p.isEnd, description: p.description, canCreateCard: p.canCreateCard, allowedTo: p.allowedTo ?? [], assigneeIds: p.assigneeIds ?? [], slaMinutes: p.slaMinutes ?? null });
 const mapField = (f: SrvField): FieldDef => ({ id: f.id, pipeId: f.pipeId, phaseId: f.phaseId, label: f.label, type: f.type as FieldType, required: f.required, options: Array.isArray(f.options) ? (f.options as string[]) : undefined, position: f.position, description: f.description, help: f.help, editableOtherPhases: f.editableOtherPhases, isUnique: f.isUnique, validationRegex: f.validationRegex, archivedAt: toISON(f.archivedAt),
   settings: f.settings ? {
     ...(f.settings as ConnectionSettings),
@@ -62,6 +64,7 @@ const mapCard = (c: SrvCard): Card => ({
   values: c.values.map((v) => ({ fieldId: v.fieldId, value: v.value as CardFieldValue["value"] })),
   assigneeIds: c.assigneeIds, dueDate: toISON(c.dueDate), done: c.done, version: c.version, createdAt: toISO(c.createdAt),
   labelIds: c.labelIds, checklistDone: c.checklistDone, checklistTotal: c.checklistTotal, commentCount: c.commentCount, attachmentCount: c.attachmentCount,
+  phaseEnteredAt: toISON(c.phaseEnteredAt), lateAt: toISON(c.lateAt), expiredAt: toISON(c.expiredAt), overdueAt: toISON(c.overdueAt),
 });
 const mapEvent = (e: SrvEvent): CardEvent => ({
   id: e.id, cardId: e.cardId, type: e.type as CardEvent["type"], fromPhaseId: e.fromPhaseId, toPhaseId: e.toPhaseId, actorId: e.actorId, createdAt: toISO(e.createdAt),
@@ -124,6 +127,7 @@ export const api = {
     update: async (input: {
       pipeId: string; name?: string; description?: string | null; icon?: string | null; color?: PhaseColor | null;
       noun?: string | null; createButtonLabel?: string | null; titleFieldId?: string | null; subtitleFieldIds?: string[];
+      expirationMinutes?: number | null; businessHoursOnly?: boolean;
     }): Promise<Pipe> => mapPipe(await trpc.pipe.update.mutate(input)),
     remove: (pipeId: string) => trpc.pipe.remove.mutate({ pipeId }),
     listDeleted: async (): Promise<Pipe[]> => (await trpc.pipe.listDeleted.query()).map(mapPipe),
@@ -135,7 +139,7 @@ export const api = {
       (await trpc.phase.listByPipe.query({ pipeId })).map(mapPhase),
     create: async (input: { pipeId: string; name: string; color?: PhaseColor }): Promise<Phase> =>
       mapPhase(await trpc.phase.create.mutate(input)),
-    update: async (input: { phaseId: string; name?: string; color?: PhaseColor; isEnd?: boolean; description?: string | null; canCreateCard?: boolean }): Promise<Phase> =>
+    update: async (input: { phaseId: string; name?: string; color?: PhaseColor; isEnd?: boolean; description?: string | null; canCreateCard?: boolean; slaMinutes?: number | null }): Promise<Phase> =>
       mapPhase(await trpc.phase.update.mutate(input)),
     setTransitions: (phaseId: string, toPhaseIds: string[]) => trpc.phase.setTransitions.mutate({ phaseId, toPhaseIds }),
     setAssignees: (phaseId: string, userIds: string[]) => trpc.phase.setAssignees.mutate({ phaseId, userIds }),
@@ -183,6 +187,14 @@ export const api = {
       mapCard(await trpc.card.setLabels.mutate({ cardId, labelIds })),
     remove: (cardId: string) => trpc.card.remove.mutate({ cardId }),
     parents: (cardId: string): Promise<Backlink[]> => trpc.card.parents.query({ cardId }),
+    timeline: async (cardId: string): Promise<CardTimeline> => {
+      const t = await trpc.card.timeline.query({ cardId });
+      return {
+        businessHours: t.businessHours,
+        deadlines: t.deadlines ? { lateBy: toISON(t.deadlines.lateBy), expiresBy: toISON(t.deadlines.expiresBy), businessHours: t.deadlines.businessHours } : null,
+        stays: t.stays.map((s) => ({ ...s, enteredAt: toISO(s.enteredAt), leftAt: toISON(s.leftAt) })),
+      };
+    },
     refillConnection: async (cardId: string, fieldId: string): Promise<Card> =>
       mapCard(await trpc.card.refillConnection.mutate({ cardId, fieldId })),
     restore: async (cardId: string): Promise<Card> => mapCard(await trpc.card.restore.mutate({ cardId })),
@@ -236,6 +248,12 @@ export const api = {
       mapRecord(await trpc.database.updateRecordValue.mutate(input)),
     removeRecord: (recordId: string) => trpc.database.removeRecord.mutate({ recordId }),
     recordUsage: (recordId: string): Promise<Backlink[]> => trpc.database.recordUsage.query({ recordId }),
+  },
+
+  calendar: {
+    get: (): Promise<BusinessCalendar> => trpc.calendar.get.query(),
+    update: (input: BusinessCalendar): Promise<BusinessCalendar> => trpc.calendar.update.mutate(input),
+    nationalHolidays: (): Promise<BusinessCalendar["holidays"]> => trpc.calendar.nationalHolidays.query(),
   },
 
   automation: {

@@ -137,6 +137,7 @@ export interface Phase {
   canCreateCard: boolean; // new cards may also start here
   allowedTo: string[]; // "Mover para": phases a card here may be moved to
   assigneeIds: string[]; // responsáveis da fase
+  slaMinutes: number | null; // SLA da fase ("atrasado" after this)
 }
 
 export interface Pipe {
@@ -151,6 +152,23 @@ export interface Pipe {
   titleFieldId?: string | null; // start-form field that names new cards
   subtitleFieldIds: string[]; // fields shown on the board tile
   deletedAt?: string | null;
+  expirationMinutes?: number | null; // prazo do pipe ("expirado" after this)
+  businessHoursOnly?: boolean; // count SLAs in business time (org calendar)
+}
+
+/** Expediente + feriados of the organisation. */
+export interface BusinessCalendar {
+  weekdays: number[];
+  startTime: string;
+  endTime: string;
+  holidays: { date: string; name: string }[];
+}
+
+/** Deadlines and time per phase of a card. */
+export interface CardTimeline {
+  deadlines: { lateBy: string | null; expiresBy: string | null; businessHours: boolean } | null;
+  stays: { phaseId: string; name: string; enteredAt: string; leftAt: string | null; becameLate: boolean; minutes: number }[];
+  businessHours: boolean;
 }
 
 export interface CardFieldValue {
@@ -176,6 +194,11 @@ export interface Card {
   checklistTotal: number;
   commentCount: number;
   attachmentCount: number;
+  // Alerts (M6): when the card entered its phase and when each alert was raised.
+  phaseEnteredAt: string | null;
+  lateAt: string | null;
+  expiredAt: string | null;
+  overdueAt: string | null;
 }
 
 export interface Label {
@@ -232,10 +255,11 @@ export interface CardEvent {
 
 /** Automation rule (M5): when (trigger) → if (conditions) → then (actions). */
 export type AutomationTrigger = {
-  type: "card_created" | "card_entered_phase" | "card_left_phase" | "field_updated" | "scheduled" | "children_in_phase";
+  type: "card_created" | "card_entered_phase" | "card_left_phase" | "field_updated" | "scheduled" | "children_in_phase" | "alert";
   phaseId?: string;
   fieldId?: string;
   frequency?: "hourly" | "daily" | "weekly";
+  alertKind?: "late" | "expired" | "overdue";
   time?: string; // "HH:MM", Brasília
   weekdays?: number[]; // 0 = domingo
 };

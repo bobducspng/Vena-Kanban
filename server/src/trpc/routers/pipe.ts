@@ -60,6 +60,8 @@ export const pipeRouter = router({
       createButtonLabel: z.string().trim().max(64).nullable().optional(),
       titleFieldId: z.string().nullable().optional(),
       subtitleFieldIds: z.array(z.string()).max(5).optional(),
+      expirationMinutes: z.number().int().min(1).max(525_600 * 3).nullable().optional(),
+      businessHoursOnly: z.boolean().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const pipe = (await db.select().from(pipes).where(and(eq(pipes.id, input.pipeId), eq(pipes.orgId, ctx.orgId), isNull(pipes.deletedAt))).limit(1))[0];

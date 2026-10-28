@@ -65,6 +65,10 @@ export const pipes = mysqlTable("pipes", {
   titleFieldId: ref("title_field_id"),
   // Fields shown on the closed card in the board.
   subtitleFieldIds: json("subtitle_field_ids"),
+  // Prazo do pipe: max time from creation to an end phase before the card is "expirado".
+  expirationMinutes: int("expiration_minutes"),
+  // Count SLAs/expiration in business time (org calendar) instead of calendar time.
+  businessHoursOnly: boolean("business_hours_only").notNull().default(false),
   deletedAt: datetime("deleted_at", { fsp: 3 }),
   createdBy: ref("created_by"),
   createdAt: createdAt(),
@@ -82,8 +86,30 @@ export const phases = mysqlTable("phases", {
   isEnd: boolean("is_end").notNull().default(false),
   // Besides the start phase, new cards may also be created directly here.
   canCreateCard: boolean("can_create_card").notNull().default(false),
+  // SLA da fase: max time a card may stay here before it is "atrasado".
+  slaMinutes: int("sla_minutes"),
   createdAt: createdAt(),
 }, (t) => ({ pipeIdx: index("idx_phases_pipe").on(t.pipeId, t.position) }));
+
+// Time spent in each phase (one row per stay; leftAt null = current phase).
+export const cardPhaseHistory = mysqlTable("card_phase_history", {
+  id: id(),
+  cardId: ref("card_id").notNull(),
+  phaseId: ref("phase_id").notNull(),
+  enteredAt: datetime("entered_at", { fsp: 3 }).notNull(),
+  leftAt: datetime("left_at", { fsp: 3 }),
+  becameLate: boolean("became_late").notNull().default(false),
+}, (t) => ({ cardIdx: index("idx_phasehist_card").on(t.cardId, t.enteredAt), phaseIdx: index("idx_phasehist_phase").on(t.phaseId) }));
+
+// Organisation's business calendar (expediente + feriados) for SLAs.
+export const businessCalendars = mysqlTable("business_calendars", {
+  orgId: ref("org_id").primaryKey(),
+  weekdays: json("weekdays").notNull(), // [1..5] = seg–sex
+  startTime: varchar("start_time", { length: 5 }).notNull(), // "08:00"
+  endTime: varchar("end_time", { length: 5 }).notNull(), // "18:00"
+  holidays: json("holidays").notNull(), // [{ date: "YYYY-MM-DD", name }]
+  updatedAt: updatedAt(),
+});
 
 // Condicionais de campo of a phase's form (see src/conditions.ts for the semantics).
 export const fieldConditions = mysqlTable("field_conditions", {
@@ -159,6 +185,12 @@ export const cards = mysqlTable("cards", {
   done: boolean("done").notNull().default(false),
   late: boolean("late").notNull().default(false),
   version: int("version").notNull().default(0),
+  // Alerts: when the card entered its current phase, and when it became
+  // atrasado (phase SLA), expirado (pipe deadline) and vencido (due date).
+  phaseEnteredAt: datetime("phase_entered_at", { fsp: 3 }),
+  lateAt: datetime("late_at", { fsp: 3 }),
+  expiredAt: datetime("expired_at", { fsp: 3 }),
+  overdueAt: datetime("overdue_at", { fsp: 3 }),
   // Lixeira: soft delete. Deleted cards leave the board but can be restored.
   deletedAt: datetime("deleted_at", { fsp: 3 }),
   deletedBy: ref("deleted_by"),

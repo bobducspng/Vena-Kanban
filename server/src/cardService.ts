@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { db } from "./db/client.js";
 import {
   cards, cardFields, cardAssignees, cardLabels, cardEvents, fields, phases, phaseTransitions, phaseAssignees,
-  pipes, checklistItems, comments, attachments, fieldConditions,
+  pipes, checklistItems, comments, attachments, fieldConditions, cardPhaseHistory,
 } from "./db/schema.js";
 import { isEmpty, validateValue, applySideEffects } from "./fieldRules.js";
 import { fieldStates, mustFill, type ConditionDef } from "./conditions.js";
@@ -17,13 +17,14 @@ import { autofillValues, readSettings, finishBlocker } from "./connections.js";
  */
 
 // --- events for automations ---------------------------------------------------
-export type CardEventKind = "card_created" | "card_entered_phase" | "card_left_phase" | "field_updated";
+export type CardEventKind = "card_created" | "card_entered_phase" | "card_left_phase" | "field_updated" | "alert";
 export interface CardHappening {
   kind: CardEventKind;
   cardId: string;
   pipeId: string;
   phaseId?: string; // entered/left phase, or the phase a card was created in
   fieldId?: string; // field_updated
+  alertKind?: "late" | "expired" | "overdue"; // alert
   /** Automation chain depth (0 = a person did it). Stops runaway loops. */
   depth: number;
 }
@@ -35,6 +36,8 @@ async function announce(e: CardHappening) {
   if (!listener) return;
   try { await listener(e); } catch (err) { console.error("automation listener failed:", err); }
 }
+/** For alerts raised by the SLA sweep. */
+export const announceHappening = announce;
 
 /** Who did it: a person (userId) or an automation (rule name, for the activity log). */
 export interface Actor { userId: string | null; automation?: string; depth: number }
@@ -172,8 +175,9 @@ export async function createCard(input: {
   await db.transaction(async (tx) => {
     await tx.insert(cards).values({
       id: cardId, pipeId: input.pipeId, currentPhaseId: landing.id, done: landing.isEnd,
-      title: titleFromField ?? (input.title || "(sem título)"), createdBy: input.actor.userId,
+      title: titleFromField ?? (input.title || "(sem título)"), createdBy: input.actor.userId, phaseEnteredAt: new Date(),
     });
+    await tx.insert(cardPhaseHistory).values({ id: crypto.randomUUID(), cardId, phaseId: landing.id, enteredAt: new Date() });
     for (const v of input.values) {
       await tx.insert(cardFields).values({ id: crypto.randomUUID(), cardId, fieldId: v.fieldId, value: v.value, filledAt: isEmpty(v.value) ? null : new Date() });
     }
@@ -247,7 +251,10 @@ export async function moveCard(input: {
   if (missing.length) throw missingError(missing);
 
   const whereCard = input.version === undefined ? eq(cards.id, card.id) : and(eq(cards.id, card.id), eq(cards.version, input.version));
-  const res = await db.update(cards).set({ currentPhaseId: to.id, done: to.isEnd, version: sql`${cards.version} + 1` }).where(whereCard);
+  // A new phase starts a new phase clock (late clears; expiration keeps counting from creation).
+  const res = await db.update(cards)
+    .set({ currentPhaseId: to.id, done: to.isEnd, phaseEnteredAt: new Date(), lateAt: null, late: false, version: sql`${cards.version} + 1` })
+    .where(whereCard);
   // mysql2 returns affectedRows via the result header.
   const affected = (res as unknown as [{ affectedRows: number }])[0]?.affectedRows ?? 1;
   if (affected === 0) throw new TRPCError({ code: "CONFLICT", message: "O card foi alterado por outra pessoa. Recarregue." });
@@ -256,6 +263,8 @@ export async function moveCard(input: {
     id: crypto.randomUUID(), cardId: card.id, type: "moved", fromPhaseId: card.currentPhaseId, toPhaseId: to.id,
     actorId: input.actor.userId, data: eventData(input.actor),
   });
+  await db.update(cardPhaseHistory).set({ leftAt: new Date() }).where(and(eq(cardPhaseHistory.cardId, card.id), isNull(cardPhaseHistory.leftAt)));
+  await db.insert(cardPhaseHistory).values({ id: crypto.randomUUID(), cardId: card.id, phaseId: to.id, enteredAt: new Date() });
   await syncPhaseAssignees(card.id, card.currentPhaseId, to.id);
 
   await announce({ kind: "card_left_phase", cardId: card.id, pipeId: card.pipeId, phaseId: card.currentPhaseId, depth: input.actor.depth });

@@ -21,10 +21,10 @@ export const pipes: Pipe[] = [
 ];
 
 export const phases: Phase[] = [
-  { id: "ph1", pipeId: "p1", name: "Novo pedido", color: "gray", position: 0, isStart: true, isEnd: false, canCreateCard: false, allowedTo: [], assigneeIds: [] },
-  { id: "ph2", pipeId: "p1", name: "Em análise", color: "blue", position: 1, isStart: false, isEnd: false, canCreateCard: false, allowedTo: [], assigneeIds: [] },
-  { id: "ph3", pipeId: "p1", name: "Aprovação", color: "amber", position: 2, isStart: false, isEnd: false, canCreateCard: false, allowedTo: [], assigneeIds: [] },
-  { id: "ph4", pipeId: "p1", name: "Concluído", color: "green", position: 3, isStart: false, isEnd: true, canCreateCard: false, allowedTo: [], assigneeIds: [] },
+  { id: "ph1", pipeId: "p1", name: "Novo pedido", color: "gray", position: 0, isStart: true, isEnd: false, canCreateCard: false, allowedTo: [], assigneeIds: [], slaMinutes: null },
+  { id: "ph2", pipeId: "p1", name: "Em análise", color: "blue", position: 1, isStart: false, isEnd: false, canCreateCard: false, allowedTo: [], assigneeIds: [], slaMinutes: null },
+  { id: "ph3", pipeId: "p1", name: "Aprovação", color: "amber", position: 2, isStart: false, isEnd: false, canCreateCard: false, allowedTo: [], assigneeIds: [], slaMinutes: null },
+  { id: "ph4", pipeId: "p1", name: "Concluído", color: "green", position: 3, isStart: false, isEnd: true, canCreateCard: false, allowedTo: [], assigneeIds: [], slaMinutes: null },
 ];
 
 export const fields: FieldDef[] = [
@@ -45,7 +45,7 @@ export const cards: Card[] = [
       { fieldId: "f2", value: 25000 },
       { fieldId: "f4", value: "Alta" },
     ],
-    assigneeIds: ["u2"], dueDate: null, done: false, version: 0, createdAt: "2026-10-20T09:00:00Z", labelIds: [], checklistDone: 0, checklistTotal: 0, commentCount: 0, attachmentCount: 0,
+    assigneeIds: ["u2"], dueDate: null, done: false, version: 0, createdAt: "2026-10-20T09:00:00Z", labelIds: [], checklistDone: 0, checklistTotal: 0, commentCount: 0, attachmentCount: 0, phaseEnteredAt: null, lateAt: null, expiredAt: null, overdueAt: null,
   },
   {
     id: "c2", number: 2, pipeId: "p1", currentPhaseId: "ph2", title: "Licenças de software de design",
@@ -53,7 +53,7 @@ export const cards: Card[] = [
       { fieldId: "f1", value: "3 licenças anuais" },
       { fieldId: "f2", value: 8400 },
     ],
-    assigneeIds: ["u3"], dueDate: null, done: false, version: 0, createdAt: "2026-10-18T14:30:00Z", labelIds: [], checklistDone: 0, checklistTotal: 0, commentCount: 0, attachmentCount: 0,
+    assigneeIds: ["u3"], dueDate: null, done: false, version: 0, createdAt: "2026-10-18T14:30:00Z", labelIds: [], checklistDone: 0, checklistTotal: 0, commentCount: 0, attachmentCount: 0, phaseEnteredAt: null, lateAt: null, expiredAt: null, overdueAt: null,
   },
 ];
 

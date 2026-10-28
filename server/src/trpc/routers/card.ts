@@ -2,7 +2,9 @@ import { z } from "zod";
 import { eq, and, inArray, isNull, isNotNull, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
-import { cards, cardFields, cardAssignees, cardLabels, fields, labels, memberships, checklistItems } from "../../db/schema.js";
+import { cards, cardFields, cardAssignees, cardLabels, fields, labels, memberships, checklistItems, cardPhaseHistory, phases, pipes } from "../../db/schema.js";
+import { calendarOf, deadlinesOf } from "../../slaService.js";
+import { businessMinutesBetween } from "../../businessTime.js";
 import { cardInOrg, logEvent } from "../cardAccess.js";
 import { linkedFrom } from "../../connections.js";
 import { hydrate, shaped, writeValues, autofillFor, createCard, setFieldValue, moveCard } from "../../cardService.js";
@@ -177,5 +179,21 @@ export const cardRouter = router({
   parents: protectedProcedure.input(z.object({ cardId: z.string() })).query(async ({ ctx, input }) => {
     await cardInOrg(input.cardId, ctx.orgId);
     return linkedFrom(input.cardId, ctx.orgId);
+  }),
+
+  /** Alerts of a card: deadlines (atraso/expiração) and time spent in each phase. */
+  timeline: protectedProcedure.input(z.object({ cardId: z.string() })).query(async ({ ctx, input }) => {
+    const card = await cardInOrg(input.cardId, ctx.orgId);
+    const pipe = (await db.select({ business: pipes.businessHoursOnly }).from(pipes).where(eq(pipes.id, card.pipeId)).limit(1))[0];
+    const cal = pipe?.business ? await calendarOf(ctx.orgId) : null;
+    const stays = await db.select({ phaseId: cardPhaseHistory.phaseId, name: phases.name, enteredAt: cardPhaseHistory.enteredAt, leftAt: cardPhaseHistory.leftAt, becameLate: cardPhaseHistory.becameLate })
+      .from(cardPhaseHistory).innerJoin(phases, eq(phases.id, cardPhaseHistory.phaseId))
+      .where(eq(cardPhaseHistory.cardId, card.id)).orderBy(cardPhaseHistory.enteredAt);
+    const now = new Date();
+    return {
+      deadlines: await deadlinesOf(card.id),
+      stays: stays.map((st) => ({ ...st, minutes: businessMinutesBetween(st.enteredAt, st.leftAt ?? now, cal) })),
+      businessHours: !!pipe?.business,
+    };
   }),
 });

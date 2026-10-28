@@ -8,6 +8,7 @@ import { evalExpression, OPERATORS } from "./conditions.js";
 import { linkedFrom, readSettings } from "./connections.js";
 import { createCard, moveCard, onCardHappening, setFieldValue, type Actor, type CardHappening } from "./cardService.js";
 import { evaluate, FormulaError, type FValue } from "./formula.js";
+import { sweepAlerts } from "./slaService.js";
 
 /**
  * Automation engine (M5): "quando → se → então".
@@ -18,7 +19,7 @@ import { evaluate, FormulaError, type FValue } from "./formula.js";
  * Every evaluation is logged; no usage limits.
  */
 
-export const TRIGGERS = ["card_created", "card_entered_phase", "card_left_phase", "field_updated", "scheduled", "children_in_phase"] as const;
+export const TRIGGERS = ["card_created", "card_entered_phase", "card_left_phase", "field_updated", "scheduled", "children_in_phase", "alert"] as const;
 export const trigger = z.object({
   type: z.enum(TRIGGERS),
   // entered/left: required; created/scheduled: optional (scheduled = only cards in it);
@@ -29,6 +30,8 @@ export const trigger = z.object({
   frequency: z.enum(["hourly", "daily", "weekly"]).optional(),
   time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
   weekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
+  // alert: which alert (any when absent); phaseId optional = only cards in that phase
+  alertKind: z.enum(["late", "expired", "overdue"]).optional(),
 });
 
 const ruleCond = z.object({ fieldId: z.string(), operator: z.enum(OPERATORS), value: z.union([z.string().max(500), z.number(), z.null()]).optional() });
@@ -238,6 +241,7 @@ async function assertPublicUrl(url: string) {
 
 const matches = (t: Trigger, e: CardHappening) =>
   t.type === e.kind &&
+  (e.kind !== "alert" || !t.alertKind || t.alertKind === e.alertKind) &&
   (!t.phaseId || t.phaseId === e.phaseId) &&
   (e.kind !== "field_updated" || !t.fieldId || t.fieldId === e.fieldId);
 
@@ -367,6 +371,9 @@ async function tick() {
 
 export function startAutomations() {
   onCardHappening(onEvent);
-  setInterval(() => { tick().catch((err) => console.error("automation tick failed:", err)); }, 60_000);
+  setInterval(() => {
+    sweepAlerts().catch((err) => console.error("alert sweep failed:", err));
+    tick().catch((err) => console.error("automation tick failed:", err));
+  }, 60_000);
 }
 

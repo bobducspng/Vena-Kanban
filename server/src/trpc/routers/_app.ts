@@ -12,6 +12,7 @@ import { conditionRouter } from "./condition.js";
 import { databaseRouter } from "./database.js";
 import { connectionRouter } from "./connection.js";
 import { automationRouter } from "./automation.js";
+import { calendarRouter } from "./calendar.js";
 
 export const appRouter = router({
   user: userRouter,
@@ -27,6 +28,7 @@ export const appRouter = router({
   database: databaseRouter,
   connection: connectionRouter,
   automation: automationRouter,
+  calendar: calendarRouter,
 });
 
 // The front-end imports this type for an end-to-end-typed client.

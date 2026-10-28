@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Settings, Search, Trash2, CheckSquare, MessageSquare, Paperclip, CalendarClock, Zap } from "lucide-react";
+import { Plus, Settings, Search, Trash2, CheckSquare, MessageSquare, Paperclip, CalendarClock, Zap, Clock, AlarmClock } from "lucide-react";
 import { api, RequiredFieldError } from "../data/store";
 import type { Card } from "../data/types";
 import { useMe } from "../lib/useMe";
@@ -150,6 +150,16 @@ export function PipeKanban() {
                     <div className="flex items-center justify-between gap-2">
                       <Tag color={phase.color}>{phase.name}</Tag>
                       <div className="flex items-center gap-1">
+                        {phaseCards.some((c) => c.lateAt) && (
+                          <span className="inline-flex items-center gap-0.5 text-xs font-medium text-warning" title="Atrasados nesta fase">
+                            <Clock className="h-3.5 w-3.5" aria-hidden="true" />{phaseCards.filter((c) => c.lateAt).length}<span className="sr-only"> atrasados</span>
+                          </span>
+                        )}
+                        {phaseCards.some((c) => c.expiredAt) && (
+                          <span className="inline-flex items-center gap-0.5 text-xs font-medium text-danger" title="Expirados">
+                            <AlarmClock className="h-3.5 w-3.5" aria-hidden="true" />{phaseCards.filter((c) => c.expiredAt).length}<span className="sr-only"> expirados</span>
+                          </span>
+                        )}
                         <span className="text-xs text-muted">{phaseCards.length}</span>
                         {phase.canCreateCard && !phase.isStart && (
                           <button aria-label={`Criar card em ${phase.name}`} onClick={() => setStartFor({ phaseId: phase.id })} className="rounded p-0.5 text-muted hover:bg-bg hover:text-accent">
@@ -181,7 +191,11 @@ export function PipeKanban() {
                                 {card.labelIds.map((id) => labelById.get(id)).filter(Boolean).map((l) => <Tag key={l!.id} color={l!.color}>{l!.name}</Tag>)}
                               </div>
                             )}
-                            <span className="text-xs text-muted">#{card.number}</span>
+                            <span className="flex items-center gap-2 text-xs text-muted">
+                              #{card.number}
+                              {card.lateAt && <span className="inline-flex items-center gap-0.5 font-medium text-warning"><Clock className="h-3.5 w-3.5" aria-hidden="true" />atrasado</span>}
+                              {card.expiredAt && <span className="inline-flex items-center gap-0.5 font-medium text-danger"><AlarmClock className="h-3.5 w-3.5" aria-hidden="true" />expirado</span>}
+                            </span>
                             <span className="text-sm font-semibold text-text">{card.title}</span>
                             {subtitleDefs.map((f) => {
                               const text = formatValue(f, card.values.find((v) => v.fieldId === f.id)?.value, { members, labels });

@@ -71,6 +71,13 @@
       "when": 1793199396585,
       "tag": "0009_automation_rules",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1793200560731,
+      "tag": "0010_sla_alerts",
+      "breakpoints": true
     }
   ]
 }
