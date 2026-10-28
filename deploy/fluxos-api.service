@@ -8,7 +8,7 @@ Wants=mysql.service
 
 [Service]
 Type=simple
-User=fluxos
+User=ubuntu
 WorkingDirectory=/opt/fluxos
 # Carrega DB_*, GOOGLE_*, PUBLIC_BASE_URL, APP_ORIGIN, SESSION_SECRET, ALLOWED_*
 EnvironmentFile=/opt/fluxos/server/.env

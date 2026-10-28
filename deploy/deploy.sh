@@ -7,6 +7,9 @@ set -euo pipefail
 REPO_DIR="${REPO_DIR:-/opt/fluxos}"
 cd "$REPO_DIR"
 
+# DB_*/PORT etc. do mesmo .env do serviço (a migração precisa deles).
+set -a; . server/.env; set +a
+
 echo "==> git pull"
 git pull --ff-only
 

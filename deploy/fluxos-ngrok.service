@@ -10,7 +10,7 @@ Wants=fluxos-api.service
 
 [Service]
 Type=simple
-User=fluxos
+User=ubuntu
 ExecStart=/usr/local/bin/ngrok http 4000 --domain=your-static-name.ngrok-free.app --log=stdout
 Restart=on-failure
 RestartSec=5
