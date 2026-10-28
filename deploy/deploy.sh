@@ -30,4 +30,10 @@ sudo systemctl restart fluxos-api
 echo "==> ok. status:"
 sudo systemctl --no-pager status fluxos-api | head -5
 echo "Healthcheck:"
-curl -fsS http://127.0.0.1:"${PORT:-4000}"/health && echo
+# O Node leva alguns segundos para subir após o restart: tenta por até 30s.
+for _ in $(seq 1 30); do
+  if curl -fsS http://127.0.0.1:"${PORT:-4000}"/health; then echo; exit 0; fi
+  sleep 1
+done
+echo "API não respondeu em 30s — veja: journalctl -u fluxos-api -n 50" >&2
+exit 1
