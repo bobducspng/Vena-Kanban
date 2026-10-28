@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Plus, Settings, Search } from "lucide-react";
 import { api } from "../data/store";
 import { AppShell } from "../components/app/AppShell";
 import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
 import { Spinner } from "../components/ui/Spinner";
 import { Tag } from "../components/ui/Tag";
 import { Avatar } from "../components/ui/Avatar";
@@ -16,6 +17,7 @@ export function PipeKanban() {
   const { pipeId = "" } = useParams();
   const [startOpen, setStartOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
 
   const { data: pipe } = useQuery({ queryKey: ["pipe", pipeId], queryFn: () => api.pipe.get(pipeId) });
   const { data: phases, isLoading: lp } = useQuery({ queryKey: ["phases", pipeId], queryFn: () => api.phase.listByPipe(pipeId) });
@@ -25,6 +27,9 @@ export function PipeKanban() {
   const userById = new Map((members ?? []).map((u) => [u.id, u]));
 
   const loading = lp || lc;
+  // Search by card number ("1042" or "#1042") or by title.
+  const q = query.trim().toLowerCase().replace(/^#/, "");
+  const visible = (cards ?? []).filter((c) => !q || String(c.number) === q || c.title.toLowerCase().includes(q));
 
   return (
     <AppShell title={pipe?.name ?? "Pipe"}>
@@ -34,9 +39,18 @@ export function PipeKanban() {
             <Link to="/" className="text-xs text-muted hover:text-accent">← Pipes</Link>
             <h2 className="truncate text-lg text-text">{pipe?.name ?? "…"}</h2>
           </div>
-          <Button onClick={() => setStartOpen(true)}>
-            <Plus className="h-4 w-4" aria-hidden="true" /> Novo card
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="relative hidden sm:block">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
+              <Input aria-label="Buscar card por número ou título" placeholder="Buscar #ID ou título" value={query} onChange={(e) => setQuery(e.target.value)} className="w-56 pl-8" />
+            </div>
+            <Link to={`/pipes/${pipeId}/settings`} className="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-surface px-4 text-sm text-text hover:bg-bg">
+              <Settings className="h-4 w-4" aria-hidden="true" /> Configurar
+            </Link>
+            <Button onClick={() => setStartOpen(true)}>
+              <Plus className="h-4 w-4" aria-hidden="true" /> Novo card
+            </Button>
+          </div>
         </div>
 
         {loading ? (
@@ -46,7 +60,7 @@ export function PipeKanban() {
         ) : (
           <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto p-4">
             {phases?.map((phase) => {
-              const phaseCards = cards?.filter((c) => c.currentPhaseId === phase.id) ?? [];
+              const phaseCards = visible.filter((c) => c.currentPhaseId === phase.id);
               return (
                 <section
                   key={phase.id}
@@ -67,6 +81,7 @@ export function PipeKanban() {
                             onClick={() => setActiveId(card.id)}
                             className="flex w-full flex-col items-start gap-2 rounded-md border border-border bg-surface-raised p-3 text-left shadow-card hover:border-accent"
                           >
+                            <span className="text-xs text-muted">#{card.number}</span>
                             <span className="text-sm font-semibold text-text">{card.title}</span>
                             <div className="flex w-full items-center justify-between">
                               <span className="text-xs text-muted">

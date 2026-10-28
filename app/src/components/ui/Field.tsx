@@ -23,6 +23,27 @@ export function Field({ def, value, onChange, error }: FieldProps) {
     "aria-describedby": error ? errId : undefined,
   };
 
+  if (def.type === "checkbox") {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor={id} className="inline-flex items-center gap-2 text-sm font-medium text-text">
+          <input
+            id={id}
+            type="checkbox"
+            className="h-4 w-4 accent-accent"
+            checked={value === true}
+            aria-required={def.required || undefined}
+            aria-describedby={error ? errId : undefined}
+            onChange={(e) => onChange(e.target.checked)}
+          />
+          {def.label}
+          {def.required && <span className="text-muted">(obrigatório)</span>}
+        </label>
+        {error && <p id={errId} className="text-xs text-danger">{error}</p>}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={id} className="text-sm font-medium text-text">
@@ -54,8 +75,12 @@ export function Field({ def, value, onChange, error }: FieldProps) {
         />
       ) : def.type === "date" || def.type === "due_date" ? (
         <Input {...common} type="date" value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} />
+      ) : def.type === "datetime" ? (
+        <Input {...common} type="datetime-local" value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} />
       ) : def.type === "email" ? (
         <Input {...common} type="email" value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} />
+      ) : def.type === "phone" ? (
+        <Input {...common} type="tel" inputMode="tel" value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} />
       ) : (
         <Input {...common} type="text" value={(value as string) ?? ""} onChange={(e) => onChange(e.target.value)} />
       )}

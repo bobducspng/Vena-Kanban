@@ -38,7 +38,7 @@ export const fields: FieldDef[] = [
 
 export const cards: Card[] = [
   {
-    id: "c1", pipeId: "p1", currentPhaseId: "ph1", title: "Notebooks para o time de vendas",
+    id: "c1", number: 1, pipeId: "p1", currentPhaseId: "ph1", title: "Notebooks para o time de vendas",
     values: [
       { fieldId: "f1", value: "5 notebooks" },
       { fieldId: "f2", value: 25000 },
@@ -47,7 +47,7 @@ export const cards: Card[] = [
     assigneeIds: ["u2"], dueDate: null, done: false, version: 0, createdAt: "2026-10-20T09:00:00Z",
   },
   {
-    id: "c2", pipeId: "p1", currentPhaseId: "ph2", title: "Licenças de software de design",
+    id: "c2", number: 2, pipeId: "p1", currentPhaseId: "ph2", title: "Licenças de software de design",
     values: [
       { fieldId: "f1", value: "3 licenças anuais" },
       { fieldId: "f2", value: 8400 },

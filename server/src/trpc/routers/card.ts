@@ -27,7 +27,8 @@ function missingRequired(
   return required
     .filter((f) => {
       const v = values.find((x) => x.fieldId === f.id)?.value;
-      return v === undefined || v === null || v === "";
+      // A required Sim/Não field must be ticked.
+      return v === undefined || v === null || v === "" || v === false;
     })
     .map((f) => f.label);
 }

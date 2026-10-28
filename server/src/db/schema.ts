@@ -100,6 +100,8 @@ export const labels = mysqlTable("labels", {
 // Cards ----------------------------------------------------------------------
 export const cards = mysqlTable("cards", {
   id: id(),
+  // Human-facing sequential ID (#1042), unique across the whole app.
+  number: int("number").autoincrement().notNull(),
   pipeId: ref("pipe_id").notNull(),
   currentPhaseId: ref("current_phase_id").notNull(),
   title: varchar("title", { length: 512 }).notNull(),
@@ -111,6 +113,7 @@ export const cards = mysqlTable("cards", {
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 }, (t) => ({
+  numberUq: uniqueIndex("uq_cards_number").on(t.number),
   pipeIdx: index("idx_cards_pipe").on(t.pipeId),
   phaseIdx: index("idx_cards_phase").on(t.currentPhaseId),
   dueIdx: index("idx_cards_due").on(t.pipeId, t.dueDate),

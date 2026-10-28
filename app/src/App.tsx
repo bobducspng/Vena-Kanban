@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 import { Login } from "./screens/Login";
 import { OrgHome } from "./screens/OrgHome";
 import { PipeKanban } from "./screens/PipeKanban";
+import { PipeSettings } from "./screens/PipeSettings";
 import { DesignRoute } from "./screens/DesignRoute";
 import { StubScreen } from "./screens/StubScreen";
 import { RequireAuth } from "./components/app/RequireAuth";
@@ -16,6 +17,7 @@ export default function App() {
       {/* Protected — gated by RequireAuth (redirects to /login without a session). */}
       <Route path="/" element={<RequireAuth><OrgHome /></RequireAuth>} />
       <Route path="/pipes/:pipeId" element={<RequireAuth><PipeKanban /></RequireAuth>} />
+      <Route path="/pipes/:pipeId/settings" element={<RequireAuth><PipeSettings /></RequireAuth>} />
 
       {/* Planned screens — stubbed in this milestone (see replica/build-log.md). */}
       <Route path="/databases" element={<RequireAuth><StubScreen id="S13" title="Bancos de dados" planned={["Lista de tabelas", "Tabela de registros", "Detalhe do registro", "Campos do tipo conector"]} /></RequireAuth>} />

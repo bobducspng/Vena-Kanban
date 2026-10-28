@@ -8,6 +8,25 @@ export type FieldType =
   | "date" | "datetime" | "due_date" | "select" | "radio" | "checkbox"
   | "assignee_select" | "attachment" | "statement";
 
+/** Field types the phase editor offers (server validates the same list). */
+export const EDITABLE_FIELD_TYPES = [
+  { value: "short_text", label: "Texto curto" },
+  { value: "long_text", label: "Texto longo" },
+  { value: "number", label: "Número" },
+  { value: "currency", label: "Moeda (R$)" },
+  { value: "date", label: "Data" },
+  { value: "datetime", label: "Data e hora" },
+  { value: "email", label: "E-mail" },
+  { value: "phone", label: "Telefone" },
+  { value: "select", label: "Lista de opções" },
+  { value: "radio", label: "Escolha única (botões)" },
+  { value: "checkbox", label: "Sim / Não" },
+] as const;
+export type EditableFieldType = (typeof EDITABLE_FIELD_TYPES)[number]["value"];
+
+export const PHASE_COLORS = ["gray", "red", "orange", "amber", "green", "teal", "blue", "purple", "pink"] as const;
+export type PhaseColor = (typeof PHASE_COLORS)[number];
+
 export interface User {
   id: string;
   name: string;
@@ -50,6 +69,7 @@ export interface CardFieldValue {
 
 export interface Card {
   id: string;
+  number: number; // sequential, human-facing ID (#1042)
   pipeId: string;
   currentPhaseId: string;
   title: string;

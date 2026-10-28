@@ -68,7 +68,7 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title={card.title}
+      title={`#${card.number} · ${card.title}`}
       footer={
         <div className="flex w-full items-center justify-between">
           <Button variant="secondary" onClick={() => prev && move.mutate(prev.id)} disabled={!prev || move.isPending}>
