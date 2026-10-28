@@ -51,7 +51,7 @@ const mapPipe = (p: SrvPipe): Pipe => ({
 });
 const mapPhase = (p: SrvPhase): Phase => ({ id: p.id, pipeId: p.pipeId, name: p.name, color: p.color ?? "gray", position: p.position, isStart: p.isStart, isEnd: p.isEnd, description: p.description, canCreateCard: p.canCreateCard, allowedTo: p.allowedTo ?? [], assigneeIds: p.assigneeIds ?? [] });
 const mapField = (f: SrvField): FieldDef => ({ id: f.id, pipeId: f.pipeId, phaseId: f.phaseId, label: f.label, type: f.type as FieldType, required: f.required, options: Array.isArray(f.options) ? (f.options as string[]) : undefined, position: f.position, description: f.description, help: f.help, editableOtherPhases: f.editableOtherPhases, isUnique: f.isUnique, validationRegex: f.validationRegex, archivedAt: toISON(f.archivedAt),
-  settings: (f.settings as ConnectionSettings | null | undefined) ?? null });
+  settings: f.settings ? { ...(f.settings as ConnectionSettings), fieldMap: (f.settings as Partial<ConnectionSettings>).fieldMap ?? [] } : null });
 const mapCard = (c: SrvCard): Card => ({
   id: c.id, number: c.number, pipeId: c.pipeId, currentPhaseId: c.currentPhaseId, title: c.title,
   values: c.values.map((v) => ({ fieldId: v.fieldId, value: v.value as CardFieldValue["value"] })),
@@ -145,7 +145,7 @@ export const api = {
     create: async (input: { phaseId: string; label: string; type: EditableFieldType; required: boolean; options?: string[]; settings?: ConnectionSettings } & FieldProps): Promise<FieldDef> =>
       mapField(await trpc.field.create.mutate(input)),
     // The type is immutable after creation.
-    update: async (input: { fieldId: string; label?: string; required?: boolean; options?: string[] | null; settings?: Partial<Pick<ConnectionSettings, "canSearch" | "canCreate" | "multiple">> } & FieldProps): Promise<FieldDef> =>
+    update: async (input: { fieldId: string; label?: string; required?: boolean; options?: string[] | null; settings?: Partial<Pick<ConnectionSettings, "canSearch" | "canCreate" | "multiple" | "fieldMap">> } & FieldProps): Promise<FieldDef> =>
       mapField(await trpc.field.update.mutate(input)),
     reorder: (phaseId: string, fieldIds: string[]) => trpc.field.reorder.mutate({ phaseId, fieldIds }),
     remove: (fieldId: string) => trpc.field.remove.mutate({ fieldId }),
@@ -174,6 +174,8 @@ export const api = {
     setLabels: async (cardId: string, labelIds: string[]): Promise<Card> =>
       mapCard(await trpc.card.setLabels.mutate({ cardId, labelIds })),
     remove: (cardId: string) => trpc.card.remove.mutate({ cardId }),
+    refillConnection: async (cardId: string, fieldId: string): Promise<Card> =>
+      mapCard(await trpc.card.refillConnection.mutate({ cardId, fieldId })),
     restore: async (cardId: string): Promise<Card> => mapCard(await trpc.card.restore.mutate({ cardId })),
     duplicate: async (cardId: string): Promise<Card> => mapCard(await trpc.card.duplicate.mutate({ cardId })),
     listTrash: async (pipeId: string): Promise<TrashedCard[]> =>

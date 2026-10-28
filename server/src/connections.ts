@@ -2,7 +2,7 @@ import { z } from "zod";
 import { and, eq, inArray, isNull, like, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "./db/client.js";
-import { cards, dataTables, phases, pipes, tableFields, tableRecordFields, tableRecords } from "./db/schema.js";
+import { cardFields, cards, dataTables, fields, phases, pipes, tableFields, tableRecordFields, tableRecords } from "./db/schema.js";
 
 /** "Conexão" field settings (stored in fields.settings). The target never changes
  *  after creation (existing values point into it); the switches can. */
@@ -12,8 +12,58 @@ export const connectionSettings = z.object({
   canSearch: z.boolean().default(true), // connect existing records/cards
   canCreate: z.boolean().default(true), // create a new one from the card
   multiple: z.boolean().default(false), // more than one item
+  // Autopreenchimento: copy source column/field → this pipe's field when an item is
+  // connected (a copy, decision 2026-10-28: the card keeps its values; "atualizar" re-copies).
+  fieldMap: z.array(z.object({ from: z.string(), to: z.string() })).max(50).default([]),
 });
 export type ConnectionSettings = z.infer<typeof connectionSettings>;
+
+// Text fields accept any source (shown as text); other types need the same type.
+const TEXT_TYPES = new Set(["short_text", "long_text"]);
+const asText = (v: unknown) => (Array.isArray(v) ? v.join(", ") : typeof v === "boolean" ? (v ? "Sim" : "Não") : String(v));
+
+/** Each mapping: source belongs to the target, destination to this pipe, types compatible. */
+export async function checkFieldMap(s: ConnectionSettings, pipeId: string, selfFieldId?: string) {
+  if (!s.fieldMap.length) return;
+  const sources = s.target === "table"
+    ? await db.select({ id: tableFields.id, type: tableFields.type }).from(tableFields).where(eq(tableFields.tableId, s.targetId))
+    : await db.select({ id: fields.id, type: fields.type }).from(fields).where(eq(fields.pipeId, s.targetId));
+  const dests = await db.select({ id: fields.id, type: fields.type }).from(fields).where(eq(fields.pipeId, pipeId));
+  for (const m of s.fieldMap) {
+    const src = sources.find((x) => x.id === m.from);
+    const dst = dests.find((x) => x.id === m.to);
+    if (!src || !dst || dst.id === selfFieldId || ["connection", "attachment", "id"].includes(dst.type)) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Mapeamento de preenchimento inválido." });
+    }
+    if (src.type !== dst.type && !TEXT_TYPES.has(dst.type)) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "No preenchimento, os campos precisam ser do mesmo tipo (ou o destino ser texto)." });
+    }
+  }
+}
+
+/** Values to copy from a connected item into the card (destination field id → value). */
+export async function autofillValues(s: ConnectionSettings, itemId: string): Promise<Map<string, unknown>> {
+  const out = new Map<string, unknown>();
+  if (!s.fieldMap.length) return out;
+  const froms = s.fieldMap.map((m) => m.from);
+  const rows = s.target === "table"
+    ? await db.select({ fieldId: tableRecordFields.fieldId, value: tableRecordFields.value }).from(tableRecordFields)
+        .where(and(eq(tableRecordFields.recordId, itemId), inArray(tableRecordFields.fieldId, froms)))
+    : await db.select({ fieldId: cardFields.fieldId, value: cardFields.value }).from(cardFields)
+        .where(and(eq(cardFields.cardId, itemId), inArray(cardFields.fieldId, froms)));
+  const dests = await db.select({ id: fields.id, type: fields.type }).from(fields).where(inArray(fields.id, s.fieldMap.map((m) => m.to)));
+  const srcTypes = s.target === "table"
+    ? await db.select({ id: tableFields.id, type: tableFields.type }).from(tableFields).where(inArray(tableFields.id, froms))
+    : await db.select({ id: fields.id, type: fields.type }).from(fields).where(inArray(fields.id, froms));
+  for (const m of s.fieldMap) {
+    const v = rows.find((r) => r.fieldId === m.from)?.value;
+    if (v === undefined || v === null || v === "") continue;
+    const dt = dests.find((d) => d.id === m.to)?.type;
+    const st = srcTypes.find((x) => x.id === m.from)?.type;
+    out.set(m.to, dt && TEXT_TYPES.has(dt) && st !== dt ? asText(v) : v);
+  }
+  return out;
+}
 
 export function readSettings(raw: unknown): ConnectionSettings | null {
   const r = connectionSettings.safeParse(raw);

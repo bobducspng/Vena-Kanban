@@ -4,7 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
 import { fields, phases, cardFields } from "../../db/schema.js";
 import { router, protectedProcedure, adminProcedure, assertPipeInOrg } from "../trpc.js";
-import { connectionSettings, checkTarget, readSettings } from "../../connections.js";
+import { connectionSettings, checkTarget, checkFieldMap, readSettings } from "../../connections.js";
 
 // Types the editor offers (and the card form renders).
 const fieldType = z.enum([
@@ -99,6 +99,7 @@ export const fieldRouter = router({
       if (input.type === "connection") {
         if (!input.settings) throw new TRPCError({ code: "BAD_REQUEST", message: "Escolha o database ou pipe da conexão." });
         await checkTarget(input.settings, ctx.orgId);
+        await checkFieldMap(input.settings, phase.pipeId);
       }
       const [{ max }] = await db.select({ max: sql<number | null>`MAX(${fields.position})` })
         .from(fields).where(eq(fields.phaseId, phase.id));
@@ -122,7 +123,7 @@ export const fieldRouter = router({
       required: z.boolean().optional(),
       options: options.nullable().optional(),
       // Connection switches; the target itself is fixed after creation.
-      settings: connectionSettings.pick({ canSearch: true, canCreate: true, multiple: true }).partial().optional(),
+      settings: connectionSettings.pick({ canSearch: true, canCreate: true, multiple: true, fieldMap: true }).partial().optional(),
       ...props,
     }))
     .mutation(async ({ ctx, input }) => {
@@ -138,6 +139,7 @@ export const fieldRouter = router({
       if (switches && field.type === "connection") {
         const merged = { ...readSettings(field.settings)!, ...switches };
         if (!merged.canSearch && !merged.canCreate) throw new TRPCError({ code: "BAD_REQUEST", message: "Permita buscar, criar ou os dois." });
+        await checkFieldMap(merged, field.pipeId, field.id);
         settings = merged;
       }
       const set = settings ? { ...rest, settings } : rest;

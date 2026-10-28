@@ -1,19 +1,33 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Link2, Plus, Search, X } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link2, Plus, RefreshCw, Search, X } from "lucide-react";
 import { api } from "../../data/store";
 import type { FieldDef } from "../../data/types";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { RecordModal } from "./RecordModal";
 import { StartFormModal } from "./StartFormModal";
+import { useToast } from "../ui/Toast";
 
 /** "Conexão" value editor: connected items (title + summary), search to connect,
  *  create a new record/card and connect it. Value = list of ids. */
-export function ConnectionInput({ def, value, onChange, disabled }: {
+export function ConnectionInput({ def, value, onChange, disabled, cardId }: {
   def: FieldDef; value: string[]; onChange: (ids: string[]) => void; disabled?: boolean;
+  /** The open card (absent in the start form); enables "Atualizar do cadastro". */
+  cardId?: string;
 }) {
   const s = def.settings;
+  const qc = useQueryClient();
+  const toast = useToast();
+  const refill = useMutation({
+    mutationFn: () => api.card.refillConnection(cardId!, def.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["card", cardId] });
+      qc.invalidateQueries({ queryKey: ["cards"] });
+      toast("Dados atualizados a partir do cadastro", "success");
+    },
+    onError: (e) => toast(e instanceof Error ? e.message : "Não foi possível atualizar", "error"),
+  });
   const [searching, setSearching] = useState(false);
   const [q, setQ] = useState("");
   const [creating, setCreating] = useState(false);
@@ -59,6 +73,13 @@ export function ConnectionInput({ def, value, onChange, disabled }: {
           ))}
         </ul>
       )}
+
+      {!disabled && cardId && s.fieldMap.length > 0 && value.length > 0 && (
+        <Button type="button" size="sm" variant="ghost" className="self-start" loading={refill.isPending} onClick={() => refill.mutate()}>
+          <RefreshCw className="h-4 w-4" aria-hidden="true" /> Atualizar do cadastro
+        </Button>
+      )}
+      {!cardId && s.fieldMap.length > 0 && <p className="text-xs text-muted">Os dados do item conectado serão copiados para o card ao criar.</p>}
 
       {!disabled && !full && (
         <div className="flex flex-wrap gap-2">

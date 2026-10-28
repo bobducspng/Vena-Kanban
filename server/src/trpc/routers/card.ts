@@ -6,6 +6,7 @@ import { cards, cardFields, cardAssignees, cardLabels, cardEvents, fields, phase
 import { cardInOrg, logEvent } from "../cardAccess.js";
 import { isEmpty, validateValue, applySideEffects } from "../../fieldRules.js";
 import { fieldStates, mustFill, type ConditionDef } from "../../conditions.js";
+import { autofillValues, readSettings } from "../../connections.js";
 import { router, protectedProcedure, assertPipeInOrg } from "../trpc.js";
 
 // Lists hold checklist options, user ids (responsáveis) or label ids (etiquetas).
@@ -64,6 +65,26 @@ async function missingInPhase(phaseId: string, values: { fieldId: string; value:
     .map((f) => f.label);
 }
 
+/** Upsert values on a card (no validation: autofill copies) and apply their side effects. */
+async function writeValues(cardId: string, values: Map<string, unknown>) {
+  if (!values.size) return;
+  const defs = await db.select().from(fields).where(inArray(fields.id, [...values.keys()]));
+  for (const [fieldId, value] of values) {
+    const existing = (await db.select().from(cardFields).where(and(eq(cardFields.cardId, cardId), eq(cardFields.fieldId, fieldId))).limit(1))[0];
+    if (existing) await db.update(cardFields).set({ value, filledAt: new Date() }).where(eq(cardFields.id, existing.id));
+    else await db.insert(cardFields).values({ id: crypto.randomUUID(), cardId, fieldId, value, filledAt: new Date() });
+    const def = defs.find((d) => d.id === fieldId);
+    if (def) await applySideEffects(def, cardId, value);
+  }
+}
+
+/** Autofill of a connection field from its first connected item. */
+async function autofillFor(field: typeof fields.$inferSelect, ids: unknown) {
+  const s = readSettings(field.settings);
+  const first = Array.isArray(ids) ? (ids[0] as string | undefined) : undefined;
+  return s && first ? autofillValues(s, first) : new Map<string, unknown>();
+}
+
 /** Title shown for a value of the pipe's title field. */
 const titleOf = (v: unknown) => (v === null || v === undefined || v === "" ? null : String(v).slice(0, 512));
 
@@ -112,8 +133,18 @@ export const cardRouter = router({
         landing = ph;
       }
 
+      // Autofill from connected items (start-form connections), unless the user typed a value.
+      const pipeFields = await db.select().from(fields).where(eq(fields.pipeId, input.pipeId));
+      const typed = new Map(input.values.map((v) => [v.fieldId, v.value]));
+      const filled = new Map<string, unknown>();
+      for (const v of input.values) {
+        const f = pipeFields.find((x) => x.id === v.fieldId);
+        if (f?.type !== "connection") continue;
+        for (const [to, val] of await autofillFor(f, v.value)) if (isEmpty(typed.get(to))) filled.set(to, val);
+      }
+      const allValues = [...input.values, ...[...filled].map(([fieldId, value]) => ({ fieldId, value }))];
       // Attachments can only be added after the card exists: checked when it leaves the phase.
-      const missing = await missingInPhase(start.id, input.values, ["attachment", "id"]);
+      const missing = await missingInPhase(start.id, allValues, ["attachment", "id"]);
       if (missing.length) throw new TRPCError({ code: "BAD_REQUEST", message: `Preencha os campos obrigatórios: ${missing.join(", ")}` });
       // Only start-phase fields can be filled on creation.
       const startFields = await db.select().from(fields).where(and(eq(fields.phaseId, start.id), isNull(fields.archivedAt)));
@@ -143,6 +174,7 @@ export const cardRouter = router({
         return cardId;
       }).then(async (cardId) => {
         for (const v of input.values) await applySideEffects(startFields.find((x) => x.id === v.fieldId)!, cardId, v.value);
+        await writeValues(cardId, filled as Map<string, never>);
         await syncPhaseAssignees(cardId, null, landing.id);
         return shaped(cardId);
       });
@@ -170,6 +202,8 @@ export const cardRouter = router({
 
       const existing = (await db.select().from(cardFields)
         .where(and(eq(cardFields.cardId, input.cardId), eq(cardFields.fieldId, input.fieldId))).limit(1))[0];
+      const before = Array.isArray(existing?.value) ? (existing!.value as string[])[0] : undefined;
+      const after = Array.isArray(input.value) ? input.value[0] : undefined;
       const filledAt = isEmpty(input.value) ? null : new Date();
       if (existing) {
         await db.update(cardFields).set({ value: input.value, filledAt })
@@ -178,6 +212,9 @@ export const cardRouter = router({
         await db.insert(cardFields).values({ id: crypto.randomUUID(), cardId: input.cardId, fieldId: input.fieldId, value: input.value, filledAt });
       }
       await applySideEffects(field, card.id, input.value);
+      if (field.type === "connection" && after && after !== before) {
+        await writeValues(card.id, await autofillFor(field, input.value) as Map<string, never>);
+      }
       const pipe = (await db.select({ titleFieldId: pipes.titleFieldId }).from(pipes).where(eq(pipes.id, card.pipeId)).limit(1))[0];
       const newTitle = pipe?.titleFieldId === field.id ? titleOf(input.value) : null;
       if (newTitle && newTitle !== card.title) await db.update(cards).set({ title: newTitle }).where(eq(cards.id, card.id));
@@ -321,5 +358,17 @@ export const cardRouter = router({
     });
     await logEvent(newId, "created", ctx.userId, { duplicatedFrom: card.number });
     return shaped(newId);
+  }),
+
+  /** "Atualizar do cadastro": copy the mapped values again from the connected item. */
+  refillConnection: protectedProcedure.input(z.object({ cardId: z.string(), fieldId: z.string() })).mutation(async ({ ctx, input }) => {
+    const card = await cardInOrg(input.cardId, ctx.orgId);
+    const field = (await db.select().from(fields).where(eq(fields.id, input.fieldId)).limit(1))[0];
+    if (!field || field.pipeId !== card.pipeId || field.type !== "connection") throw new TRPCError({ code: "BAD_REQUEST", message: "Campo inválido" });
+    const row = (await db.select().from(cardFields).where(and(eq(cardFields.cardId, card.id), eq(cardFields.fieldId, field.id))).limit(1))[0];
+    const values = await autofillFor(field, row?.value);
+    await writeValues(card.id, values as Map<string, never>);
+    await logEvent(card.id, "autofill_refreshed", ctx.userId, { fieldId: field.id, count: values.size });
+    return shaped(card.id);
   }),
 });

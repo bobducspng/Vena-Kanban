@@ -44,6 +44,8 @@ export interface ConnectionSettings {
   canSearch: boolean;
   canCreate: boolean;
   multiple: boolean;
+  /** Autopreenchimento: source column/field → field of this pipe (copied on connect). */
+  fieldMap: { from: string; to: string }[];
 }
 
 /** A connected record/card as shown on the card. */

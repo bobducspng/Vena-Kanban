@@ -27,7 +27,7 @@ export interface FieldDraft {
 }
 
 /** Create or edit one field. The type is chosen on creation and cannot change afterwards. */
-export function FieldEditorModal({ field, onClose, onSaved, save: persist, types = EDITABLE_FIELD_TYPES, phaseOptions = true, noun = "campo" }: {
+export function FieldEditorModal({ field, onClose, onSaved, save: persist, types = EDITABLE_FIELD_TYPES, phaseOptions = true, noun = "campo", pipeFields = [] }: {
   field: FieldDef | "new" | null;
   onClose: () => void;
   onSaved: () => void;
@@ -35,6 +35,8 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
   types?: readonly { value: string; label: string }[];
   phaseOptions?: boolean; // show "editável em outras fases" (phase fields only)
   noun?: "campo" | "coluna";
+  /** Fields of the pipe (destinations for a connection's autofill). */
+  pipeFields?: FieldDef[];
 }) {
   const toast = useToast();
   const existing = field && field !== "new" ? field : null;
@@ -47,10 +49,19 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
   const [editableOtherPhases, setEditableOtherPhases] = useState(true);
   const [isUnique, setIsUnique] = useState(false);
   const [regex, setRegex] = useState("");
-  const [conn, setConn] = useState<ConnectionSettings>({ target: "table", targetId: "", canSearch: true, canCreate: true, multiple: false });
+  const [conn, setConn] = useState<ConnectionSettings>({ target: "table", targetId: "", canSearch: true, canCreate: true, multiple: false, fieldMap: [] });
   const isConnection = type === "connection";
   const { data: tables } = useQuery({ queryKey: ["databases"], queryFn: api.database.list, enabled: isConnection });
   const { data: pipes } = useQuery({ queryKey: ["pipes"], queryFn: api.pipe.list, enabled: isConnection });
+  // Autofill sources: the target database's columns, or the target pipe's fields.
+  const { data: sources } = useQuery({
+    queryKey: ["autofillSources", conn.target, conn.targetId],
+    queryFn: () => (conn.target === "table" ? api.database.columns(conn.targetId) : api.field.listByPipe(conn.targetId)),
+    enabled: isConnection && !!conn.targetId,
+  });
+  const dests = pipeFields.filter((f) => !["connection", "attachment", "id"].includes(f.type) && f.id !== (field && field !== "new" ? field.id : ""));
+  const setMap = (i: number, patch: Partial<{ from: string; to: string }>) =>
+    setConn((c) => ({ ...c, fieldMap: c.fieldMap.map((m, j) => (j === i ? { ...m, ...patch } : m)) }));
 
   useEffect(() => {
     setLabel(existing?.label ?? "");
@@ -62,7 +73,7 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
     setEditableOtherPhases(existing?.editableOtherPhases ?? true);
     setIsUnique(existing?.isUnique ?? false);
     setRegex(existing?.validationRegex ?? "");
-    setConn(existing?.settings ?? { target: "table", targetId: "", canSearch: true, canCreate: true, multiple: false });
+    setConn(existing?.settings ?? { target: "table", targetId: "", canSearch: true, canCreate: true, multiple: false, fieldMap: [] });
   }, [field]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasOptions = OPTION_FIELD_TYPES.includes(type);
@@ -93,7 +104,7 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => save.mutate()} loading={save.isPending} disabled={!label.trim() || (hasOptions && options.length === 0) || !!regexError || (isConnection && (!conn.targetId || (!conn.canSearch && !conn.canCreate)))}>Salvar</Button>
+          <Button onClick={() => save.mutate()} loading={save.isPending} disabled={!label.trim() || (hasOptions && options.length === 0) || !!regexError || (isConnection && (!conn.targetId || (!conn.canSearch && !conn.canCreate) || conn.fieldMap.some((m) => !m.from || !m.to)))}>Salvar</Button>
         </>
       }
     >
@@ -132,6 +143,25 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
               <input type="checkbox" className="h-4 w-4 accent-accent" checked={conn.multiple} onChange={(e) => setConn((c) => ({ ...c, multiple: e.target.checked }))} />
               Permitir vários itens
             </label>
+            {conn.targetId && dests.length > 0 && (
+              <div className="flex flex-col gap-2 border-t border-border pt-3">
+                <p className="text-sm font-medium text-text">Preencher automaticamente</p>
+                <p className="text-xs text-muted">Ao conectar, copia estes dados do item para o card. Depois o card guarda a cópia; use "Atualizar do cadastro" no card para puxar de novo.</p>
+                {conn.fieldMap.map((m, i) => (
+                  <div key={i} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] sm:items-center">
+                    <Select aria-label="Copiar de" value={m.from || undefined} placeholder={conn.target === "table" ? "Coluna do database" : "Campo do outro pipe"}
+                      onValueChange={(v) => setMap(i, { from: v })} options={(sources ?? []).map((f) => ({ value: f.id, label: f.label }))} />
+                    <span className="text-center text-xs text-muted">→</span>
+                    <Select aria-label="Para o campo" value={m.to || undefined} placeholder="Campo deste pipe"
+                      onValueChange={(v) => setMap(i, { to: v })} options={dests.map((f) => ({ value: f.id, label: f.label }))} />
+                    <button type="button" aria-label="Remover" onClick={() => setConn((c) => ({ ...c, fieldMap: c.fieldMap.filter((_, j) => j !== i) }))} className="justify-self-start rounded p-1 text-muted hover:text-danger">✕</button>
+                  </div>
+                ))}
+                <Button type="button" size="sm" variant="ghost" className="self-start" onClick={() => setConn((c) => ({ ...c, fieldMap: [...c.fieldMap, { from: "", to: "" }] }))}>
+                  + Adicionar preenchimento
+                </Button>
+              </div>
+            )}
           </fieldset>
         )}
         {hasOptions && (

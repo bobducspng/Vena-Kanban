@@ -114,7 +114,7 @@ export function Field({ def, value, onChange, error, disabled, card }: FieldProp
         )}
         {def.type === "assignee_select" && <PeoplePicker value={asList(value)} onChange={onChange} disabled={disabled} />}
         {def.type === "label_select" && <LabelPicker pipeId={def.pipeId} value={asList(value)} onChange={onChange} disabled={disabled} />}
-        {def.type === "connection" && <ConnectionInput def={def} value={asList(value)} onChange={onChange} disabled={disabled} />}
+        {def.type === "connection" && <ConnectionInput def={def} value={asList(value)} onChange={onChange} disabled={disabled} cardId={card?.id} />}
         {footer}
       </fieldset>
     );
