@@ -62,7 +62,7 @@ Tirados das dores mais citadas na comunidade [C §2, §4]:
 | Movimento manual uma fase por vez | automações podem pular | ✅ (padrão = vizinhas) | M2 |
 | Obrigatórios travam a saída | | ✅ | — |
 | Responsáveis da fase | atribuídos a todo card enquanto estiver na fase | ✅ | M2 |
-| SLA da fase (atraso) | tempo máximo na fase → "atrasado" + contador | ⬜ | M6 |
+| SLA da fase (atraso) | tempo máximo na fase → "atrasado" + contador | ✅ | M6 |
 | Ordenação dos cards por fase | vencimento, criação, atualização, alfabética, manual | ⬜ | M9 |
 | Coletar e-mail (autenticação) no formulário da fase | | ⬜ | M7 |
 | Limite WIP por fase | não documentado no Pipefy; opcional | ⬜ | M9 |
@@ -134,7 +134,7 @@ Opções de cada campo:
 | Desconectar card/registro | ✅ | M4 |
 | Histórico do card | ✅ | M2 |
 | Linha do tempo com métricas | duração, fases visitadas, % automatizado, trocas de responsável, gargalo | ⬜ | M9 |
-| Timers (desde criação, na fase, última atualização) | | ⬜ | M6 |
+| Timers (desde criação, na fase, última atualização) | ✅ | M6 |
 | Gerar PDF do card | | ⬜ | M11 |
 
 ### 2.6 Formulários e portal [A §6, §7, §8]
@@ -186,7 +186,7 @@ Opções de cada campo:
 | Ação fórmula | `+ - * / % ^`, SUM, AVERAGE, MIN, MAX, ROUND, IF_NULL, datas | ✅ | M5 |
 | Ação enviar template de e-mail / enviar tarefa | | ⬜ | M8 / M7 |
 | Ação requisição HTTP | método, headers, corpo, autenticação, schema da resposta | ✅ (bloqueia rede interna) | M5 |
-| Ação aplicar regras de SLA | expediente, feriados, fuso → calcula vencimento | ⬜ | M6 |
+| Ação aplicar regras de SLA | expediente, feriados, fuso → calcula vencimento | 🟡 (SLA em horário útil é nativo do pipe) | M6 |
 | Ação gerar com IA | | ⬜ | M11 |
 | Gestão | lista com filtros (status/evento/ação), busca, ordenação, ativar/desativar, duplicar (nasce desativada) | ✅ | M5 |
 | **Logs por execução + alerta de falha + testar regra** | melhoria sobre o Pipefy | ✅ | M5 |
@@ -195,14 +195,14 @@ Opções de cada campo:
 ### 2.9 SLA, alertas e notificações [A §12]
 | Funcionalidade | Detalhe | Status | M |
 | --- | --- | --- | --- |
-| Vencido (data de vencimento) | cinza → amarelo → vermelho | ⬜ | M6 |
-| Atrasado (SLA da fase) | relógio + contador no cabeçalho da fase | ⬜ | M6 |
-| Expirado (SLA do pipe) | até chegar à fase final | ⬜ | M6 |
-| Somente dias úteis + feriados BR + expediente | | ⬜ | M6 |
-| SLA a partir de campo de data | pedido da comunidade | ⬜ | M6 |
-| Histórico de tempo por fase | entradas/saídas, duração, ficou atrasado | ⬜ | M6 |
-| "Meu trabalho" | meus cards: perto do vencimento, vencidos, atrasados, expirados, concluídos | ⬜ | M6 |
-| Notificações in-app (sino) | menções, atribuição, falha de automação, e-mail recebido | ⬜ | M6 |
+| Vencido (data de vencimento) | cinza → amarelo → vermelho | ✅ | M6 |
+| Atrasado (SLA da fase) | relógio + contador no cabeçalho da fase | ✅ | M6 |
+| Expirado (SLA do pipe) | até chegar à fase final | ✅ | M6 |
+| Somente dias úteis + feriados BR + expediente | ✅ | M6 |
+| SLA a partir de campo de data | pedido da comunidade | 🟡 (campo Data de vencimento → vencido) | M6 |
+| Histórico de tempo por fase | entradas/saídas, duração, ficou atrasado | ✅ | M6 |
+| "Meu trabalho" | meus cards: perto do vencimento, vencidos, atrasados, expirados, concluídos | ✅ | M6 |
+| Notificações in-app (sino) | menções, atribuição, falha de automação, e-mail recebido | ✅ | M6 |
 | Notificações por e-mail configuráveis | | ⬜ | M8 |
 
 ### 2.10 E-mail [A §13]
@@ -276,7 +276,7 @@ Ordem pensada para destravar valor cedo e porque cada marco depende do anterior.
 | **M3 ✅ — Condicionais** | ★ editor com grupos E/OU, 19 operadores, mostrar/ocultar e **obrigar**; servidor valida respeitando ocultos | depende dos tipos de campo do M2 |
 | **M4 ✅ — Databases e conexões** | ★ databases (tabelas, registros, formulário, status); campo de conexão pipe/database; ★ autopreenchimento a partir do registro; pai/filho e suas regras; conteúdo dinâmico | "dados vindos do BD" depende de databases + conexão |
 | **M5 ✅ — Automações** | ★ motor e catálogo completo (mover automático, criar card em outro pipe, atualizar campo, mover pai, rodízio, fórmula, HTTP); recorrentes; logs, alerta de falha, testar regra; campo fórmula | precisa de conexões (M4) para as ações entre pipes |
-| **M6 — SLA e trabalho do dia** | vencido/atrasado/expirado, dias úteis + feriados, histórico de tempo por fase, timers, "Meu trabalho", notificações in-app | eventos de alerta alimentam automações |
+| **M6 ✅ — SLA e trabalho do dia** | vencido/atrasado/expirado, dias úteis + feriados, histórico de tempo por fase, timers, "Meu trabalho", notificações in-app | eventos de alerta alimentam automações |
 | **M7 — Formulários externos e portal** | formulário público e de fase, tarefas, portal com páginas, rastreador "meus pedidos", convidados | precisa de condicionais (M3) e permissões básicas |
 | **M8 — E-mail** | templates, SMTP próprio, envio manual e por automação, caixa de entrada do pipe/card | exige definir provedor de e-mail (decisão abaixo) |
 | **M9 — Visões e relatórios** | lista, ações em massa, calendário, filtros salvos, relatório de pipe e da empresa, dashboards, linha do tempo com métricas, acesso BI | lê tudo dos marcos anteriores |
