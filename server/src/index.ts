@@ -13,8 +13,9 @@ import { authRoutes } from "./http/authRoutes.js";
 
 const app = express();
 
-// ngrok (and any reverse proxy) terminates TLS; trust it so secure cookies work.
-app.set("trust proxy", 1);
+// ngrok (and nginx, both on loopback) terminate TLS / proxy; trust loopback hops so
+// secure cookies work and req.ip is the real client (rate limit per user, not per proxy).
+app.set("trust proxy", "loopback");
 
 // CSP off: Radix injeta estilos inline (posicionamento de dropdown/popover/modal)
 // que uma CSP padrão bloquearia. Para endurecer depois, configure uma CSP própria.
