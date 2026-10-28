@@ -10,6 +10,7 @@ import { env } from "./env.js";
 import { appRouter } from "./trpc/routers/_app.js";
 import { createContext } from "./trpc/trpc.js";
 import { authRoutes } from "./http/authRoutes.js";
+import { fileRoutes } from "./http/fileRoutes.js";
 
 const app = express();
 
@@ -21,6 +22,8 @@ app.set("trust proxy", "loopback");
 // que uma CSP padrão bloquearia. Para endurecer depois, configure uma CSP própria.
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: env.APP_ORIGIN, credentials: true }));
+// Attachments first: their raw body must not go through the JSON parser.
+app.use(fileRoutes);
 app.use(express.json({ limit: "1mb" }));
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
@@ -39,7 +42,7 @@ if (existsSync(spaDir)) {
   // SPA fallback: any other GET returns index.html (client-side routing).
   app.use((req, res, next) => {
     if (req.method !== "GET") return next();
-    if (req.path.startsWith("/trpc") || req.path.startsWith("/auth") || req.path === "/health") return next();
+    if (req.path.startsWith("/trpc") || req.path.startsWith("/auth") || req.path.startsWith("/files") || req.path === "/health") return next();
     res.sendFile(join(spaDir, "index.html"));
   });
   console.log(`Serving SPA from ${spaDir}`);

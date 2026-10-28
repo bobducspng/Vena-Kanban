@@ -126,8 +126,52 @@ export function PipeSettings() {
             )}
           </div>
         )}
+
+        <LabelsManager pipeId={pipeId} />
       </div>
     </AppShell>
+  );
+}
+
+/** Pipe labels: name + colour. Removing one takes it off every card. */
+function LabelsManager({ pipeId }: { pipeId: string }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [name, setName] = useState("");
+  const [color, setColor] = useState<PhaseColor>("blue");
+  const { data: labels } = useQuery({ queryKey: ["labels", pipeId], queryFn: () => api.label.listByPipe(pipeId) });
+  const done = () => { qc.invalidateQueries({ queryKey: ["labels", pipeId] }); qc.invalidateQueries({ queryKey: ["cards", pipeId] }); };
+  const onError = (e: unknown) => toast(errMsg(e), "error");
+  const create = useMutation({ mutationFn: () => api.label.create({ pipeId, name: name.trim(), color }), onSuccess: () => { setName(""); done(); }, onError });
+  const update = useMutation({ mutationFn: api.label.update, onSuccess: done, onError });
+  const remove = useMutation({ mutationFn: api.label.remove, onSuccess: done, onError });
+  const colorOptions = PHASE_COLORS.map((c) => ({ value: c, label: COLOR_LABEL[c] }));
+
+  return (
+    <section aria-label="Etiquetas" className="flex flex-col gap-3 rounded-lg border border-border bg-bg p-4">
+      <div>
+        <h3 className="text-sm font-semibold text-text">Etiquetas</h3>
+        <p className="text-xs text-muted">Marcadores coloridos que a equipe aplica aos cards (ex.: Urgente, Cliente VIP).</p>
+      </div>
+      {labels?.length ? (
+        <ul className="flex flex-col divide-y divide-border rounded-md border border-border">
+          {labels.map((l) => (
+            <li key={l.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
+              <Tag color={l.color}>{l.name}</Tag>
+              <span className="flex-1" />
+              <div className="w-40"><Select aria-label={`Cor de ${l.name}`} value={l.color} onValueChange={(c) => update.mutate({ labelId: l.id, color: c as PhaseColor })} options={colorOptions} /></div>
+              <button aria-label={`Renomear ${l.name}`} onClick={() => { const n = prompt("Novo nome da etiqueta", l.name)?.trim(); if (n && n !== l.name) update.mutate({ labelId: l.id, name: n }); }} className="rounded p-1 text-muted hover:bg-surface"><Pencil className="h-4 w-4" /></button>
+              <button aria-label={`Excluir ${l.name}`} onClick={() => { if (confirm(`Excluir a etiqueta "${l.name}"? Ela sai de todos os cards.`)) remove.mutate(l.id); }} className="rounded p-1 text-muted hover:bg-surface hover:text-danger"><Trash2 className="h-4 w-4" /></button>
+            </li>
+          ))}
+        </ul>
+      ) : <p className="text-sm text-muted">Nenhuma etiqueta ainda.</p>}
+      <form className="flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); if (name.trim()) create.mutate(); }}>
+        <div className="min-w-48 flex-1"><Input aria-label="Nome da etiqueta" placeholder="Nova etiqueta" value={name} onChange={(e) => setName(e.target.value)} /></div>
+        <div className="w-40"><Select aria-label="Cor da nova etiqueta" value={color} onValueChange={(c) => setColor(c as PhaseColor)} options={colorOptions} /></div>
+        <Button type="submit" disabled={!name.trim()} loading={create.isPending}><Plus className="h-4 w-4" aria-hidden="true" /> Adicionar</Button>
+      </form>
+    </section>
   );
 }
 

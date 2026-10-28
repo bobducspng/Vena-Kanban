@@ -1,8 +1,8 @@
 // Real data layer: backs `api` with the tRPC client. Same function names and
 // signatures as the previous fake store, so no screen changed. Server outputs
 // are mapped to the app's domain types (src/data/types.ts).
-import { trpc } from "../lib/trpc";
-import type { Pipe, Phase, FieldDef, Card, CardFieldValue, CardEvent, User, FieldType, PhaseColor, EditableFieldType, Role } from "./types";
+import { trpc, API_URL } from "../lib/trpc";
+import type { Pipe, Phase, FieldDef, Card, CardFieldValue, CardEvent, User, FieldType, PhaseColor, EditableFieldType, Role, Label, Comment, ChecklistItem, Attachment, TrashedCard } from "./types";
 
 // --- error handling: turn the server's required-fields message back into the
 // structured error the forms expect, so inline per-field errors still work. ---
@@ -35,7 +35,7 @@ const toISON = (d: Date | string | null | undefined): string | null =>
 type SrvPipe = { id: string; name: string; description: string | null; createdAt: Date | string };
 type SrvPhase = { id: string; pipeId: string; name: string; color: string | null; position: number; isStart: boolean; isEnd: boolean; description: string | null; canCreateCard: boolean; allowedTo?: string[] };
 type SrvField = { id: string; pipeId: string; phaseId: string; label: string; type: string; required: boolean; options: unknown; position: number; description: string | null; help: string | null; editableOtherPhases: boolean; isUnique: boolean; validationRegex: string | null };
-type SrvCard = { id: string; number: number; pipeId: string; currentPhaseId: string; title: string; dueDate: Date | string | null; done: boolean; version: number; createdAt: Date | string; values: { fieldId: string; value: unknown }[]; assigneeIds: string[] };
+type SrvCard = { id: string; number: number; pipeId: string; currentPhaseId: string; title: string; dueDate: Date | string | null; done: boolean; version: number; createdAt: Date | string; values: { fieldId: string; value: unknown }[]; assigneeIds: string[]; labelIds: string[]; checklistDone: number; checklistTotal: number; commentCount: number; attachmentCount: number };
 type SrvEvent = { id: string; cardId: string; type: string; fromPhaseId: string | null; toPhaseId: string | null; actorId: string | null; createdAt: Date | string };
 type SrvUser = { id: string; name: string | null; email: string; role?: Role | null };
 
@@ -46,11 +46,20 @@ const mapCard = (c: SrvCard): Card => ({
   id: c.id, number: c.number, pipeId: c.pipeId, currentPhaseId: c.currentPhaseId, title: c.title,
   values: c.values.map((v) => ({ fieldId: v.fieldId, value: v.value as CardFieldValue["value"] })),
   assigneeIds: c.assigneeIds, dueDate: toISON(c.dueDate), done: c.done, version: c.version, createdAt: toISO(c.createdAt),
+  labelIds: c.labelIds, checklistDone: c.checklistDone, checklistTotal: c.checklistTotal, commentCount: c.commentCount, attachmentCount: c.attachmentCount,
 });
 const mapEvent = (e: SrvEvent): CardEvent => ({ id: e.id, cardId: e.cardId, type: e.type as CardEvent["type"], fromPhaseId: e.fromPhaseId, toPhaseId: e.toPhaseId, actorId: e.actorId, createdAt: toISO(e.createdAt) });
 const mapUser = (u: SrvUser): User => ({ id: u.id, name: u.name ?? u.email, email: u.email, avatarColor: "blue", role: u.role });
 
 type FieldProps = { description?: string | null; help?: string | null; editableOtherPhases?: boolean; isUnique?: boolean; validationRegex?: string | null };
+
+/** JSON over plain HTTP with the session cookie; server errors become Error(message). */
+async function fileFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, { credentials: "include", ...init });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as { error?: string }).error ?? (res.status === 413 ? "Arquivo grande demais" : "Falha no envio"));
+  return data as T;
+}
 
 export const api = {
   user: {
@@ -120,6 +129,17 @@ export const api = {
     },
     updateField: async (input: { cardId: string; fieldId: string; value: CardFieldValue["value"] }): Promise<Card> =>
       mapCard(await trpc.card.updateField.mutate(input)),
+    update: async (input: { cardId: string; title?: string; dueDate?: string | null }): Promise<Card> =>
+      mapCard(await trpc.card.update.mutate(input)),
+    setAssignees: async (cardId: string, userIds: string[]): Promise<Card> =>
+      mapCard(await trpc.card.setAssignees.mutate({ cardId, userIds })),
+    setLabels: async (cardId: string, labelIds: string[]): Promise<Card> =>
+      mapCard(await trpc.card.setLabels.mutate({ cardId, labelIds })),
+    remove: (cardId: string) => trpc.card.remove.mutate({ cardId }),
+    restore: async (cardId: string): Promise<Card> => mapCard(await trpc.card.restore.mutate({ cardId })),
+    duplicate: async (cardId: string): Promise<Card> => mapCard(await trpc.card.duplicate.mutate({ cardId })),
+    listTrash: async (pipeId: string): Promise<TrashedCard[]> =>
+      (await trpc.card.listTrash.query({ pipeId })).map((c) => ({ ...c, deletedAt: toISO(c.deletedAt) })),
     move: async (input: { cardId: string; toPhaseId: string; version?: number }): Promise<Card> => {
       try {
         return mapCard(await trpc.card.move.mutate(input));
@@ -132,6 +152,39 @@ export const api = {
   event: {
     listByCard: async (cardId: string): Promise<CardEvent[]> =>
       (await trpc.event.listByCard.query({ cardId })).map(mapEvent),
+  },
+
+  label: {
+    listByPipe: async (pipeId: string): Promise<Label[]> =>
+      (await trpc.label.listByPipe.query({ pipeId })).map((l) => ({ ...l, color: l.color ?? "gray" })),
+    create: (input: { pipeId: string; name: string; color: PhaseColor }) => trpc.label.create.mutate(input),
+    update: (input: { labelId: string; name?: string; color?: PhaseColor }) => trpc.label.update.mutate(input),
+    remove: (labelId: string) => trpc.label.remove.mutate({ labelId }),
+  },
+
+  comment: {
+    listByCard: async (cardId: string): Promise<Comment[]> =>
+      (await trpc.comment.listByCard.query({ cardId })).map((c) => ({ ...c, createdAt: toISO(c.createdAt) })),
+    create: (input: { cardId: string; body: string; mentions: string[] }) => trpc.comment.create.mutate(input),
+    remove: (commentId: string) => trpc.comment.remove.mutate({ commentId }),
+  },
+
+  checklist: {
+    listByCard: async (cardId: string): Promise<ChecklistItem[]> => trpc.checklist.listByCard.query({ cardId }),
+    add: (cardId: string, text: string) => trpc.checklist.add.mutate({ cardId, text }),
+    update: (input: { itemId: string; text?: string; done?: boolean }) => trpc.checklist.update.mutate(input),
+    remove: (itemId: string) => trpc.checklist.remove.mutate({ itemId }),
+  },
+
+  // Attachments go over plain HTTP (binary body), not tRPC.
+  file: {
+    listByCard: async (cardId: string): Promise<Attachment[]> => fileFetch(`/files/cards/${cardId}`),
+    upload: async (cardId: string, file: File): Promise<Attachment> =>
+      fileFetch(`/files/cards/${cardId}?name=${encodeURIComponent(file.name)}`, {
+        method: "POST", body: file, headers: { "Content-Type": file.type || "application/octet-stream" },
+      }),
+    remove: async (id: string): Promise<{ ok: true }> => fileFetch(`/files/${id}`, { method: "DELETE" }),
+    url: (id: string) => `${API_URL}/files/${id}`,
   },
 };
 

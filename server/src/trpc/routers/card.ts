@@ -1,22 +1,44 @@
 import { z } from "zod";
-import { eq, and, inArray, sql } from "drizzle-orm";
+import { eq, and, inArray, isNull, isNotNull, desc, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
-import { cards, cardFields, cardAssignees, cardEvents, fields, phases, phaseTransitions } from "../../db/schema.js";
+import { cards, cardFields, cardAssignees, cardLabels, cardEvents, fields, phases, phaseTransitions, labels, memberships, checklistItems, comments, attachments } from "../../db/schema.js";
+import { cardInOrg, logEvent } from "../cardAccess.js";
 import { router, protectedProcedure, assertPipeInOrg } from "../trpc.js";
 
 const valueSchema = z.union([z.string(), z.number(), z.boolean(), z.null()]);
 
 // Shape a card row with its values[] and assigneeIds[] — matches the front-end type.
+type Extra = {
+  values: { fieldId: string; value: unknown }[]; assigneeIds: string[]; labelIds: string[];
+  checklistDone: number; checklistTotal: number; commentCount: number; attachmentCount: number;
+};
 async function hydrate(cardIds: string[]) {
-  if (cardIds.length === 0) return new Map();
-  const vals = await db.select().from(cardFields).where(inArray(cardFields.cardId, cardIds));
-  const asg = await db.select().from(cardAssignees).where(inArray(cardAssignees.cardId, cardIds));
-  const map = new Map<string, { values: { fieldId: string; value: unknown }[]; assigneeIds: string[] }>();
-  cardIds.forEach((id) => map.set(id, { values: [], assigneeIds: [] }));
+  const map = new Map<string, Extra>();
+  if (cardIds.length === 0) return map;
+  const [vals, asg, lbl, chk, cmt, att] = await Promise.all([
+    db.select().from(cardFields).where(inArray(cardFields.cardId, cardIds)),
+    db.select().from(cardAssignees).where(inArray(cardAssignees.cardId, cardIds)),
+    db.select().from(cardLabels).where(inArray(cardLabels.cardId, cardIds)),
+    db.select({ cardId: checklistItems.cardId, done: checklistItems.done }).from(checklistItems).where(inArray(checklistItems.cardId, cardIds)),
+    db.select({ cardId: comments.cardId }).from(comments).where(inArray(comments.cardId, cardIds)),
+    db.select({ cardId: attachments.cardId }).from(attachments).where(inArray(attachments.cardId, cardIds)),
+  ]);
+  cardIds.forEach((id) => map.set(id, { values: [], assigneeIds: [], labelIds: [], checklistDone: 0, checklistTotal: 0, commentCount: 0, attachmentCount: 0 }));
   vals.forEach((v) => map.get(v.cardId)!.values.push({ fieldId: v.fieldId, value: v.value }));
   asg.forEach((a) => map.get(a.cardId)!.assigneeIds.push(a.userId));
+  lbl.forEach((l) => map.get(l.cardId)!.labelIds.push(l.labelId));
+  chk.forEach((c) => { const e = map.get(c.cardId)!; e.checklistTotal++; if (c.done) e.checklistDone++; });
+  cmt.forEach((c) => map.get(c.cardId)!.commentCount++);
+  att.forEach((a) => { if (a.cardId) map.get(a.cardId)!.attachmentCount++; });
   return map;
+}
+
+/** One card, shaped for the front-end. */
+async function shaped(cardId: string) {
+  const row = (await db.select().from(cards).where(eq(cards.id, cardId)).limit(1))[0];
+  const h = await hydrate([cardId]);
+  return { ...row, ...h.get(cardId)! };
 }
 
 /** Required fields of a phase that are empty for this card's value set. */
@@ -54,14 +76,14 @@ async function validateValue(field: FieldRow, value: unknown, exceptCardId?: str
 export const cardRouter = router({
   listByPipe: protectedProcedure.input(z.object({ pipeId: z.string() })).query(async ({ ctx, input }) => {
     await assertPipeInOrg(input.pipeId, ctx.orgId);
-    const rows = await db.select().from(cards).where(eq(cards.pipeId, input.pipeId));
+    const rows = await db.select().from(cards).where(and(eq(cards.pipeId, input.pipeId), isNull(cards.deletedAt)));
     const h = await hydrate(rows.map((r) => r.id));
     return rows.map((r) => ({ ...r, ...h.get(r.id)! }));
   }),
 
   get: protectedProcedure.input(z.object({ cardId: z.string() })).query(async ({ ctx, input }) => {
     const row = (await db.select().from(cards).where(eq(cards.id, input.cardId)).limit(1))[0];
-    if (!row) return null;
+    if (!row || row.deletedAt) return null;
     await assertPipeInOrg(row.pipeId, ctx.orgId);
     const h = await hydrate([row.id]);
     return { ...row, ...h.get(row.id)! };
@@ -123,9 +145,7 @@ export const cardRouter = router({
   updateField: protectedProcedure
     .input(z.object({ cardId: z.string(), fieldId: z.string(), value: valueSchema }))
     .mutation(async ({ ctx, input }) => {
-      const card = (await db.select().from(cards).where(eq(cards.id, input.cardId)).limit(1))[0];
-      if (!card) throw new TRPCError({ code: "NOT_FOUND" });
-      await assertPipeInOrg(card.pipeId, ctx.orgId);
+      const card = await cardInOrg(input.cardId, ctx.orgId);
 
       // Editability: never a future phase's field; a past phase's only if "editável em outras fases".
       const field = (await db.select().from(fields).where(eq(fields.id, input.fieldId)).limit(1))[0];
@@ -159,9 +179,7 @@ export const cardRouter = router({
   move: protectedProcedure
     .input(z.object({ cardId: z.string(), toPhaseId: z.string(), version: z.number().int().optional() }))
     .mutation(async ({ ctx, input }) => {
-      const card = (await db.select().from(cards).where(eq(cards.id, input.cardId)).limit(1))[0];
-      if (!card) throw new TRPCError({ code: "NOT_FOUND" });
-      await assertPipeInOrg(card.pipeId, ctx.orgId);
+      const card = await cardInOrg(input.cardId, ctx.orgId);
 
       const to = (await db.select().from(phases).where(eq(phases.id, input.toPhaseId)).limit(1))[0];
       if (!to || to.pipeId !== card.pipeId) throw new TRPCError({ code: "BAD_REQUEST", message: "Fase destino inválida" });
@@ -193,4 +211,106 @@ export const cardRouter = router({
       const row = (await db.select().from(cards).where(eq(cards.id, card.id)).limit(1))[0];
       return { ...row, ...h.get(card.id)! };
     }),
+
+  /** Title and due date (the card's fixed attributes). */
+  update: protectedProcedure
+    .input(z.object({
+      cardId: z.string(),
+      title: z.string().trim().min(1).max(512).optional(),
+      dueDate: z.string().datetime({ offset: true }).nullable().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const card = await cardInOrg(input.cardId, ctx.orgId);
+      const patch: { title?: string; dueDate?: Date | null } = {};
+      if (input.title !== undefined && input.title !== card.title) patch.title = input.title;
+      if (input.dueDate !== undefined) patch.dueDate = input.dueDate ? new Date(input.dueDate) : null;
+      if (Object.keys(patch).length) {
+        await db.update(cards).set(patch).where(eq(cards.id, card.id));
+        if (patch.title) await logEvent(card.id, "title_updated", ctx.userId, { from: card.title, to: patch.title });
+        if (patch.dueDate !== undefined) await logEvent(card.id, "due_date_changed", ctx.userId, { to: input.dueDate });
+      }
+      return shaped(card.id);
+    }),
+
+  /** Replace the card's assignees (org members only). */
+  setAssignees: protectedProcedure
+    .input(z.object({ cardId: z.string(), userIds: z.array(z.string()).max(50) }))
+    .mutation(async ({ ctx, input }) => {
+      const card = await cardInOrg(input.cardId, ctx.orgId);
+      const ids = [...new Set(input.userIds)];
+      const members = ids.length
+        ? await db.select({ userId: memberships.userId }).from(memberships).where(and(eq(memberships.orgId, ctx.orgId), inArray(memberships.userId, ids)))
+        : [];
+      if (members.length !== ids.length) throw new TRPCError({ code: "BAD_REQUEST", message: "Responsável inválido" });
+      await db.transaction(async (tx) => {
+        await tx.delete(cardAssignees).where(eq(cardAssignees.cardId, card.id));
+        if (ids.length) await tx.insert(cardAssignees).values(ids.map((userId) => ({ cardId: card.id, userId })));
+      });
+      await logEvent(card.id, "assignees_changed", ctx.userId, { userIds: ids });
+      return shaped(card.id);
+    }),
+
+  /** Replace the card's labels (labels of the same pipe only). */
+  setLabels: protectedProcedure
+    .input(z.object({ cardId: z.string(), labelIds: z.array(z.string()).max(50) }))
+    .mutation(async ({ ctx, input }) => {
+      const card = await cardInOrg(input.cardId, ctx.orgId);
+      const ids = [...new Set(input.labelIds)];
+      const valid = ids.length ? await db.select({ id: labels.id }).from(labels).where(and(eq(labels.pipeId, card.pipeId), inArray(labels.id, ids))) : [];
+      if (valid.length !== ids.length) throw new TRPCError({ code: "BAD_REQUEST", message: "Etiqueta inválida" });
+      await db.transaction(async (tx) => {
+        await tx.delete(cardLabels).where(eq(cardLabels.cardId, card.id));
+        if (ids.length) await tx.insert(cardLabels).values(ids.map((labelId) => ({ cardId: card.id, labelId })));
+      });
+      await logEvent(card.id, "labels_changed", ctx.userId, { labelIds: ids });
+      return shaped(card.id);
+    }),
+
+  /** Send to the trash (lixeira). Restorable. */
+  remove: protectedProcedure.input(z.object({ cardId: z.string() })).mutation(async ({ ctx, input }) => {
+    const card = await cardInOrg(input.cardId, ctx.orgId);
+    await db.update(cards).set({ deletedAt: new Date(), deletedBy: ctx.userId }).where(eq(cards.id, card.id));
+    await logEvent(card.id, "deleted", ctx.userId);
+    return { ok: true };
+  }),
+
+  restore: protectedProcedure.input(z.object({ cardId: z.string() })).mutation(async ({ ctx, input }) => {
+    const card = await cardInOrg(input.cardId, ctx.orgId, true);
+    await db.update(cards).set({ deletedAt: null, deletedBy: null }).where(eq(cards.id, card.id));
+    await logEvent(card.id, "restored", ctx.userId);
+    return shaped(card.id);
+  }),
+
+  listTrash: protectedProcedure.input(z.object({ pipeId: z.string() })).query(async ({ ctx, input }) => {
+    await assertPipeInOrg(input.pipeId, ctx.orgId);
+    return db.select({ id: cards.id, number: cards.number, title: cards.title, deletedAt: cards.deletedAt, deletedBy: cards.deletedBy })
+      .from(cards).where(and(eq(cards.pipeId, input.pipeId), isNotNull(cards.deletedAt))).orderBy(desc(cards.deletedAt));
+  }),
+
+  /** Copy a card in the same phase: fields (except "valor único"), labels, assignees, checklist (unticked). */
+  duplicate: protectedProcedure.input(z.object({ cardId: z.string() })).mutation(async ({ ctx, input }) => {
+    const card = await cardInOrg(input.cardId, ctx.orgId);
+    const src = (await hydrate([card.id])).get(card.id)!;
+    const uniques = new Set((await db.select({ id: fields.id }).from(fields)
+      .where(and(eq(fields.pipeId, card.pipeId), eq(fields.isUnique, true)))).map((f) => f.id));
+    const items = await db.select().from(checklistItems).where(eq(checklistItems.cardId, card.id));
+    const newId = crypto.randomUUID();
+    await db.transaction(async (tx) => {
+      await tx.insert(cards).values({
+        id: newId, pipeId: card.pipeId, currentPhaseId: card.currentPhaseId, title: `${card.title} (cópia)`.slice(0, 512),
+        createdBy: ctx.userId, dueDate: card.dueDate, done: card.done,
+      });
+      for (const v of src.values) {
+        if (uniques.has(v.fieldId)) continue;
+        await tx.insert(cardFields).values({ id: crypto.randomUUID(), cardId: newId, fieldId: v.fieldId, value: v.value, filledAt: new Date() });
+      }
+      if (src.labelIds.length) await tx.insert(cardLabels).values(src.labelIds.map((labelId) => ({ cardId: newId, labelId })));
+      if (src.assigneeIds.length) await tx.insert(cardAssignees).values(src.assigneeIds.map((userId) => ({ cardId: newId, userId })));
+      for (const it of items) {
+        await tx.insert(checklistItems).values({ id: crypto.randomUUID(), cardId: newId, text: it.text, position: it.position });
+      }
+    });
+    await logEvent(newId, "created", ctx.userId, { duplicatedFrom: card.number });
+    return shaped(newId);
+  }),
 });

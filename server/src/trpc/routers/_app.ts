@@ -5,6 +5,9 @@ import { phaseRouter } from "./phase.js";
 import { fieldRouter } from "./field.js";
 import { cardRouter } from "./card.js";
 import { eventRouter } from "./event.js";
+import { labelRouter } from "./label.js";
+import { commentRouter } from "./comment.js";
+import { checklistRouter } from "./checklist.js";
 
 export const appRouter = router({
   user: userRouter,
@@ -13,6 +16,9 @@ export const appRouter = router({
   field: fieldRouter,
   card: cardRouter,
   event: eventRouter,
+  label: labelRouter,
+  comment: commentRouter,
+  checklist: checklistRouter,
 });
 
 // The front-end imports this type for an end-to-end-typed client.

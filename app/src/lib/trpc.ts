@@ -3,7 +3,8 @@ import superjson from "superjson";
 // Type-only import of the server's router — erased at build, gives end-to-end types.
 import type { AppRouter } from "../../../server/dist/trpc/routers/_app.js";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
+/** Base URL of the API ("/fluxos" behind nginx, "" same-origin, or the dev server). */
+export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 
 /** True when an error is a tRPC UNAUTHORIZED (no/expired session). */
 export function isUnauthorized(err: unknown): boolean {

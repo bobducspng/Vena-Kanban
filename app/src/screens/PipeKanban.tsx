@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Settings, Search } from "lucide-react";
+import { Plus, Settings, Search, Trash2, CheckSquare, MessageSquare, Paperclip, CalendarClock } from "lucide-react";
 import { api, RequiredFieldError } from "../data/store";
 import type { Card } from "../data/types";
 import { useMe } from "../lib/useMe";
@@ -16,6 +16,8 @@ import { Avatar } from "../components/ui/Avatar";
 import { useToast } from "../components/ui/Toast";
 import { StartFormModal } from "../components/app/StartFormModal";
 import { CardDetailModal } from "../components/app/CardDetailModal";
+import { TrashModal } from "../components/app/TrashModal";
+import { dueStatus, DUE_CLASS, fmtDate } from "../components/app/CardSections";
 
 /** S03 — kanban: phases as columns, cards as tiles. Drag a card to an allowed phase
  *  ("Mover para"), or open it to move with buttons. Add via the start form. */
@@ -29,6 +31,7 @@ export function PipeKanban() {
   const [query, setQuery] = useState("");
   const [dragging, setDragging] = useState<Card | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  const [trashOpen, setTrashOpen] = useState(false);
   const { isAdmin } = useMe();
 
   const { data: pipe } = useQuery({ queryKey: ["pipe", pipeId], queryFn: () => api.pipe.get(pipeId) });
@@ -37,6 +40,8 @@ export function PipeKanban() {
   // Real org members, to resolve assignee avatars (BUG-004).
   const { data: members } = useQuery({ queryKey: ["users"], queryFn: api.user.list });
   const userById = new Map((members ?? []).map((u) => [u.id, u]));
+  const { data: labels } = useQuery({ queryKey: ["labels", pipeId], queryFn: () => api.label.listByPipe(pipeId) });
+  const labelById = new Map((labels ?? []).map((l) => [l.id, l]));
 
   // Drop = move, applied optimistically and rolled back if the server refuses.
   const move = useMutation({
@@ -84,6 +89,9 @@ export function PipeKanban() {
                 <Settings className="h-4 w-4" aria-hidden="true" /> Configurar
               </Link>
             )}
+            <Button variant="ghost" aria-label="Lixeira" title="Lixeira" onClick={() => setTrashOpen(true)}>
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+            </Button>
             <Button onClick={() => setStartFor({})}>
               <Plus className="h-4 w-4" aria-hidden="true" /> Novo card
             </Button>
@@ -147,11 +155,30 @@ export function PipeKanban() {
                               dragging?.id === card.id && "opacity-40"
                             )}
                           >
+                            {card.labelIds.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {card.labelIds.map((id) => labelById.get(id)).filter(Boolean).map((l) => <Tag key={l!.id} color={l!.color}>{l!.name}</Tag>)}
+                              </div>
+                            )}
                             <span className="text-xs text-muted">#{card.number}</span>
                             <span className="text-sm font-semibold text-text">{card.title}</span>
-                            <div className="flex w-full items-center justify-between">
-                              <span className="text-xs text-muted">
-                                {new Date(card.createdAt).toLocaleDateString("pt-BR")}
+                            <div className="flex w-full items-center justify-between gap-2">
+                              <span className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                                {card.dueDate ? (
+                                  <span className={`inline-flex items-center gap-1 ${DUE_CLASS[dueStatus(card)!]}`}>
+                                    <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />{fmtDate(card.dueDate)}
+                                    {dueStatus(card) === "overdue" && <span className="sr-only"> (vencido)</span>}
+                                  </span>
+                                ) : new Date(card.createdAt).toLocaleDateString("pt-BR")}
+                                {card.checklistTotal > 0 && (
+                                  <span className="inline-flex items-center gap-1" title="Checklist"><CheckSquare className="h-3.5 w-3.5" aria-hidden="true" />{card.checklistDone}/{card.checklistTotal}</span>
+                                )}
+                                {card.commentCount > 0 && (
+                                  <span className="inline-flex items-center gap-1" title="Comentários"><MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />{card.commentCount}</span>
+                                )}
+                                {card.attachmentCount > 0 && (
+                                  <span className="inline-flex items-center gap-1" title="Anexos"><Paperclip className="h-3.5 w-3.5" aria-hidden="true" />{card.attachmentCount}</span>
+                                )}
                               </span>
                               <div className="flex -space-x-1">
                                 {card.assigneeIds.map((uid) => {
@@ -181,6 +208,7 @@ export function PipeKanban() {
 
       <StartFormModal pipeId={pipeId} phaseId={startFor?.phaseId} open={!!startFor} onOpenChange={(o) => !o && setStartFor(null)} />
       <CardDetailModal cardId={activeId} pipeId={pipeId} open={!!activeId} onOpenChange={(o) => !o && setActiveId(null)} />
+      <TrashModal pipeId={pipeId} open={trashOpen} onOpenChange={setTrashOpen} />
     </AppShell>
   );
 }

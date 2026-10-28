@@ -15,14 +15,16 @@ interface SelectProps {
   id?: string;
   invalid?: boolean;
   disabled?: boolean;
+  "aria-label"?: string;
 }
 
 /** Accessible select built on Radix (listbox semantics, keyboard, type-ahead). */
-export function Select({ value, onValueChange, options, placeholder = "Selecione…", id, invalid, disabled }: SelectProps) {
+export function Select({ value, onValueChange, options, placeholder = "Selecione…", id, invalid, disabled, "aria-label": ariaLabel }: SelectProps) {
   return (
     <RSelect.Root value={value} onValueChange={onValueChange} disabled={disabled}>
       <RSelect.Trigger
         id={id}
+        aria-label={ariaLabel}
         aria-invalid={invalid || undefined}
         className={cn(
           "inline-flex h-10 w-full items-center justify-between rounded-md bg-bg px-3 text-sm text-text",

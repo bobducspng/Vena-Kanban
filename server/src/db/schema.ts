@@ -129,6 +129,9 @@ export const cards = mysqlTable("cards", {
   done: boolean("done").notNull().default(false),
   late: boolean("late").notNull().default(false),
   version: int("version").notNull().default(0),
+  // Lixeira: soft delete. Deleted cards leave the board but can be restored.
+  deletedAt: datetime("deleted_at", { fsp: 3 }),
+  deletedBy: ref("deleted_by"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 }, (t) => ({
@@ -165,6 +168,16 @@ export const cardLabels = mysqlTable("card_labels", {
   labelIdx: index("idx_cardlabels_label").on(t.labelId),
 }));
 
+// Checklist of a card (to-do items), independent of phase fields.
+export const checklistItems = mysqlTable("checklist_items", {
+  id: id(),
+  cardId: ref("card_id").notNull(),
+  text: varchar("text", { length: 500 }).notNull(),
+  done: boolean("done").notNull().default(false),
+  position: int("position").notNull().default(0),
+  createdAt: createdAt(),
+}, (t) => ({ cardIdx: index("idx_checklist_card").on(t.cardId, t.position) }));
+
 export const comments = mysqlTable("comments", {
   id: id(),
   cardId: ref("card_id").notNull(),
@@ -180,6 +193,7 @@ export const attachments = mysqlTable("attachments", {
   filename: varchar("filename", { length: 512 }).notNull(),
   url: varchar("url", { length: 2048 }).notNull(),
   sizeBytes: bigint("size_bytes", { mode: "number" }),
+  mimeType: varchar("mime_type", { length: 255 }),
   uploadedBy: ref("uploaded_by"),
   createdAt: createdAt(),
 }, (t) => ({ cardIdx: index("idx_attach_card").on(t.cardId) }));

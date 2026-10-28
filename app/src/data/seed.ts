@@ -44,7 +44,7 @@ export const cards: Card[] = [
       { fieldId: "f2", value: 25000 },
       { fieldId: "f4", value: "Alta" },
     ],
-    assigneeIds: ["u2"], dueDate: null, done: false, version: 0, createdAt: "2026-10-20T09:00:00Z",
+    assigneeIds: ["u2"], dueDate: null, done: false, version: 0, createdAt: "2026-10-20T09:00:00Z", labelIds: [], checklistDone: 0, checklistTotal: 0, commentCount: 0, attachmentCount: 0,
   },
   {
     id: "c2", number: 2, pipeId: "p1", currentPhaseId: "ph2", title: "Licenças de software de design",
@@ -52,7 +52,7 @@ export const cards: Card[] = [
       { fieldId: "f1", value: "3 licenças anuais" },
       { fieldId: "f2", value: 8400 },
     ],
-    assigneeIds: ["u3"], dueDate: null, done: false, version: 0, createdAt: "2026-10-18T14:30:00Z",
+    assigneeIds: ["u3"], dueDate: null, done: false, version: 0, createdAt: "2026-10-18T14:30:00Z", labelIds: [], checklistDone: 0, checklistTotal: 0, commentCount: 0, attachmentCount: 0,
   },
 ];
 

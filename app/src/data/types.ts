@@ -91,12 +91,57 @@ export interface Card {
   done: boolean;
   version: number; // optimistic lock, sent back on move (BUG-005)
   createdAt: string;
+  labelIds: string[];
+  checklistDone: number;
+  checklistTotal: number;
+  commentCount: number;
+  attachmentCount: number;
+}
+
+export interface Label {
+  id: string;
+  pipeId: string;
+  name: string;
+  color: string;
+}
+
+export interface Comment {
+  id: string;
+  cardId: string;
+  authorId: string | null;
+  body: string;
+  createdAt: string;
+}
+
+export interface ChecklistItem {
+  id: string;
+  cardId: string;
+  text: string;
+  done: boolean;
+  position: number;
+}
+
+export interface Attachment {
+  id: string;
+  cardId: string;
+  filename: string;
+  sizeBytes: number | null;
+  mimeType: string | null;
+  uploadedBy: string | null;
+  createdAt: string;
+}
+
+export interface TrashedCard {
+  id: string;
+  number: number;
+  title: string;
+  deletedAt: string;
 }
 
 export interface CardEvent {
   id: string;
   cardId: string;
-  type: "created" | "moved" | "field_updated" | "commented";
+  type: string; // created, moved, field_updated, commented, assignees_changed, labels_changed, ...
   fromPhaseId?: string | null;
   toPhaseId?: string | null;
   actorId?: string | null;

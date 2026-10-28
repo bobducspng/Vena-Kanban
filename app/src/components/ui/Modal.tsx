@@ -11,17 +11,20 @@ interface ModalProps {
   children: ReactNode;
   footer?: ReactNode;
   className?: string;
+  /** "wide" for dense screens like the open card. */
+  size?: "default" | "wide";
 }
 
 /** Accessible dialog on Radix: focus trap, Esc, labelled by its title. */
-export function Modal({ open, onOpenChange, title, description, children, footer, className }: ModalProps) {
+export function Modal({ open, onOpenChange, title, description, children, footer, className, size = "default" }: ModalProps) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-[rgba(0,0,0,0.4)]" />
         <Dialog.Content
           className={cn(
-            "fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] max-w-card-modal -translate-x-1/2 -translate-y-1/2",
+            "fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2",
+            size === "wide" ? "max-w-[72rem]" : "max-w-card-modal",
             "max-h-[90vh] overflow-auto rounded-lg bg-bg shadow-pop",
             className
           )}

@@ -28,3 +28,6 @@ npm-debug.log*
 Thumbs.db
 .idea/
 .vscode/
+
+# Anexos enviados (ficam no disco da VM, fora do git)
+data/
