@@ -103,14 +103,14 @@ Opções de cada campo:
 ### 2.4 Condicionais de campo [A §5, API §2.3]
 | Funcionalidade | Detalhe | Status | M |
 | --- | --- | --- | --- |
-| Editor de condicionais por formulário | inicial, fase, público, database | ⬜ | M3 |
-| Cenário com grupos E/OU | até 300 condições/ações | ⬜ | M3 |
-| 19 operadores | equals, not_equals, present, blank, contains, not_contains, maior, menor, data hoje/ontem/semana/mês/ano atual e anterior, data é/antes/depois | ⬜ | M3 |
-| Ações "se sim" / "se não" | mostrar/ocultar campos | ⬜ | M3 |
-| **Tornar obrigatório condicionalmente** | melhoria sobre o Pipefy (lá é contorno "trava") | ⬜ | M3 |
-| Oculto não exige preenchimento | servidor valida respeitando condicionais | ⬜ | M3 |
+| Editor de condicionais por formulário | inicial, fase, público, database | 🟡 (inicial e fases; público/database nos M4/M7) | M3 |
+| Cenário com grupos E/OU | até 300 condições/ações | ✅ | M3 |
+| 19 operadores | equals, not_equals, present, blank, contains, not_contains, maior, menor, data hoje/ontem/semana/mês/ano atual e anterior, data é/antes/depois | ✅ | M3 |
+| Ações "se sim" / "se não" | mostrar/ocultar campos | ✅ | M3 |
+| **Tornar obrigatório condicionalmente** | melhoria sobre o Pipefy (lá é contorno "trava") | ✅ | M3 |
+| Oculto não exige preenchimento | servidor valida respeitando condicionais | ✅ | M3 |
 | Fonte em campo de registro conectado | ex.: "vaga aberta?" do database | ⬜ | M4 |
-| Padrões cascata e trava | resultado natural do editor | ⬜ | M3 |
+| Padrões cascata e trava | resultado natural do editor | ✅ | M3 |
 
 ### 2.5 Cards [A §3]
 | Funcionalidade | Detalhe | Status | M |
@@ -273,7 +273,7 @@ Ordem pensada para destravar valor cedo e porque cada marco depende do anterior.
 | --- | --- | --- |
 | **M1 ✅** | Editor de fases e campos por fase; #ID; busca | já entregue |
 | **M2 ✅ — Card completo** | ★ transições permitidas ("mover para"), arrastar no kanban, uma fase por vez; opções de campo (descrição, ajuda, editável em outras fases, único, regex); tipos que faltam (checklist, hora, vencimento, responsável, etiqueta, anexo, CPF/CNPJ, ID); responsáveis, etiquetas, comentários com menção, anexos e checklist no card; título/subtítulos do card; config do pipe (ícone, cor, nome do objeto, botão); responsáveis da fase; criar card em outra fase; arquivar campo; excluir/duplicar card com lixeira | é o uso diário; todo o resto (condicionais, automações, relatórios) lê esses dados |
-| **M3 — Condicionais** | ★ editor com grupos E/OU, 19 operadores, mostrar/ocultar e **obrigar**; servidor valida respeitando ocultos | depende dos tipos de campo do M2 |
+| **M3 ✅ — Condicionais** | ★ editor com grupos E/OU, 19 operadores, mostrar/ocultar e **obrigar**; servidor valida respeitando ocultos | depende dos tipos de campo do M2 |
 | **M4 — Databases e conexões** | ★ databases (tabelas, registros, formulário, status); campo de conexão pipe/database; ★ autopreenchimento a partir do registro; pai/filho e suas regras; conteúdo dinâmico | "dados vindos do BD" depende de databases + conexão |
 | **M5 — Automações** | ★ motor e catálogo completo (mover automático, criar card em outro pipe, atualizar campo, mover pai, rodízio, fórmula, HTTP); recorrentes; logs, alerta de falha, testar regra; campo fórmula | precisa de conexões (M4) para as ações entre pipes |
 | **M6 — SLA e trabalho do dia** | vencido/atrasado/expirado, dias úteis + feriados, histórico de tempo por fase, timers, "Meu trabalho", notificações in-app | eventos de alerta alimentam automações |
