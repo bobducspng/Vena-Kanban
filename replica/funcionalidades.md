@@ -32,12 +32,12 @@ Tirados das dores mais citadas na comunidade [C §2, §4]:
 | Funcionalidade | Detalhe | Status | M |
 | --- | --- | --- | --- |
 | Criar pipe do zero | nasce com 3 fases e formulário inicial | ✅ | — |
-| Ícone e cor do pipe | aparecem na home, formulários, conexões | ⬜ | M2 |
-| Nome do objeto | renomear "card" (ticket, pedido, candidato) | ⬜ | M2 |
-| Título do card a partir de um campo | campo do formulário inicial vira o título (vale para cards novos) | ⬜ | M2 |
-| Subtítulos do card | campos exibidos no card fechado (e no card conectado) | ⬜ | M2 |
-| Texto do botão "criar card" | ex.: "Nova solicitação" | ⬜ | M2 |
-| Editar/excluir pipe | excluir exige digitar confirmação | ⬜ | M2 |
+| Ícone e cor do pipe | aparecem na home, formulários, conexões | ✅ | M2 |
+| Nome do objeto | renomear "card" (ticket, pedido, candidato) | ✅ | M2 |
+| Título do card a partir de um campo | campo do formulário inicial vira o título (vale para cards novos) | ✅ | M2 |
+| Subtítulos do card | campos exibidos no card fechado (e no card conectado) | 🟡 (quadro; card conectado no M4) | M2 |
+| Texto do botão "criar card" | ex.: "Nova solicitação" | ✅ | M2 |
+| Editar/excluir pipe | excluir exige digitar confirmação | ✅ (excluir = ocultar, restaurável) | M2 |
 | Visibilidade público/privado | privado = só admins e convidados | ⬜ | M10 |
 | Só responsáveis editam cards / só admin exclui | políticas do pipe | ⬜ | M10 |
 | Quem cria card pelo formulário | membros/convidados da empresa/externos | ⬜ | M7 |
@@ -54,14 +54,14 @@ Tirados das dores mais citadas na comunidade [C §2, §4]:
 | --- | --- | --- | --- |
 | Criar, renomear, cor, reordenar, excluir | excluir só vazia e não inicial (melhor que o Pipefy) | ✅ | M1 |
 | Inserir fase entre duas | "+" entre colunas | 🟡 (adiciona no fim e reordena) | M2 |
-| Descrição da fase | exibida no quadro | ⬜ | M2 |
+| Descrição da fase | exibida no quadro | ✅ | M2 |
 | Fase final (várias permitidas) | card concluído, pode voltar | ✅ | M1 |
 | Fase inicial | onde nasce o card / formulário inicial | ✅ | M1 |
-| Permitir criar card nesta fase | além da inicial | ⬜ | M2 |
-| **Mover para (transições permitidas)** | switch por fase destino; nova fase liga às vizinhas; editável também no card [A §2.3, API `phase_transitions`] | ⬜ | M2 |
-| Movimento manual uma fase por vez | automações podem pular | 🟡 (botões anterior/próxima) | M2 |
+| Permitir criar card nesta fase | além da inicial | ✅ | M2 |
+| **Mover para (transições permitidas)** | switch por fase destino; nova fase liga às vizinhas; editável também no card [A §2.3, API `phase_transitions`] | ✅ | M2 |
+| Movimento manual uma fase por vez | automações podem pular | ✅ (padrão = vizinhas) | M2 |
 | Obrigatórios travam a saída | | ✅ | — |
-| Responsáveis da fase | atribuídos a todo card enquanto estiver na fase | ⬜ | M2 |
+| Responsáveis da fase | atribuídos a todo card enquanto estiver na fase | ✅ | M2 |
 | SLA da fase (atraso) | tempo máximo na fase → "atrasado" + contador | ⬜ | M6 |
 | Ordenação dos cards por fase | vencimento, criação, atualização, alfabética, manual | ⬜ | M9 |
 | Coletar e-mail (autenticação) no formulário da fase | | ⬜ | M7 |
@@ -73,14 +73,14 @@ Tipos do Pipefy (23 + fórmula e conteúdo dinâmico):
 | --- | --- | --- |
 | Texto curto, texto longo, número, moeda, data, data e hora, e-mail, telefone, seleção (dropdown), radio | ✅ | M1 |
 | Sim/Não (booleano) | ✅ (extra do Fluxos) | M1 |
-| Checklist (múltipla escolha) | ⬜ | M2 |
-| Hora | ⬜ | M2 |
-| Data de vencimento (alimenta alertas) | ⬜ | M2 |
-| Seleção de responsável (membros) | ⬜ | M2 |
-| Etiqueta (labels do pipe) | ⬜ | M2 |
-| Anexo (upload) | ⬜ | M2 |
-| Documento CPF/CNPJ (máscara + validação de dígito) | ⬜ | M2 |
-| ID (código do card) | ⬜ | M2 |
+| Checklist (múltipla escolha) | ✅ | M2 |
+| Hora | ✅ | M2 |
+| Data de vencimento (alimenta alertas) | ✅ | M2 |
+| Seleção de responsável (membros) | ✅ | M2 |
+| Etiqueta (labels do pipe) | ✅ | M2 |
+| Anexo (upload) | ✅ | M2 |
+| Documento CPF/CNPJ (máscara + validação de dígito) | ✅ | M2 |
+| ID (código do card) | ✅ | M2 |
 | Conteúdo dinâmico (texto rico com variáveis de fases anteriores) | ⬜ | M4 |
 | Conexão de pipe / conexão de database | ⬜ | M4 |
 | **Fórmula** (nativa, recalcula ao salvar) | ⬜ | M5 |
@@ -89,13 +89,13 @@ Opções de cada campo:
 | Opção | Detalhe | Status | M |
 | --- | --- | --- | --- |
 | Obrigatório | | ✅ | — |
-| Descrição e texto de ajuda | | ⬜ | M2 |
-| Editável em outras fases | se desligado, só se edita na própria fase | ⬜ | M2 |
-| Valor único | 8 tipos; rejeita duplicado no pipe/database | ⬜ | M2 |
-| Validação por regex | texto curto e databases | ⬜ | M2 |
+| Descrição e texto de ajuda | ✅ | M2 |
+| Editável em outras fases | se desligado, só se edita na própria fase | ✅ | M2 |
+| Valor único | 8 tipos; rejeita duplicado no pipe/database | ✅ | M2 |
+| Validação por regex | texto curto e databases | ✅ | M2 |
 | Visualização mínima | campo numa linha | ⬜ | M2 |
-| Tipo imutável após criar | Pipefy não permite trocar tipo (Fluxos hoje permite — decidir) | 🟡 | M2 |
-| Arquivar / restaurar campo | some dos formulários, continua legível em relatórios/automações | ⬜ | M2 |
+| Tipo imutável após criar | Pipefy não permite trocar tipo (Fluxos hoje permite — decidir) | ✅ (decisão: bloqueado) | M2 |
+| Arquivar / restaurar campo | some dos formulários, continua legível em relatórios/automações | ✅ | M2 |
 | Dependências do campo | onde é usado (automações, condicionais, templates) | ⬜ | M10 |
 | Slug estável (`index_name`) | nome original para URL/API/templates | ⬜ | M2 |
 | Valor inicial via URL | `?campo=valor` em formulário público | ⬜ | M7 |
@@ -117,22 +117,22 @@ Opções de cada campo:
 | --- | --- | --- | --- |
 | Criar pelo formulário inicial | | ✅ | — |
 | ID sequencial (#1042) e busca por ID/título | | ✅ | M1 |
-| Arrastar e soltar no kanban | respeita transições e obrigatórios | ⬜ | M2 |
-| Card aberto em duas colunas | dados anteriores à esquerda; fase atual, atividades e "mover para" à direita | 🟡 | M2 |
-| Editar dados de fases anteriores | só campos "editáveis em outras fases" | 🟡 (edita tudo) | M2 |
-| Título editável | | ⬜ | M2 |
-| Responsáveis (atribuir/remover) | | 🟡 (só exibe) | M2 |
-| Etiquetas: cadastro por pipe + no card | | ⬜ | M2 |
-| Data de vencimento | cores cinza/amarelo/vermelho | ⬜ | M2/M6 |
-| Comentários com @menção | menção notifica | ⬜ | M2 |
-| Anexos | | ⬜ | M2 |
-| Checklist do card | | ⬜ | M2 |
+| Arrastar e soltar no kanban | respeita transições e obrigatórios | ✅ | M2 |
+| Card aberto em duas colunas | dados anteriores à esquerda; fase atual, atividades e "mover para" à direita | ✅ | M2 |
+| Editar dados de fases anteriores | só campos "editáveis em outras fases" | ✅ | M2 |
+| Título editável | ✅ | M2 |
+| Responsáveis (atribuir/remover) | ✅ | M2 |
+| Etiquetas: cadastro por pipe + no card | ✅ | M2 |
+| Data de vencimento | cores cinza/amarelo/vermelho | ✅ (alertas no M6) | M2/M6 |
+| Comentários com @menção | menção notifica | ✅ (notificação no M6) | M2 |
+| Anexos | ✅ (disco da VM, 25 MB) | M2 |
+| Checklist do card | ✅ | M2 |
 | Liga/desliga recursos do card por pipe | responsáveis, vencimento, etiquetas, anexos, comentários, checklist | ⬜ | M2 |
-| Excluir card (com lixeira) | lixeira é novidade 2025–26 | ⬜ | M2 |
-| Duplicar card | existe na API (`cardDuplicate`) | ⬜ | M2 |
+| Excluir card (com lixeira) | lixeira é novidade 2025–26 | ✅ | M2 |
+| Duplicar card | existe na API (`cardDuplicate`) | ✅ | M2 |
 | Cards pai/filho | via conexão; atalhos nos dois lados | ⬜ | M4 |
 | Desconectar card/registro | | ⬜ | M4 |
-| Histórico do card | | 🟡 (criado/movido/campo) | M2 |
+| Histórico do card | ✅ | M2 |
 | Linha do tempo com métricas | duração, fases visitadas, % automatizado, trocas de responsável, gargalo | ⬜ | M9 |
 | Timers (desde criação, na fase, última atualização) | | ⬜ | M6 |
 | Gerar PDF do card | | ⬜ | M11 |
@@ -141,7 +141,7 @@ Opções de cada campo:
 | Funcionalidade | Detalhe | Status | M |
 | --- | --- | --- | --- |
 | Formulário inicial interno | | ✅ | — |
-| Opções do formulário | título, texto do botão, campo-título | ⬜ | M2 |
+| Opções do formulário | título, texto do botão, campo-título | 🟡 (texto do botão e campo-título) | M2 |
 | Formulário público (link, sem login) | rota pública; captcha | ⬜ | M7 |
 | Embutir em site (iframe) | | ⬜ | M7 |
 | Personalização | logo, título, descrição, cor, fundo, texto do botão, múltiplos envios, autopreencher envios anteriores | ⬜ | M7 |
@@ -234,14 +234,14 @@ Opções de cada campo:
 | Funcionalidade | Detalhe | Status | M |
 | --- | --- | --- | --- |
 | Login Google + allowlist de domínio | | ✅ | — |
-| Papéis da organização (admin/membro) | primeiro usuário vira admin | 🟡 | M10 |
+| Papéis da organização (admin/membro) | primeiro usuário vira admin | 🟡 (só admin configura pipes) | M10 |
 | Papéis do pipe | admin, membro, visão restrita (só os meus), somente leitura | ⬜ | M10 |
 | Papéis do database | admin, membro, somente leitura | ⬜ | M10 |
 | Grupos de usuários | vale o maior acesso | ⬜ | M10 |
 | Campo sensível por papel | pedido da comunidade | ⬜ | M10 |
 | Gestão de membros (convidar, remover, trocar papel) | | ⬜ | M10 |
 | Atividades do pipe (cards e configuração) | quem/o quê/quando, exportar CSV | ⬜ | M10 |
-| Lixeira (cards, campos, fases) | | ⬜ | M2/M10 |
+| Lixeira (cards, campos, fases) | 🟡 (cards; campos têm arquivar) | M2/M10 |
 | Webhooks de saída | eventos de card/registro | ⬜ | M10 |
 | API com token | | ⬜ | M10 |
 | Importar cards/registros de planilha | | ⬜ | M10 |
@@ -272,7 +272,7 @@ Ordem pensada para destravar valor cedo e porque cada marco depende do anterior.
 | Marco | Conteúdo | Por que nessa ordem |
 | --- | --- | --- |
 | **M1 ✅** | Editor de fases e campos por fase; #ID; busca | já entregue |
-| **M2 — Card completo** | ★ transições permitidas ("mover para"), arrastar no kanban, uma fase por vez; opções de campo (descrição, ajuda, editável em outras fases, único, regex); tipos que faltam (checklist, hora, vencimento, responsável, etiqueta, anexo, CPF/CNPJ, ID); responsáveis, etiquetas, comentários com menção, anexos e checklist no card; título/subtítulos do card; config do pipe (ícone, cor, nome do objeto, botão); responsáveis da fase; criar card em outra fase; arquivar campo; excluir/duplicar card com lixeira | é o uso diário; todo o resto (condicionais, automações, relatórios) lê esses dados |
+| **M2 ✅ — Card completo** | ★ transições permitidas ("mover para"), arrastar no kanban, uma fase por vez; opções de campo (descrição, ajuda, editável em outras fases, único, regex); tipos que faltam (checklist, hora, vencimento, responsável, etiqueta, anexo, CPF/CNPJ, ID); responsáveis, etiquetas, comentários com menção, anexos e checklist no card; título/subtítulos do card; config do pipe (ícone, cor, nome do objeto, botão); responsáveis da fase; criar card em outra fase; arquivar campo; excluir/duplicar card com lixeira | é o uso diário; todo o resto (condicionais, automações, relatórios) lê esses dados |
 | **M3 — Condicionais** | ★ editor com grupos E/OU, 19 operadores, mostrar/ocultar e **obrigar**; servidor valida respeitando ocultos | depende dos tipos de campo do M2 |
 | **M4 — Databases e conexões** | ★ databases (tabelas, registros, formulário, status); campo de conexão pipe/database; ★ autopreenchimento a partir do registro; pai/filho e suas regras; conteúdo dinâmico | "dados vindos do BD" depende de databases + conexão |
 | **M5 — Automações** | ★ motor e catálogo completo (mover automático, criar card em outro pipe, atualizar campo, mover pai, rodízio, fórmula, HTTP); recorrentes; logs, alerta de falha, testar regra; campo fórmula | precisa de conexões (M4) para as ações entre pipes |
