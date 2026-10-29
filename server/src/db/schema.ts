@@ -28,6 +28,8 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 320 }).notNull(),
   name: varchar("name", { length: 255 }),
   avatarUrl: varchar("avatar_url", { length: 1024 }),
+  // Also send the in-app notifications (sino) by e-mail.
+  emailNotifications: boolean("email_notifications").notNull().default(false),
   createdAt: createdAt(),
 }, (t) => ({
   googleSubUq: uniqueIndex("uq_users_google_sub").on(t.googleSub),
@@ -94,6 +96,8 @@ export const phases = mysqlTable("phases", {
   canCreateCard: boolean("can_create_card").notNull().default(false),
   // SLA da fase: max time a card may stay here before it is "atrasado".
   slaMinutes: int("sla_minutes"),
+  // Limite de cards na fase (aviso no quadro; não bloqueia).
+  wipLimit: int("wip_limit"),
   createdAt: createdAt(),
 }, (t) => ({ pipeIdx: index("idx_phases_pipe").on(t.pipeId, t.position) }));
 

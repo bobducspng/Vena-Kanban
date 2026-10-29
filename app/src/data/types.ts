@@ -106,6 +106,7 @@ export interface User {
   email: string;
   avatarColor: string; // one of the label-* roles, for the avatar
   role?: Role | null; // org role; only set for the current user (user.me)
+  emailNotifications?: boolean; // only for the current user
 }
 
 export interface FieldDef {
@@ -145,6 +146,7 @@ export interface Phase {
   allowedTo: string[]; // "Mover para": phases a card here may be moved to
   assigneeIds: string[]; // responsáveis da fase
   slaMinutes: number | null; // SLA da fase ("atrasado" after this)
+  wipLimit: number | null; // limite de cards (aviso no quadro)
 }
 
 export interface Pipe {

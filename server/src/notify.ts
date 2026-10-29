@@ -1,6 +1,8 @@
 import { and, eq, inArray, lt } from "drizzle-orm";
 import { db } from "./db/client.js";
 import { cards, memberships, notifications, users } from "./db/schema.js";
+import { sendMail } from "./mailer.js";
+import { env } from "./env.js";
 
 /**
  * In-app notifications (sino). One place that writes them, so every producer
@@ -17,6 +19,20 @@ async function write(userIds: string[], n: { type: Kind; title: string; body?: s
     await db.insert(notifications).values(ids.map((userId) => ({ id: crypto.randomUUID(), userId, ...n })));
   } catch (err) {
     console.error("notify failed:", err);
+  }
+  // Who asked for it also gets an e-mail (background: the action does not wait).
+  void emailCopies(ids, n).catch((err) => console.error("notify e-mail failed:", err));
+}
+
+async function emailCopies(ids: string[], n: { title: string; body?: string; cardId?: string; pipeId?: string; link?: string }) {
+  const wants = await db.select({ email: users.email }).from(users).where(and(inArray(users.id, ids), eq(users.emailNotifications, true)));
+  if (!wants.length) return;
+  const path = n.link ?? (n.pipeId && n.cardId ? `/pipes/${n.pipeId}?card=${n.cardId}` : "/");
+  for (const w of wants) {
+    await sendMail({
+      to: w.email, subject: `Venaflow: ${n.title}`, heading: n.title, paragraphs: n.body ? [n.body] : [],
+      button: { label: "Abrir no Venaflow", url: `${env.PUBLIC_BASE_URL}${path}` },
+    });
   }
 }
 

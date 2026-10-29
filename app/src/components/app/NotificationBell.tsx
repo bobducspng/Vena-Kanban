@@ -4,6 +4,7 @@ import * as Popover from "@radix-ui/react-popover";
 import { AlarmClock, AtSign, Bell, Clock, Globe, UserPlus, Zap } from "lucide-react";
 import { api } from "../../data/store";
 import type { Notification } from "../../data/types";
+import { useMe } from "../../lib/useMe";
 import { cn } from "../../lib/cn";
 
 const ICON: Record<Notification["type"], typeof Bell> = {
@@ -20,6 +21,8 @@ export function NotificationBell() {
   const navigate = useNavigate();
   const { data: unread } = useQuery({ queryKey: ["notifications", "unread"], queryFn: api.notification.unread, refetchInterval: 60_000 });
   const { data: list, refetch } = useQuery({ queryKey: ["notifications", "list"], queryFn: api.notification.list, enabled: false });
+  const { me } = useMe();
+  const emailPref = useMutation({ mutationFn: api.notification.setEmail, onSuccess: () => qc.invalidateQueries({ queryKey: ["me"] }) });
   const read = useMutation({
     mutationFn: (ids?: string[]) => api.notification.markRead(ids),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
@@ -69,6 +72,10 @@ export function NotificationBell() {
               );
             })}
           </ul>
+          <label className="flex items-center gap-2 border-t border-border px-3 py-2 text-xs text-text">
+            <input type="checkbox" className="h-4 w-4 accent-accent" checked={!!me?.emailNotifications} onChange={(e) => emailPref.mutate(e.target.checked)} />
+            Receber também por e-mail
+          </label>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>

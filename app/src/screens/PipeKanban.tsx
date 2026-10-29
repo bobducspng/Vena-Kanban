@@ -20,6 +20,25 @@ import { PipeTabs } from "../components/app/PipeTabs";
 import { TrashModal } from "../components/app/TrashModal";
 import { dueStatus, DUE_CLASS, fmtDate } from "../components/app/CardSections";
 import { NEW_CARD_EVENT } from "../lib/useShortcuts";
+import { Select } from "../components/ui/Select";
+
+type Order = "manual" | "due" | "created_desc" | "created_asc" | "updated" | "title";
+const ORDER_OPTIONS = [
+  { value: "manual", label: "Ordem: padrão" }, { value: "due", label: "Vencimento mais próximo" }, { value: "created_desc", label: "Mais novos primeiro" },
+  { value: "created_asc", label: "Mais antigos primeiro" }, { value: "updated", label: "Atualizados há menos tempo" }, { value: "title", label: "Título (A–Z)" },
+];
+/** Order of the cards inside each phase (each person picks; remembered per pipe). */
+function sortCards(list: Card[], order: Order): Card[] {
+  const by = (f: (c: Card) => string | number, dir = 1) => [...list].sort((a, b) => (f(a) > f(b) ? dir : f(a) < f(b) ? -dir : 0));
+  switch (order) {
+    case "due": return by((c) => (c.dueDate ? new Date(c.dueDate).getTime() : Number.MAX_SAFE_INTEGER));
+    case "created_desc": return by((c) => c.createdAt, -1);
+    case "created_asc": return by((c) => c.createdAt);
+    case "updated": return by((c) => c.phaseEnteredAt ?? c.createdAt, -1);
+    case "title": return [...list].sort((a, b) => a.title.localeCompare(b.title, "pt-BR"));
+    default: return list;
+  }
+}
 import { formatValue } from "../lib/format";
 
 /** S03 — kanban: phases as columns, cards as tiles. Drag a card to an allowed phase
@@ -36,6 +55,7 @@ export function PipeKanban() {
   const [overId, setOverId] = useState<string | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
   const { isAdmin } = useMe();
+  const [order, setOrder] = useState<Order>(() => { try { return (localStorage.getItem(`venaflow.order.${pipeId}`) as Order) || "manual"; } catch { return "manual"; } });
   // "n" (atalho de teclado) opens Novo card, unless the person only reads this pipe.
   useEffect(() => {
     const open = () => { if (pipeRef.current && pipeRef.current.myRole !== "read") setStartFor({}); };
@@ -91,7 +111,7 @@ export function PipeKanban() {
   const loading = lp || lc;
   // Search by card number ("1042" or "#1042") or by title.
   const q = query.trim().toLowerCase().replace(/^#/, "");
-  const visible = (cards ?? []).filter((c) => !q || String(c.number) === q || c.title.toLowerCase().includes(q));
+  const visible = sortCards((cards ?? []).filter((c) => !q || String(c.number) === q || c.title.toLowerCase().includes(q)), order);
   const allowedFromDragged = dragging ? phases?.find((p) => p.id === dragging.currentPhaseId)?.allowedTo ?? [] : [];
 
   return (
@@ -104,6 +124,10 @@ export function PipeKanban() {
             <PipeTabs pipeId={pipeId} />
           </div>
           <div className="flex items-center gap-2">
+            <div className="hidden w-44 md:block">
+              <Select aria-label="Ordenar cards nas fases" value={order} onValueChange={(v) => { setOrder(v as Order); try { localStorage.setItem(`venaflow.order.${pipeId}`, v); } catch { /* private mode */ } }}
+                options={ORDER_OPTIONS} />
+            </div>
             <div className="relative hidden sm:block">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
               <Input aria-label="Buscar card por número ou título" placeholder="Buscar #ID ou título" value={query} onChange={(e) => setQuery(e.target.value)} className="w-56 pl-8" />
@@ -175,7 +199,10 @@ export function PipeKanban() {
                             <AlarmClock className="h-3.5 w-3.5" aria-hidden="true" />{phaseCards.filter((c) => c.expiredAt).length}<span className="sr-only"> expirados</span>
                           </span>
                         )}
-                        <span className="text-xs text-muted">{phaseCards.length}</span>
+                        <span className={cn("text-xs", phase.wipLimit && phaseCards.length > phase.wipLimit ? "font-semibold text-danger" : "text-muted")}
+                          title={phase.wipLimit ? `Limite da fase: ${phase.wipLimit}` : undefined}>
+                          {phaseCards.length}{phase.wipLimit ? `/${phase.wipLimit}` : ""}
+                        </span>
                         {phase.canCreateCard && !phase.isStart && (
                           <button aria-label={`Criar card em ${phase.name}`} onClick={() => setStartFor({ phaseId: phase.id })} className="rounded p-0.5 text-muted hover:bg-bg hover:text-accent">
                             <Plus className="h-4 w-4" />

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, LayoutGrid } from "lucide-react";
+import { Plus, LayoutGrid, Search, Star } from "lucide-react";
 import { api } from "../data/store";
 import { useMe } from "../lib/useMe";
 import { AppShell } from "../components/app/AppShell";
@@ -37,6 +37,18 @@ export function OrgHome() {
   const { isAdmin } = useMe(); // only admins configure pipes
 
   const { data: pipes, isLoading } = useQuery({ queryKey: ["pipes"], queryFn: api.pipe.list });
+  const { me } = useMe();
+  const favKey = `venaflow.favorites.${me?.id ?? ""}`;
+  const [favs, setFavs] = useState<string[]>([]);
+  useEffect(() => { try { setFavs(JSON.parse(localStorage.getItem(favKey) ?? "[]")); } catch { setFavs([]); } }, [favKey]);
+  const toggleFav = (id: string) => setFavs((f) => {
+    const next = f.includes(id) ? f.filter((x) => x !== id) : [...f, id];
+    try { localStorage.setItem(favKey, JSON.stringify(next)); } catch { /* private mode */ }
+    return next;
+  });
+  const [search, setSearch] = useState("");
+  const norm = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const shown = (pipes ?? []).filter((p) => !search.trim() || norm(`${p.name} ${p.folder ?? ""} ${p.description ?? ""}`).includes(norm(search.trim())));
 
   const create = useMutation({
     mutationFn: () => api.pipe.create({ name: name.trim() }),
@@ -54,6 +66,12 @@ export function OrgHome() {
       <div className="mx-auto max-w-content p-6">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-xl text-text">Seus pipes</h2>
+          {(pipes?.length ?? 0) > 3 && (
+            <div className="relative ml-auto mr-3 w-full max-w-xs">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
+              <Input data-shortcut="search" aria-label="Buscar pipe" placeholder="Buscar pipe ou pasta" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8" />
+            </div>
+          )}
           {isAdmin && (
             <Button onClick={() => setOpen(true)}>
               <Plus className="h-4 w-4" aria-hidden="true" /> Novo pipe
@@ -76,15 +94,20 @@ export function OrgHome() {
           </div>
         ) : (
           <div className="flex flex-col gap-6">
-          {byFolder(pipes).map(([folder, list]) => (
+          {shown.length === 0 && <p className="text-sm text-muted">Nenhum pipe com "{search}".</p>}
+          {[...(favs.length ? [["★ Favoritos", shown.filter((p) => favs.includes(p.id))] as [string, typeof shown]] : []), ...byFolder(shown)].filter(([, l]) => l.length).map(([folder, list]) => (
           <section key={folder} aria-label={folder || "Pipes sem pasta"} className="flex flex-col gap-2">
           {folder && <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">{folder}</h3>}
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {list.map((p) => (
-              <li key={p.id}>
+              <li key={p.id} className="relative">
+                <button aria-label={favs.includes(p.id) ? `Tirar ${p.name} dos favoritos` : `Favoritar ${p.name}`} aria-pressed={favs.includes(p.id)}
+                  onClick={() => toggleFav(p.id)} className="absolute right-2 top-2 z-10 rounded p-1 text-muted hover:text-warning">
+                  <Star className={`h-4 w-4 ${favs.includes(p.id) ? "fill-current text-warning" : ""}`} />
+                </button>
                 <button
                   onClick={() => navigate(`/pipes/${p.id}`)}
-                  className={`flex w-full flex-col items-start rounded-lg border border-l-4 border-border bg-surface-raised p-4 text-left shadow-card hover:border-accent ${STRIPE[p.color ?? ""] ?? ""}`}
+                  className={`flex w-full flex-col items-start rounded-lg border border-l-4 border-border bg-surface-raised p-4 pr-9 text-left shadow-card hover:border-accent ${STRIPE[p.color ?? ""] ?? ""}`}
                 >
                   <span className="text-base font-semibold text-text">{p.icon && <span className="mr-1.5" aria-hidden="true">{p.icon}</span>}{p.name}</span>
                   {p.description && <span className="mt-1 text-sm text-muted">{p.description}</span>}

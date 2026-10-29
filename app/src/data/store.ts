@@ -39,12 +39,12 @@ const toISON = (d: Date | string | null | undefined): string | null =>
   d == null ? null : (d instanceof Date ? d.toISOString() : d);
 
 type SrvPipe = { id: string; name: string; description: string | null; createdAt: Date | string; icon?: string | null; color?: string | null; noun?: string | null; createButtonLabel?: string | null; titleFieldId?: string | null; subtitleFieldIds?: unknown; deletedAt?: Date | string | null; expirationMinutes?: number | null; businessHoursOnly?: boolean; myRole?: string | null; folder?: string | null; letterheadId?: string | null };
-type SrvPhase = { id: string; pipeId: string; name: string; color: string | null; position: number; isStart: boolean; isEnd: boolean; description: string | null; canCreateCard: boolean; allowedTo?: string[]; assigneeIds?: string[]; slaMinutes?: number | null };
+type SrvPhase = { id: string; pipeId: string; name: string; color: string | null; position: number; isStart: boolean; isEnd: boolean; description: string | null; canCreateCard: boolean; allowedTo?: string[]; assigneeIds?: string[]; slaMinutes?: number | null; wipLimit?: number | null };
 type SrvField = { id: string; pipeId: string; phaseId: string; label: string; type: string; required: boolean; options: unknown; position: number; description: string | null; help: string | null; editableOtherPhases: boolean; isUnique: boolean; validationRegex: string | null; archivedAt: Date | string | null; settings?: unknown };
 type SrvCard = { id: string; number: number; pipeId: string; currentPhaseId: string; title: string; dueDate: Date | string | null; done: boolean; version: number; createdAt: Date | string; values: { fieldId: string; value: unknown }[]; assigneeIds: string[]; labelIds: string[]; checklistDone: number; checklistTotal: number; commentCount: number; attachmentCount: number;
   phaseEnteredAt?: Date | string | null; lateAt?: Date | string | null; expiredAt?: Date | string | null; overdueAt?: Date | string | null };
 type SrvEvent = { id: string; cardId: string; type: string; fromPhaseId: string | null; toPhaseId: string | null; actorId: string | null; data?: unknown; createdAt: Date | string };
-type SrvUser = { id: string; name: string | null; email: string; role?: Role | null };
+type SrvUser = { id: string; name: string | null; email: string; role?: Role | null; emailNotifications?: boolean };
 
 const mapPipe = (p: SrvPipe): Pipe => ({
   id: p.id, name: p.name, description: p.description ?? undefined, createdAt: toISO(p.createdAt),
@@ -53,7 +53,7 @@ const mapPipe = (p: SrvPipe): Pipe => ({
   expirationMinutes: p.expirationMinutes ?? null, businessHoursOnly: !!p.businessHoursOnly,
   myRole: (p.myRole as Pipe["myRole"]) ?? null, folder: p.folder ?? null, letterheadId: p.letterheadId ?? null,
 });
-const mapPhase = (p: SrvPhase): Phase => ({ id: p.id, pipeId: p.pipeId, name: p.name, color: p.color ?? "gray", position: p.position, isStart: p.isStart, isEnd: p.isEnd, description: p.description, canCreateCard: p.canCreateCard, allowedTo: p.allowedTo ?? [], assigneeIds: p.assigneeIds ?? [], slaMinutes: p.slaMinutes ?? null });
+const mapPhase = (p: SrvPhase): Phase => ({ id: p.id, pipeId: p.pipeId, name: p.name, color: p.color ?? "gray", position: p.position, isStart: p.isStart, isEnd: p.isEnd, description: p.description, canCreateCard: p.canCreateCard, allowedTo: p.allowedTo ?? [], assigneeIds: p.assigneeIds ?? [], slaMinutes: p.slaMinutes ?? null, wipLimit: p.wipLimit ?? null });
 const mapField = (f: SrvField): FieldDef => ({ id: f.id, pipeId: f.pipeId, phaseId: f.phaseId, label: f.label, type: f.type as FieldType, required: f.required, options: Array.isArray(f.options) ? (f.options as string[]) : undefined, position: f.position, description: f.description, help: f.help, editableOtherPhases: f.editableOtherPhases, isUnique: f.isUnique, validationRegex: f.validationRegex, archivedAt: toISON(f.archivedAt),
   formula: f.type === "formula" ? (f.settings as FormulaSettings | null) : null,
   settings: f.settings && f.type !== "formula" ? {
@@ -74,7 +74,7 @@ const mapEvent = (e: SrvEvent): CardEvent => ({
   automation: (e.data as { automation?: string } | null)?.automation,
   via: (e.data as { via?: string } | null)?.via,
 });
-const mapUser = (u: SrvUser): User => ({ id: u.id, name: u.name ?? u.email, email: u.email, avatarColor: "blue", role: u.role });
+const mapUser = (u: SrvUser): User => ({ id: u.id, name: u.name ?? u.email, email: u.email, avatarColor: "blue", role: u.role, emailNotifications: u.emailNotifications });
 
 type FieldProps = { description?: string | null; help?: string | null; editableOtherPhases?: boolean; isUnique?: boolean; validationRegex?: string | null };
 
@@ -145,9 +145,9 @@ export const api = {
   phase: {
     listByPipe: async (pipeId: string): Promise<Phase[]> =>
       (await trpc.phase.listByPipe.query({ pipeId })).map(mapPhase),
-    create: async (input: { pipeId: string; name: string; color?: PhaseColor }): Promise<Phase> =>
+    create: async (input: { pipeId: string; name: string; color?: PhaseColor; afterPhaseId?: string }): Promise<Phase> =>
       mapPhase(await trpc.phase.create.mutate(input)),
-    update: async (input: { phaseId: string; name?: string; color?: PhaseColor; isEnd?: boolean; description?: string | null; canCreateCard?: boolean; slaMinutes?: number | null }): Promise<Phase> =>
+    update: async (input: { phaseId: string; name?: string; color?: PhaseColor; isEnd?: boolean; description?: string | null; canCreateCard?: boolean; slaMinutes?: number | null; wipLimit?: number | null }): Promise<Phase> =>
       mapPhase(await trpc.phase.update.mutate(input)),
     setTransitions: (phaseId: string, toPhaseIds: string[]) => trpc.phase.setTransitions.mutate({ phaseId, toPhaseIds }),
     setAssignees: (phaseId: string, userIds: string[]) => trpc.phase.setAssignees.mutate({ phaseId, userIds }),
@@ -387,6 +387,7 @@ export const api = {
       (await trpc.notification.list.query()).map((n) => ({ ...n, type: n.type as Notification["type"], readAt: toISON(n.readAt), createdAt: toISO(n.createdAt) })),
     unread: (): Promise<number> => trpc.notification.unread.query(),
     markRead: (ids?: string[]) => trpc.notification.markRead.mutate({ ids }),
+    setEmail: (on: boolean) => trpc.user.setEmailNotifications.mutate({ on }),
   },
 
   calendar: {

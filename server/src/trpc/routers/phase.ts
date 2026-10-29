@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq, asc, inArray, or, and, sql, desc } from "drizzle-orm";
+import { eq, asc, inArray, or, and, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
 import { phases, cards, fields, cardFields, phaseTransitions, phaseAssignees, memberships, fieldConditions } from "../../db/schema.js";
@@ -31,18 +31,25 @@ export const phaseRouter = router({
   }),
 
   create: adminProcedure
-    .input(z.object({ pipeId: z.string(), name: z.string().trim().min(1).max(255), color: color.default("gray") }))
+    .input(z.object({
+      pipeId: z.string(), name: z.string().trim().min(1).max(255), color: color.default("gray"),
+      // "Inserir depois de": the new phase goes right after this one (default: at the end).
+      afterPhaseId: z.string().optional(),
+    }))
     .mutation(async ({ ctx, input }) => {
       await assertPipeInOrg(input.pipeId, ctx.orgId);
-      const [{ max }] = await db.select({ max: sql<number | null>`MAX(${phases.position})` })
-        .from(phases).where(eq(phases.pipeId, input.pipeId));
-      const last = (await db.select({ id: phases.id }).from(phases)
-        .where(eq(phases.pipeId, input.pipeId)).orderBy(desc(phases.position)).limit(1))[0];
+      const list = await db.select({ id: phases.id, position: phases.position }).from(phases).where(eq(phases.pipeId, input.pipeId)).orderBy(asc(phases.position));
+      const after = input.afterPhaseId ? list.find((p) => p.id === input.afterPhaseId) : list.at(-1);
+      if (input.afterPhaseId && !after) throw new TRPCError({ code: "BAD_REQUEST", message: "Fase de referência não encontrada" });
+      const next = after ? list[list.indexOf(after) + 1] : undefined;
       const id = crypto.randomUUID();
       await db.transaction(async (tx) => {
-        await tx.insert(phases).values({ id, pipeId: input.pipeId, name: input.name, color: input.color, position: (max ?? -1) + 1 });
-        // Linked to its neighbour both ways, like the original.
-        if (last) await tx.insert(phaseTransitions).values([{ fromPhaseId: last.id, toPhaseId: id }, { fromPhaseId: id, toPhaseId: last.id }]);
+        // Make room: phases after the reference move one step to the right.
+        for (const p of list.slice(after ? list.indexOf(after) + 1 : 0)) await tx.update(phases).set({ position: p.position + 1 }).where(eq(phases.id, p.id));
+        await tx.insert(phases).values({ id, pipeId: input.pipeId, name: input.name, color: input.color, position: after ? after.position + 1 : 0 });
+        // Linked to its neighbours both ways, like the original.
+        const links = [after, next].filter(Boolean).flatMap((n) => [{ fromPhaseId: n!.id, toPhaseId: id }, { fromPhaseId: id, toPhaseId: n!.id }]);
+        if (links.length) await tx.insert(phaseTransitions).values(links);
       });
       return (await db.select().from(phases).where(eq(phases.id, id)).limit(1))[0];
     }),
@@ -57,6 +64,8 @@ export const phaseRouter = router({
       canCreateCard: z.boolean().optional(),
       // SLA da fase in minutes (null = none); up to 1 year.
       slaMinutes: z.number().int().min(1).max(525_600).nullable().optional(),
+      // Limite de cards (aviso no quadro); null = sem limite.
+      wipLimit: z.number().int().min(1).max(9999).nullable().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const phase = await phaseInOrg(input.phaseId, ctx.orgId);

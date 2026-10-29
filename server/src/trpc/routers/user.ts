@@ -16,6 +16,11 @@ export const userRouter = router({
     return (await db.select().from(users).where(eq(users.id, input.id)).limit(1))[0] ?? null;
   }),
   // The caller, plus their org role (the front hides admin-only screens).
+  /** Receive the notifications also by e-mail (each person decides). */
+  setEmailNotifications: protectedProcedure.input(z.object({ on: z.boolean() })).mutation(async ({ ctx, input }) => {
+    await db.update(users).set({ emailNotifications: input.on }).where(eq(users.id, ctx.userId));
+    return { ok: true };
+  }),
   me: protectedProcedure.query(async ({ ctx }) => {
     const u = (await db.select().from(users).where(eq(users.id, ctx.userId)).limit(1))[0];
     return u ? { ...u, role: ctx.role } : null;

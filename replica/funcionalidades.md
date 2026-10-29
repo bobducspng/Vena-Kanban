@@ -47,13 +47,13 @@ Tirados das dores mais citadas na comunidade [C §2, §4]:
 | Aba Flow | fases + campos + automações ligadas a cada fase, setas de movimento | ✅ (fases, campos, Mover para, responsáveis, automações por fase) | M11 |
 | Mapa de processos | grafo de pipes/databases ligados (conexão, automação, campo) | ✅ (campos de conexão pipe↔pipe e pipe↔banco) | M11 |
 | Pastas para organizar pipes | pedido aberto na comunidade (~200 votos) | ✅ | M10 |
-| Favoritar pipe e busca na home | por usuário | ⬜ | M9 |
+| Favoritar pipe e busca na home | por usuário | ✅ (favoritos por pessoa neste navegador) | M9 |
 
 ### 2.2 Fases [A §2]
 | Funcionalidade | Detalhe | Status | M |
 | --- | --- | --- | --- |
 | Criar, renomear, cor, reordenar, excluir | excluir só vazia e não inicial (melhor que o Pipefy) | ✅ | M1 |
-| Inserir fase entre duas | "+" entre colunas | 🟡 (adiciona no fim e reordena) | M2 |
+| Inserir fase entre duas | "+" entre colunas | ✅ ("+" ao lado de cada fase) | M2 |
 | Descrição da fase | exibida no quadro | ✅ | M2 |
 | Fase final (várias permitidas) | card concluído, pode voltar | ✅ | M1 |
 | Fase inicial | onde nasce o card / formulário inicial | ✅ | M1 |
@@ -63,9 +63,9 @@ Tirados das dores mais citadas na comunidade [C §2, §4]:
 | Obrigatórios travam a saída | | ✅ | — |
 | Responsáveis da fase | atribuídos a todo card enquanto estiver na fase | ✅ | M2 |
 | SLA da fase (atraso) | tempo máximo na fase → "atrasado" + contador | ✅ | M6 |
-| Ordenação dos cards por fase | vencimento, criação, atualização, alfabética, manual | ⬜ | M9 |
+| Ordenação dos cards por fase | vencimento, criação, atualização, alfabética, manual | ✅ (vencimento, criação, atualização, título; por pessoa) | M9 |
 | Coletar e-mail (autenticação) no formulário da fase | | ⬜ | M7 |
-| Limite WIP por fase | não documentado no Pipefy; opcional | ⬜ | M9 |
+| Limite WIP por fase | não documentado no Pipefy; opcional | ✅ (aviso no contador da coluna) | M9 |
 
 ### 2.3 Campos [A §4, API §2]
 Tipos do Pipefy (23 + fórmula e conteúdo dinâmico):
@@ -203,7 +203,7 @@ Opções de cada campo:
 | Histórico de tempo por fase | entradas/saídas, duração, ficou atrasado | ✅ | M6 |
 | "Meu trabalho" | meus cards: perto do vencimento, vencidos, atrasados, expirados, concluídos | ✅ | M6 |
 | Notificações in-app (sino) | menções, atribuição, falha de automação, e-mail recebido | ✅ | M6 |
-| Notificações por e-mail configuráveis | | ⬜ | M8 |
+| Notificações por e-mail configuráveis | | ✅ (cada pessoa liga no sino) | M8 |
 
 ### 2.10 E-mail [A §13]
 | Funcionalidade | Detalhe | Status | M |
@@ -242,8 +242,8 @@ Opções de cada campo:
 | Gestão de membros (convidar, remover, trocar papel) | | ✅ (Configurações > Pessoas; Configurar pipe > Membros; login Google do domínio) | M10 |
 | Atividades do pipe (cards e configuração) | quem/o quê/quando, exportar CSV | 🟡 (auditoria de configuração com CSV; atividade de card no card) | M10 |
 | Lixeira (cards, campos, fases) | 🟡 (cards; campos têm arquivar) | M2/M10 |
-| Webhooks de saída | eventos de card/registro | ⬜ | M10 |
-| API com token | | ⬜ | M10 |
+| Webhooks de saída | eventos de card/registro | ✅ (por pipe, assinados HMAC, 3 tentativas, histórico) | M10 |
+| API com token | | ✅ (/api/v1: pipes, cards, criar, alterar, mover) | M10 |
 | Importar cards/registros de planilha | | ✅ | M10 |
 
 ### 2.13 Extras [A §22–24, C §3]

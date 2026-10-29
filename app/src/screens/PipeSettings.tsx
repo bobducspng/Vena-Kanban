@@ -67,6 +67,11 @@ export function PipeSettings() {
     onError,
   });
   const reorder = useMutation({ mutationFn: (ids: string[]) => api.phase.reorder(pipeId, ids), onSuccess: refresh, onError });
+  const insertPhase = useMutation({
+    mutationFn: (v: { name: string; afterPhaseId: string }) => api.phase.create({ pipeId, ...v }),
+    onSuccess: (p) => { setSelectedId(p.id); refresh(); },
+    onError,
+  });
 
   const selected = phases?.find((p) => p.id === selectedId);
   const { me, isAdmin } = useMe();
@@ -108,6 +113,9 @@ export function PipeSettings() {
                       <Tag color={p.color}>{p.name}</Tag>
                       {p.isStart && <span className="text-xs text-muted">inicial</span>}
                       {p.isEnd && <span className="text-xs text-muted">final</span>}
+                    </button>
+                    <button aria-label={`Inserir fase depois de ${p.name}`} title="Inserir fase depois desta" onClick={() => { const n = prompt(`Nome da nova fase (entra depois de "${p.name}"):`)?.trim(); if (n) insertPhase.mutate({ name: n, afterPhaseId: p.id }); }} className="rounded p-1 text-muted hover:bg-surface">
+                      <Plus className="h-4 w-4" />
                     </button>
                     <button aria-label={`Subir ${p.name}`} disabled={i === 0 || reorder.isPending} onClick={() => reorder.mutate(moved(phases, i, -1))} className="rounded p-1 text-muted hover:bg-surface disabled:opacity-30">
                       <ArrowUp className="h-4 w-4" />
@@ -354,7 +362,7 @@ function PhaseEditor({ phase, phases, fields, allFields, businessDay, onChanged 
   const onError = (e: unknown) => toast(errMsg(e), "error");
 
   const update = useMutation({
-    mutationFn: (patch: { name?: string; color?: PhaseColor; isEnd?: boolean; description?: string | null; canCreateCard?: boolean; slaMinutes?: number | null }) =>
+    mutationFn: (patch: { name?: string; color?: PhaseColor; isEnd?: boolean; description?: string | null; canCreateCard?: boolean; slaMinutes?: number | null; wipLimit?: number | null }) =>
       api.phase.update({ phaseId: phase.id, ...patch }),
     onSuccess: onChanged,
     onError: (e) => { setName(phase.name); setDescription(phase.description ?? ""); onError(e); },
@@ -431,6 +439,13 @@ function PhaseEditor({ phase, phases, fields, allFields, businessDay, onChanged 
         <p className="text-xs text-muted">Tempo máximo que um card pode ficar aqui. Passou disso, ele fica "atrasado" (relógio amarelo e contador na coluna). Vazio = sem limite.</p>
         <DurationInput id="phase-sla" value={phase.slaMinutes} dayMinutes={businessDay ?? 1440} dayLabel={businessDay ? "dias úteis" : "dias"}
           onChange={(m) => update.mutate({ slaMinutes: m })} />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="phase-wip" className="text-sm font-semibold text-text">Limite de cards na fase</label>
+        <p className="text-xs text-muted">Quando a fase passa do limite, o contador da coluna fica vermelho. Não impede mover cards. Vazio = sem limite.</p>
+        <Input id="phase-wip" key={`${phase.id}-${phase.wipLimit}`} type="number" min={1} max={9999} className="w-32" defaultValue={phase.wipLimit ?? ""}
+          onBlur={(e) => { const v = e.target.value.trim(); const n = v ? Math.max(1, Math.round(Number(v))) : null; if (n !== phase.wipLimit && (n === null || Number.isFinite(n))) update.mutate({ wipLimit: n }); }} />
       </div>
 
       <fieldset className="flex flex-col gap-2">
