@@ -265,6 +265,12 @@ export const api = {
     regenerate: (pipeId: string) => trpc.publicForm.regenerate.mutate({ pipeId }),
   },
 
+  bi: {
+    get: () => trpc.bi.get.query(),
+    regenerate: () => trpc.bi.regenerate.mutate(),
+    disable: () => trpc.bi.disable.mutate(),
+  },
+
   dashboard: {
     pipe: (pipeId: string, days: number) => trpc.dashboard.pipe.query({ pipeId, days }),
   },

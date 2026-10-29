@@ -10,6 +10,7 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Spinner } from "../components/ui/Spinner";
 import { useToast } from "../components/ui/Toast";
+import { BiSettings } from "../components/app/BiSettings";
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const fmt = (d: string) => { const [y, m, dd] = d.split("-"); return `${dd}/${m}/${y}`; };
@@ -101,6 +102,8 @@ export function OrgSettings() {
               {dirty && <Button variant="secondary" onClick={() => setCal(data!)}>Descartar</Button>}
               <Button onClick={() => save.mutate()} loading={save.isPending} disabled={!dirty || !cal.weekdays.length}>Salvar</Button>
             </div>
+
+            <BiSettings />
           </>
         )}
       </div>

@@ -165,6 +165,14 @@ export const cardEmails = mysqlTable("card_emails", {
   createdAt: createdAt(),
 }, (t) => ({ cardIdx: index("idx_cardemails_card").on(t.cardId, t.createdAt) }));
 
+// Read-only data feed for Power BI (Web connector): one secret token per org.
+export const biFeeds = mysqlTable("bi_feeds", {
+  orgId: ref("org_id").primaryKey(),
+  token: char("token", { length: 43 }).notNull(),
+  createdBy: ref("created_by"),
+  createdAt: createdAt(),
+}, (t) => ({ tokenUq: uniqueIndex("uq_bifeeds_token").on(t.token) }));
+
 // In-app notifications (sino): mentions, assignments, alerts, automation failures.
 export const notifications = mysqlTable("notifications", {
   id: id(),

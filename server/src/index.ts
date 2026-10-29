@@ -12,6 +12,7 @@ import { createContext } from "./trpc/trpc.js";
 import { authRoutes } from "./http/authRoutes.js";
 import { fileRoutes } from "./http/fileRoutes.js";
 import { publicRoutes } from "./http/publicRoutes.js";
+import { biRoutes } from "./bi.js";
 import { startAutomations } from "./automations.js";
 
 const app = express();
@@ -38,6 +39,7 @@ app.use("/trpc", createExpressMiddleware({ router: appRouter, createContext }));
 
 // Formulário público (no login) — API, plus its page may be embedded in other sites.
 app.use(publicRoutes);
+app.use(biRoutes);
 app.use((req, res, next) => {
   if (req.path.startsWith("/f/")) res.removeHeader("X-Frame-Options");
   next();
