@@ -11,6 +11,7 @@ import { sendMail } from "../mailer.js";
 import { formUrl } from "../publicForms.js";
 import { notifyOutside } from "../notify.js";
 import { requestUrl } from "../trpc/routers/outside.js";
+import { sign, signerDocument, signerView } from "../signatures.js";
 
 /** Routes without login (formulário público). Light protection, as decided:
  *  per-IP rate limits, a honeypot field, and only safe field types accepted. */
@@ -185,4 +186,45 @@ publicRoutes.get("/public/portal", readLimit, async (_req, res) => {
       .map((f) => ({ title: f.form.title || f.pipeName, icon: f.pipeIcon, description: readBranding(f.form.branding).description, url: formUrl(f.form.slug), closed: f.form.closed }))
       .sort((a, b) => a.title.localeCompare(b.title)),
   });
+});
+
+// --- Assinatura eletrônica (M11) ----------------------------------------------------
+const signLimit = rateLimit({
+  windowMs: 10 * 60_000, limit: 20, standardHeaders: true, legacyHeaders: false,
+  message: { error: "Muitas tentativas em pouco tempo. Tente de novo em alguns minutos." },
+});
+
+publicRoutes.get("/public/sign/:token", readLimit, async (req, res) => {
+  const v = await signerView(String(req.params.token));
+  if (!v) return res.status(404).json({ error: "Link de assinatura inválido." });
+  const { _internal: _, ...view } = v;
+  res.json(view);
+});
+
+publicRoutes.get("/public/sign/:token/document", readLimit, async (req, res) => {
+  const d = await signerDocument(String(req.params.token));
+  if (!d) return res.status(404).send("Documento indisponível.");
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Content-Disposition", `inline; filename*=UTF-8''${encodeURIComponent(d.filename)}`);
+  res.sendFile(d.path);
+});
+
+const signBody = z.object({
+  name: z.string().trim().min(3).max(255),
+  document: z.string().trim().max(20).optional(),
+  agree: z.literal(true),
+});
+
+publicRoutes.post("/public/sign/:token", signLimit, async (req, res) => {
+  const parsed = signBody.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Confirme que leu o documento e digite seu nome completo." });
+  const cpf = parsed.data.document?.replace(/\D/g, "");
+  if (cpf && cpf.length !== 11) return res.status(400).json({ error: "CPF inválido (11 dígitos)." });
+  try {
+    const r = await sign(String(req.params.token), { name: parsed.data.name, document: cpf }, { ip: req.ip ?? "", userAgent: String(req.headers["user-agent"] ?? "") });
+    res.json(r);
+  } catch (e) {
+    res.status(400).json({ error: e instanceof Error ? e.message : "Não foi possível assinar." });
+  }
 });

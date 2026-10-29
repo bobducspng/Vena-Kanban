@@ -160,6 +160,38 @@ export const pdfTemplates = mysqlTable("pdf_templates", {
   updatedAt: updatedAt(),
 }, (t) => ({ pipeIdx: index("idx_pdftpl_pipe").on(t.pipeId) }));
 
+// Assinatura eletrônica (M11): a PDF attachment of a card sent to signers by e-mail.
+// Electronic signature in the simple form of Lei 14.063/2020: each signer is identified
+// by the secret link sent to their e-mail; we keep when, from where and what (SHA-256).
+export const signatureRequests = mysqlTable("signature_requests", {
+  id: id(),
+  cardId: ref("card_id").notNull(),
+  attachmentId: ref("attachment_id").notNull(), // the PDF as sent
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message"),
+  sha256: char("sha256", { length: 64 }).notNull(), // of the PDF as sent
+  status: varchar("status", { length: 16 }).notNull().default("pending"), // pending | completed | cancelled
+  signedAttachmentId: ref("signed_attachment_id"), // final PDF with the signatures page
+  createdBy: ref("created_by"),
+  createdAt: createdAt(),
+  completedAt: datetime("completed_at", { fsp: 3 }),
+}, (t) => ({ cardIdx: index("idx_sigreq_card").on(t.cardId) }));
+
+export const signatureSigners = mysqlTable("signature_signers", {
+  id: id(),
+  requestId: ref("request_id").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  token: varchar("token", { length: 64 }).notNull(),
+  position: int("position").notNull().default(0),
+  viewedAt: datetime("viewed_at", { fsp: 3 }),
+  signedAt: datetime("signed_at", { fsp: 3 }),
+  signedName: varchar("signed_name", { length: 255 }), // what they typed
+  document: varchar("document", { length: 32 }), // CPF they typed (optional)
+  ip: varchar("ip", { length: 64 }),
+  userAgent: varchar("user_agent", { length: 512 }),
+}, (t) => ({ tokenUq: uniqueIndex("uq_signer_token").on(t.token), reqIdx: index("idx_signer_req").on(t.requestId) }));
+
 // E-mails sent from a card (manually or by an automation).
 export const cardEmails = mysqlTable("card_emails", {
   id: id(),

@@ -22,6 +22,7 @@ import { biRouter } from "./bi.js";
 import { peopleRouter } from "./people.js";
 import { orgRouter } from "./org.js";
 import { pdfRouter } from "./pdf.js";
+import { signatureRouter } from "./signature.js";
 
 export const appRouter = router({
   user: userRouter,
@@ -47,6 +48,7 @@ export const appRouter = router({
   people: peopleRouter,
   org: orgRouter,
   pdf: pdfRouter,
+  signature: signatureRouter,
 });
 
 // The front-end imports this type for an end-to-end-typed client.

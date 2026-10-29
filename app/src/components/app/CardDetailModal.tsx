@@ -15,6 +15,7 @@ import { AssigneesSection, AttachmentsSection, ChecklistSection, CommentsSection
 import { fieldStates } from "../../lib/conditions";
 import { OutsideSection } from "./OutsideSection";
 import { EmailsSection } from "./EmailParts";
+import { SignaturesSection } from "./SignatureParts";
 import { withState } from "../../lib/useFieldStates";
 
 /** S06 — card detail in two columns: left = title, actions and phase fields;
@@ -185,6 +186,7 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
           <AttachmentsSection cardId={card.id} pipeId={card.pipeId} onChanged={refresh} />
           <CommentsSection cardId={card.id} members={members ?? []} onChanged={refresh} />
           <EmailsSection cardId={card.id} pipeId={pipeId} />
+          <SignaturesSection cardId={card.id} />
           <OutsideSection cardId={card.id} phaseName={current.name} />
 
           <section aria-label="Histórico" className="flex flex-col gap-2 border-t border-border pt-4">
@@ -318,6 +320,9 @@ function describe(e: CardEvent, phases: Phase[], members: User[]): string {
     case "request_message": return "Solicitante enviou uma mensagem";
     case "request_reply": return `${who} respondeu ao solicitante`;
     case "email_sent": return `${who} enviou um e-mail`;
+    case "signature_requested": return `${who} pediu assinatura de um documento`;
+    case "signature_signed": return "Um signatário assinou o documento";
+    case "signature_completed": return "Documento assinado por todos (via assinada anexada)";
     default: return e.type;
   }
 }

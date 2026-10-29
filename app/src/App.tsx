@@ -15,6 +15,7 @@ import { PipeDashboard } from "./screens/PipeDashboard";
 import { PhaseFormPage, PortalPage, RequestsPage } from "./screens/PublicPages";
 import { DesignRoute } from "./screens/DesignRoute";
 import { StubScreen } from "./screens/StubScreen";
+import { SignPage } from "./screens/SignPage";
 import { RequireAuth } from "./components/app/RequireAuth";
 
 export default function App() {
@@ -27,6 +28,7 @@ export default function App() {
       <Route path="/t/:token" element={<PhaseFormPage />} />
       <Route path="/pedidos/:token" element={<RequestsPage />} />
       <Route path="/portal" element={<PortalPage />} />
+      <Route path="/assinar/:token" element={<SignPage />} />
 
       {/* Protected — gated by RequireAuth (redirects to /login without a session). */}
       <Route path="/" element={<RequireAuth><OrgHome /></RequireAuth>} />

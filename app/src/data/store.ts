@@ -312,6 +312,13 @@ export const api = {
     generate: (cardId: string, templateId: string | null) => trpc.pdf.generate.mutate({ cardId, templateId }),
   },
 
+  signature: {
+    listByCard: (cardId: string) => trpc.signature.listByCard.query({ cardId }),
+    create: (input: { cardId: string; attachmentId: string; message?: string; signers: { name: string; email: string }[] }) => trpc.signature.create.mutate(input),
+    cancel: (requestId: string) => trpc.signature.cancel.mutate({ requestId }),
+    resend: (signerId: string) => trpc.signature.resend.mutate({ signerId }),
+  },
+
   outside: {
     phaseLinks: (cardId: string) => trpc.outside.phaseLinks.query({ cardId }),
     createPhaseLink: (input: { cardId: string; sendTo?: string; note?: string }) => trpc.outside.createPhaseLink.mutate(input),

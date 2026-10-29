@@ -134,6 +134,13 @@
       "when": 1793279940641,
       "tag": "0018_pdf_templates",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1793280351329,
+      "tag": "0019_signatures",
+      "breakpoints": true
     }
   ]
 }
