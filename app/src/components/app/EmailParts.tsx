@@ -179,7 +179,7 @@ function SendModal({ open, cardId, pipeId, onClose }: { open: boolean; cardId: s
             ))}
           </fieldset>
         )}
-        <p className="text-xs text-muted">Até 10 destinatários e 20 MB de anexos.</p>
+        <p className="text-xs text-muted">Até 500 destinatários (limite do Google, somando Para e Cópia) e 20 MB de anexos.</p>
       </div>
     </Modal>
   );

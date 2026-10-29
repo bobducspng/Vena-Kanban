@@ -17,6 +17,8 @@ export const mailEnabled = () => configured;
 
 const escape = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
+export const MAX_RECIPIENTS = 500;
+
 /** A free-text e-mail (card e-mails, templates). Throws with the reason on failure. */
 export async function sendCardMail(m: {
   to: string[]; cc?: string[]; subject: string; body: string; replyTo?: string;
@@ -24,7 +26,10 @@ export async function sendCardMail(m: {
 }) {
   if (!transport) throw new Error("envio de e-mail não configurado na VM");
   if (!m.to.length) throw new Error("nenhum destinatário válido");
-  if (m.to.length + (m.cc?.length ?? 0) > 10) throw new Error("no máximo 10 destinatários por e-mail");
+  // Google Workspace refuses more than 500 external recipients per message (to + cc).
+  if (m.to.length + (m.cc?.length ?? 0) > MAX_RECIPIENTS) {
+    throw new Error(`o Google aceita no máximo ${MAX_RECIPIENTS} destinatários por e-mail (Para + Cópia)`);
+  }
   const html = `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:#15181d;white-space:pre-wrap">${escape(m.body)}</div>`;
   await transport.sendMail({
     from: env.SMTP_FROM || env.SMTP_USER, to: m.to, cc: m.cc?.length ? m.cc : undefined, replyTo: m.replyTo,

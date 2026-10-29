@@ -6,7 +6,7 @@ import { cardEmails, emailTemplates, users } from "../../db/schema.js";
 import { router, protectedProcedure, adminProcedure, assertPipeInOrg } from "../trpc.js";
 import { cardInOrg } from "../cardAccess.js";
 import { renderTemplate, sendFromCard } from "../../emails.js";
-import { mailEnabled } from "../../mailer.js";
+import { mailEnabled, MAX_RECIPIENTS } from "../../mailer.js";
 
 const tpl = {
   name: z.string().trim().min(1).max(255),
@@ -61,7 +61,8 @@ export const emailRouter = router({
   /** Send from the card. Replies go to the sender's own e-mail (no shared inbox yet). */
   send: protectedProcedure
     .input(z.object({
-      cardId: z.string(), to: z.array(addr).min(1).max(10), cc: z.array(addr).max(10).default([]),
+      // The total (to + cc) is checked against Google's limit when sending.
+      cardId: z.string(), to: z.array(addr).min(1).max(MAX_RECIPIENTS), cc: z.array(addr).max(MAX_RECIPIENTS).default([]),
       subject: z.string().trim().min(1).max(500), body: z.string().min(1).max(50_000),
       attachmentIds: z.array(z.string()).max(20).default([]), templateId: z.string().optional(),
     }))
