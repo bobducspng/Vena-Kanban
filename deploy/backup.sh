@@ -3,8 +3,9 @@
 #   0 3 * * *  /opt/fluxos/deploy/backup.sh >> /var/log/fluxos-backup.log 2>&1
 set -euo pipefail
 
-# Lê DB_* do mesmo .env do serviço.
-set -a; . /opt/fluxos/server/.env; set +a
+# Lê DB_* do mesmo .env do serviço (literalmente, não como shell).
+. /opt/fluxos/deploy/load-env.sh
+load_env /opt/fluxos/server/.env
 
 DEST="/var/backups/fluxos"
 mkdir -p "$DEST"

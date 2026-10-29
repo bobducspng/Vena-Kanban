@@ -21,7 +21,9 @@ npm run build
 echo "==> migrations"
 # DB_* do mesmo .env do serviço. Carregado SÓ aqui: antes do npm ci, o
 # NODE_ENV=production faria o npm pular as devDependencies (vite, tsc).
-set -a; . server/.env; set +a
+# Lido literalmente (não como shell): valores com < > $ não quebram o deploy.
+. deploy/load-env.sh
+load_env server/.env
 npm run -w server db:migrate
 
 echo "==> restart do serviço"
