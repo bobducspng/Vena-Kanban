@@ -1,46 +1,22 @@
-import { useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, CheckCircle2, Cloud } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Cloud, Copy } from "lucide-react";
 import { api } from "../../data/store";
-import { API_URL } from "../../lib/trpc";
 import { Button } from "../ui/Button";
+import { Input } from "../ui/Input";
 import { useToast } from "../ui/Toast";
 
 const size = (b: number) => (b >= 1024 ** 3 ? `${(b / 1024 ** 3).toFixed(1)} GB` : b >= 1024 ** 2 ? `${(b / 1024 ** 2).toFixed(1)} MB` : `${Math.round(b / 1024)} KB`);
 const when = (d: string | Date) => new Date(d).toLocaleString("pt-BR");
-const DRIVE_API = "https://console.cloud.google.com/apis/library/drive.googleapis.com";
+const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Configurações > Backup: the nightly copy on the VM and the copy in the Google Drive. */
 export function BackupStatus() {
-  const qc = useQueryClient();
-  const toast = useToast();
-  const [params, setParams] = useSearchParams();
   const { data: b } = useQuery({ queryKey: ["backupStatus"], queryFn: api.org.backupStatus });
-  const { data: d } = useQuery({ queryKey: ["driveStatus"], queryFn: api.org.driveStatus });
-  const disconnect = useMutation({ mutationFn: api.org.driveDisconnect, onSuccess: () => qc.invalidateQueries({ queryKey: ["driveStatus"] }) });
-  const test = useMutation({
-    mutationFn: api.org.driveTest,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["driveStatus"] }); toast("Funcionou: pastas criadas no Drive", "success"); },
-    onError: (e) => toast(e instanceof Error && /API do Google Drive/i.test(e.message) ? "A API do Drive ainda não está ativa. Se acabou de ativar, espere mais um minuto e tente de novo." : `Falhou: ${e instanceof Error ? e.message : e}`, "error"),
-  });
-
-  // Back from Google: ?drive=ok or ?drive=erro&motivo=…
-  const driveResult = params.get("drive");
-  const motivo = params.get("motivo") ?? "";
-  useEffect(() => {
-    if (!driveResult) return;
-    if (driveResult === "ok") toast("Google Drive conectado. A cópia vai junto com o backup da noite.", "success");
-    else toast(`Não foi possível conectar o Drive: ${motivo}`, "error");
-    qc.invalidateQueries({ queryKey: ["driveStatus"] });
-    if (driveResult === "ok") setParams({}, { replace: true });
-  }, [driveResult]); // eslint-disable-line react-hooks/exhaustive-deps
-
   if (!b) return null;
   // More than ~26 h without a run means the schedule stopped.
   const stale = b.installed && Date.now() - new Date(b.at).getTime() > 26 * 3600_000;
   const ok = b.installed && b.status === "ok" && !stale;
-  const apiOff = driveResult === "erro" && /API do Google Drive/i.test(motivo);
 
   return (
     <section aria-label="Backup" className="flex flex-col gap-3 rounded-lg border border-border p-4">
@@ -58,48 +34,84 @@ export function BackupStatus() {
           )}
         </div>
       )}
-
-      <div className="flex flex-col gap-2 border-t border-border pt-3">
-        <h4 className="inline-flex items-center gap-2 text-sm font-medium text-text"><Cloud className="h-4 w-4" aria-hidden="true" /> Cópia no Google Drive</h4>
-        {!d?.connected ? (
-          <>
-            <p className="text-xs text-muted">
-              Guarda uma cópia fora da VM: toda noite o banco e os arquivos novos vão para a pasta "Venaflow - backup" no Drive da conta escolhida
-              (últimas 30 noites do banco; arquivos ficam). O Venaflow só enxerga os arquivos que ele mesmo cria.
-            </p>
-            {apiOff && (
-              <p className="rounded-md bg-surface p-2 text-xs text-text">
-                Falta ativar a API do Drive no projeto do Google Cloud (o mesmo do login): abra{" "}
-                <a href={DRIVE_API} target="_blank" rel="noreferrer" className="text-accent underline">este link</a>, confira se o projeto selecionado é o do Venaflow,
-                clique em <strong>Ativar</strong>, espere 1 minuto e conecte de novo.
-              </p>
-            )}
-            <Button size="sm" className="self-start" onClick={() => { window.location.href = `${API_URL}/auth/google/drive`; }}>Conectar Google Drive</Button>
-          </>
-        ) : (
-          <>
-            <p className="text-sm text-text">
-              Conectado a <strong>{d.email}</strong>
-              {d.folderUrl && <> · <a href={d.folderUrl} target="_blank" rel="noreferrer" className="text-accent hover:underline">abrir a pasta</a></>}
-            </p>
-            {!d.folderUrl && (
-              <div className="flex flex-col gap-2 rounded-md border border-warning p-3 text-sm text-text">
-                <p className="inline-flex items-center gap-2 font-medium"><AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" /> Falta um passo: ativar a API do Google Drive</p>
-                <ol className="list-decimal space-y-1 pl-5 text-xs">
-                  <li>Abra <a href={d.enableApiUrl} target="_blank" rel="noreferrer" className="text-accent underline">este link</a> (já vai no projeto do Venaflow no Google Cloud) com a conta que criou o login do Venaflow.</li>
-                  <li>Clique no botão azul <strong>Ativar</strong> (ou "Enable"). Se aparecer "Gerenciar", já está ativada.</li>
-                  <li>Espere 1 a 2 minutos e clique em <strong>Testar agora</strong> aqui embaixo.</li>
-                </ol>
-                <Button size="sm" className="self-start" loading={test.isPending} onClick={() => test.mutate()}>Testar agora</Button>
-              </div>
-            )}
-            {d.folderUrl && (d.last ? (
-              <p className={`text-xs ${d.last.status === "ok" ? "text-muted" : "text-danger"}`}>{when(d.last.at)}: {d.last.message}</p>
-            ) : <p className="text-xs text-muted">Pastas criadas. A primeira cópia vai junto com o próximo backup (03:30).</p>)}
-            <button className="self-start text-xs text-danger" onClick={() => { if (confirm("Parar de copiar para o Drive? O que já está lá continua lá.")) disconnect.mutate(); }}>Desconectar</button>
-          </>
-        )}
-      </div>
+      <DriveCopy />
     </section>
+  );
+}
+
+/** Cópia no Google Drive through an Apps Script published in the admin's own account. */
+function DriveCopy() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [code, setCode] = useState("");
+  const [url, setUrl] = useState("");
+  const { data: d } = useQuery({ queryKey: ["driveStatus"], queryFn: api.org.driveStatus });
+  const refresh = () => qc.invalidateQueries({ queryKey: ["driveStatus"] });
+  const getCode = useMutation({ mutationFn: api.org.driveScript, onSuccess: (r) => setCode(r.code), onError: (e) => toast(errMsg(e), "error") });
+  const connect = useMutation({
+    mutationFn: () => api.org.driveConnect(url),
+    onSuccess: (r) => { refresh(); setCode(""); setUrl(""); toast(`Funcionou: pasta criada no Drive de ${r.email}`, "success"); },
+    onError: (e) => toast(errMsg(e), "error"),
+  });
+  const test = useMutation({ mutationFn: api.org.driveTest, onSuccess: () => toast("O Drive respondeu: tudo certo", "success"), onError: (e) => toast(errMsg(e), "error") });
+  const disconnect = useMutation({ mutationFn: api.org.driveDisconnect, onSuccess: refresh });
+  const copy = () => { void navigator.clipboard.writeText(code); toast("Código copiado", "success"); };
+
+  return (
+    <div className="flex flex-col gap-2 border-t border-border pt-3">
+      <h4 className="inline-flex items-center gap-2 text-sm font-medium text-text"><Cloud className="h-4 w-4" aria-hidden="true" /> Cópia no Google Drive</h4>
+      {d?.connected ? (
+        <>
+          <p className="text-sm text-text">
+            Copiando para o Drive de <strong>{d.email}</strong>
+            {d.folderUrl && <> · <a href={d.folderUrl} target="_blank" rel="noreferrer" className="text-accent hover:underline">abrir a pasta</a></>}
+          </p>
+          {d.last ? (
+            <p className={`text-xs ${d.last.status === "ok" ? "text-muted" : "text-danger"}`}>{when(d.last.at)}: {d.last.message}</p>
+          ) : <p className="text-xs text-muted">A primeira cópia vai junto com o próximo backup (03:30).</p>}
+          <div className="flex gap-3">
+            <button className="text-xs text-accent" onClick={() => test.mutate()}>Testar agora</button>
+            <button className="text-xs text-danger" onClick={() => { if (confirm("Parar de copiar para o Drive? O que já está lá continua lá.")) disconnect.mutate(); }}>Desconectar</button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="text-xs text-muted">
+            Guarda uma cópia fora da VM, no seu Google Drive: toda noite o banco e os arquivos novos vão para a pasta "Venaflow - backup"
+            (últimas 30 noites do banco; os arquivos ficam). Não precisa do Google Cloud: é um pequeno programa (Apps Script) na sua própria conta.
+          </p>
+          <ol className="flex list-decimal flex-col gap-2 pl-5 text-sm text-text">
+            <li>
+              <Button size="sm" variant="secondary" loading={getCode.isPending} onClick={() => getCode.mutate()}>Mostrar o código</Button>
+              {code && (
+                <div className="mt-2 flex flex-col gap-1">
+                  <Button size="sm" className="self-start" onClick={copy}><Copy className="h-4 w-4" aria-hidden="true" /> Copiar código</Button>
+                  <pre className="max-h-40 overflow-auto rounded bg-surface p-2 text-[11px] text-muted">{code}</pre>
+                </div>
+              )}
+            </li>
+            <li>
+              Abra <a href="https://script.google.com/home/projects/create" target="_blank" rel="noreferrer" className="text-accent underline">script.google.com (novo projeto)</a> com a conta que vai guardar as cópias.
+              Apague o que estiver escrito, cole o código (Ctrl+V) e clique no disquete para <strong>Salvar</strong>.
+            </li>
+            <li>
+              Clique em <strong>Implantar → Nova implantação</strong>. Na engrenagem ao lado de "Selecione o tipo", escolha <strong>App da Web</strong>.
+              Deixe <strong>Executar como: Eu</strong> e <strong>Quem pode acessar: Qualquer pessoa</strong>. Clique em <strong>Implantar</strong>.
+            </li>
+            <li>
+              O Google pede autorização: <strong>Autorizar acesso</strong> → escolha sua conta. Se aparecer "o Google não verificou este app",
+              clique em <strong>Avançado → Acessar (não seguro)</strong>: o app é o seu próprio código → <strong>Permitir</strong>.
+            </li>
+            <li>
+              Copie o <strong>URL do app da Web</strong> (termina em /exec), cole aqui e clique em Conectar:
+              <div className="mt-1 flex flex-wrap gap-2">
+                <div className="min-w-64 flex-1"><Input aria-label="URL do app da Web" placeholder="https://script.google.com/macros/s/.../exec" value={url} onChange={(e) => setUrl(e.target.value)} /></div>
+                <Button size="sm" loading={connect.isPending} disabled={!url.trim()} onClick={() => connect.mutate()}>Conectar</Button>
+              </div>
+            </li>
+          </ol>
+        </>
+      )}
+    </div>
   );
 }

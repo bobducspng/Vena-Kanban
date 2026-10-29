@@ -1,11 +1,11 @@
 import { TRPCError } from "@trpc/server";
-import { Drive, enableDriveApiUrl, ensureFolders, unseal } from "../../driveBackup.js";
+import { ScriptDrive, isScriptUrl, newSecret, scriptCode, seal, targetOf, unseal } from "../../driveBackup.js";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 import { eq, and, lt, desc, inArray, isNull } from "drizzle-orm";
 import { db } from "../../db/client.js";
-import { organizations, auditLog, users, pipes, dataTables, fields, pipeMembers, driveBackups } from "../../db/schema.js";
+import { organizations, auditLog, users, pipes, dataTables, fields, pipeMembers, driveTargets } from "../../db/schema.js";
 import { router, protectedProcedure, adminProcedure } from "../trpc.js";
 
 export const orgRouter = router({
@@ -52,31 +52,43 @@ export const orgRouter = router({
     }
   }),
 
-  /** Cópia no Google Drive: connected account + result of the last nightly copy. */
+  /** Cópia no Google Drive (Apps Script): state of the setup and of the last nightly copy. */
   driveStatus: adminProcedure.query(async ({ ctx }) => {
-    const row = (await db.select({ email: driveBackups.email, folderId: driveBackups.folderId, connectedAt: driveBackups.connectedAt })
-      .from(driveBackups).where(eq(driveBackups.orgId, ctx.orgId)).limit(1))[0];
-    if (!row) return { connected: false as const };
-    let last: { status: string; at: string; message: string; filesSent?: number; dbSent?: number } | null = null;
+    const row = (await db.select().from(driveTargets).where(eq(driveTargets.orgId, ctx.orgId)).limit(1))[0];
+    let last: { status: string; at: string; message: string } | null = null;
     try { last = JSON.parse(await readFile(join(process.env.BACKUP_DIR ?? "/var/backups/fluxos", "drive-status.json"), "utf8")); } catch { /* not run yet */ }
-    return {
-      connected: true as const, email: row.email, connectedAt: row.connectedAt, last, enableApiUrl: enableDriveApiUrl(),
-      folderUrl: row.folderId ? `https://drive.google.com/drive/folders/${row.folderId}` : null,
-    };
+    return row?.url ? { connected: true as const, email: row.email, folderUrl: row.folderUrl, last } : { connected: false as const };
   }),
-  /** "Testar agora": creates the folders (proves the Drive answers) without waiting for the night. */
-  driveTest: adminProcedure.mutation(async ({ ctx }) => {
-    const row = (await db.select().from(driveBackups).where(eq(driveBackups.orgId, ctx.orgId)).limit(1))[0];
-    if (!row) throw new TRPCError({ code: "BAD_REQUEST", message: "Drive não conectado" });
+  /** Step 1: the code to paste into script.google.com (creates this org's secret once). */
+  driveScript: adminProcedure.mutation(async ({ ctx }) => {
+    let row = (await db.select().from(driveTargets).where(eq(driveTargets.orgId, ctx.orgId)).limit(1))[0];
+    if (!row) {
+      await db.insert(driveTargets).values({ orgId: ctx.orgId, secret: seal(newSecret()), createdBy: ctx.userId });
+      row = (await db.select().from(driveTargets).where(eq(driveTargets.orgId, ctx.orgId)).limit(1))[0];
+    }
+    return { code: scriptCode(unseal(row.secret)) };
+  }),
+  /** Step 2: the web app address; tested before it is kept. */
+  driveConnect: adminProcedure.input(z.object({ url: z.string().trim().max(512) })).mutation(async ({ ctx, input }) => {
+    const row = (await db.select().from(driveTargets).where(eq(driveTargets.orgId, ctx.orgId)).limit(1))[0];
+    if (!row) throw new TRPCError({ code: "BAD_REQUEST", message: "Copie o código primeiro (passo 1)." });
+    if (!isScriptUrl(input.url)) throw new TRPCError({ code: "BAD_REQUEST", message: "Cole o endereço do app da Web: começa com https://script.google.com/macros/s/ e termina com /exec." });
     try {
-      await ensureFolders(await Drive.forRefreshToken(unseal(row.refreshToken)), ctx.orgId);
+      const r = await new ScriptDrive(input.url, unseal(row.secret)).test();
+      await db.update(driveTargets).set({ url: input.url, email: r.email, folderUrl: r.pasta }).where(eq(driveTargets.orgId, ctx.orgId));
+      return { email: r.email, folderUrl: r.pasta };
     } catch (e) {
       throw new TRPCError({ code: "BAD_REQUEST", message: e instanceof Error ? e.message : String(e) });
     }
+  }),
+  driveTest: adminProcedure.mutation(async ({ ctx }) => {
+    const t = await targetOf(ctx.orgId);
+    if (!t) throw new TRPCError({ code: "BAD_REQUEST", message: "Drive não conectado" });
+    try { await t.drive.test(); } catch (e) { throw new TRPCError({ code: "BAD_REQUEST", message: e instanceof Error ? e.message : String(e) }); }
     return { ok: true };
   }),
   driveDisconnect: adminProcedure.mutation(async ({ ctx }) => {
-    await db.delete(driveBackups).where(eq(driveBackups.orgId, ctx.orgId));
+    await db.delete(driveTargets).where(eq(driveTargets.orgId, ctx.orgId));
     return { ok: true };
   }),
 

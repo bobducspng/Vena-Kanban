@@ -278,6 +278,8 @@ export const api = {
     backupStatus: () => trpc.org.backupStatus.query(),
     driveStatus: () => trpc.org.driveStatus.query(),
     driveDisconnect: () => trpc.org.driveDisconnect.mutate(),
+    driveScript: () => trpc.org.driveScript.mutate(),
+    driveConnect: (url: string) => trpc.org.driveConnect.mutate({ url }),
     driveTest: () => trpc.org.driveTest.mutate(),
   },
 

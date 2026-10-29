@@ -4,7 +4,7 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { db } from "../db/client.js";
-import { driveBackups } from "../db/schema.js";
+import { driveTargets } from "../db/schema.js";
 import { syncToDrive } from "../driveBackup.js";
 
 const [dbDir, uploadsDir] = process.argv.slice(2);
@@ -12,7 +12,7 @@ const statusFile = join(process.env.BACKUP_DIR ?? "/var/backups/fluxos", "drive-
 const save = (s: object) => writeFile(statusFile, JSON.stringify({ at: new Date().toISOString(), ...s }), { mode: 0o644 });
 
 try {
-  const orgs = await db.select({ orgId: driveBackups.orgId }).from(driveBackups);
+  const orgs = await db.select({ orgId: driveTargets.orgId }).from(driveTargets);
   if (!orgs.length) { console.log("Drive não conectado: nada a enviar"); process.exit(0); }
   for (const { orgId } of orgs) {
     const r = await syncToDrive(orgId, { dbDir, uploadsDir });

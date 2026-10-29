@@ -169,6 +169,20 @@
       "when": 1793289125074,
       "tag": "0023_drive_backups",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "5",
+      "when": 1793291298353,
+      "tag": "0024_drive_targets",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "5",
+      "when": 1793291301996,
+      "tag": "0025_drop_drive_backups",
+      "breakpoints": true
     }
   ]
 }
