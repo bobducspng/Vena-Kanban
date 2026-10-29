@@ -26,7 +26,7 @@ export function Header({ title }: { title?: string }) {
 
   return (
     <header className="flex h-header shrink-0 items-center justify-between gap-4 border-b border-border bg-bg px-4">
-      <h1 className="truncate text-base font-semibold text-text">{title ?? "Fluxos"}</h1>
+      <h1 className="truncate text-base font-semibold text-text">{title ?? "Venaflow"}</h1>
       <div className="flex items-center gap-3">
         <label className="relative hidden sm:block">
           <span className="sr-only">Buscar</span>

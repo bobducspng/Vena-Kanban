@@ -82,7 +82,7 @@ export function PipeAutomations() {
           <div>
             <Link to={`/pipes/${pipeId}`} className="text-xs text-muted hover:text-accent">← Voltar ao quadro</Link>
             <h2 className="text-lg text-text">Automações</h2>
-            <p className="text-sm text-muted">Quando algo acontece com um card, e as condições batem, o Fluxos executa as ações. Sem limite de uso; cada execução fica registrada.</p>
+            <p className="text-sm text-muted">Quando algo acontece com um card, e as condições batem, o Venaflow executa as ações. Sem limite de uso; cada execução fica registrada.</p>
           </div>
           <Button onClick={() => setEditing("new")}><Plus className="h-4 w-4" aria-hidden="true" /> Nova automação</Button>
         </div>

@@ -15,7 +15,7 @@ const nav = [
 export function Sidebar() {
   return (
     <nav aria-label="Navegação principal" className="flex h-full w-sidebar shrink-0 flex-col gap-1 border-r border-border bg-surface p-3">
-      <div className="px-2 py-3 text-lg font-bold text-text">Fluxos</div>
+      <div className="px-2 py-3 text-lg font-bold text-text">Venaflow</div>
       {nav.map(({ to, label, icon: Icon, end }) => (
         <NavLink
           key={to}

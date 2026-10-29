@@ -3,7 +3,7 @@ export function PublicShell({ children, style, wide }: { children: React.ReactNo
   return (
     <div className="min-h-screen bg-surface px-4 py-8" style={style}>
       <main className={`mx-auto rounded-lg bg-bg p-6 shadow-card ${wide ? "max-w-3xl" : "max-w-xl"}`}>{children}</main>
-      <p className="mt-4 text-center text-xs text-muted">Enviado com Fluxos</p>
+      <p className="mt-4 text-center text-xs text-muted">Enviado com Venaflow</p>
     </div>
   );
 }

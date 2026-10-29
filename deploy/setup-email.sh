@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Configura o envio de e-mail do Fluxos (SMTP do Google Workspace) no server/.env
+# Configura o envio de e-mail do Venaflow (SMTP do Google Workspace) no server/.env
 # e reinicia a API. Pede a senha de app sem mostrá-la na tela.
 # Uso, na VM:  bash /opt/fluxos/deploy/setup-email.sh
 set -euo pipefail
@@ -22,7 +22,7 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=465
 SMTP_USER=$USER_EMAIL
 SMTP_PASS=$PASS
-SMTP_FROM="Fluxos Vena <$USER_EMAIL>"
+SMTP_FROM="Venaflow <$USER_EMAIL>"
 EOF
 unset PASS
 chmod 600 "$ENV_FILE"

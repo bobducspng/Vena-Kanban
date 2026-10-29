@@ -15,6 +15,11 @@ const transport = configured
 
 export const mailEnabled = () => configured;
 
+// Sender: always shown as the product name; the address comes from SMTP_FROM
+// ("Nome <addr>" or just addr) or the SMTP account itself.
+const SENDER_NAME = "Venaflow";
+const FROM = { name: SENDER_NAME, address: (env.SMTP_FROM.match(/<([^>]+)>/)?.[1] ?? env.SMTP_FROM).trim() || env.SMTP_USER };
+
 const escape = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 export const MAX_RECIPIENTS = 500;
@@ -32,7 +37,7 @@ export async function sendCardMail(m: {
   }
   const html = `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:#15181d;white-space:pre-wrap">${escape(m.body)}</div>`;
   await transport.sendMail({
-    from: env.SMTP_FROM || env.SMTP_USER, to: m.to, cc: m.cc?.length ? m.cc : undefined, replyTo: m.replyTo,
+    from: FROM, to: m.to, cc: m.cc?.length ? m.cc : undefined, replyTo: m.replyTo,
     subject: m.subject, text: m.body, html, attachments: m.attachments,
   });
 }
@@ -48,9 +53,9 @@ export async function sendMail(m: { to: string; subject: string; heading: string
 <h2 style="font-size:18px">${escape(m.heading)}</h2>
 ${m.paragraphs.map((p) => `<p style="font-size:14px;line-height:1.5">${escape(p)}</p>`).join("\n")}
 ${m.button ? `<p><a href="${escape(m.button.url)}" style="display:inline-block;background:#2f5bea;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none">${escape(m.button.label)}</a></p>` : ""}
-<p style="font-size:12px;color:#565e6b">Mensagem automática do Fluxos — não responda a este e-mail.</p></div>`;
+<p style="font-size:12px;color:#565e6b">Mensagem automática do Venaflow — não responda a este e-mail.</p></div>`;
   try {
-    await transport.sendMail({ from: env.SMTP_FROM || env.SMTP_USER, to: m.to, subject: m.subject, text, html });
+    await transport.sendMail({ from: FROM, to: m.to, subject: m.subject, text, html });
     return true;
   } catch (err) {
     console.error("sendMail failed:", err);

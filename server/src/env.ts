@@ -38,7 +38,7 @@ const schema = z.object({
   SMTP_PORT: z.coerce.number().default(465),
   SMTP_USER: z.string().default(""),
   SMTP_PASS: z.string().default(""),
-  SMTP_FROM: z.string().default(""), // e.g. "Fluxos Vena <comunicacao@vena.app.br>"
+  SMTP_FROM: z.string().default(""), // e.g. "Venaflow <comunicacao@vena.app.br>"
 });
 
 export const env = schema.parse(process.env);
