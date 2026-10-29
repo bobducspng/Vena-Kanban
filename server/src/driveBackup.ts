@@ -24,6 +24,15 @@ export const KEEP_DB_IN_DRIVE = 30;
 
 export const driveClient = () => new OAuth2Client({ clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET, redirectUri: REDIRECT_URI });
 
+/** Page that turns the Drive API on, already in the project of our OAuth client
+ *  (its number is the start of the client id: "123456-abc.apps.googleusercontent.com"). */
+export function enableDriveApiUrl() {
+  const project = env.GOOGLE_CLIENT_ID.split("-")[0];
+  return /^\d+$/.test(project)
+    ? `https://console.developers.google.com/apis/api/drive.googleapis.com/overview?project=${project}`
+    : "https://console.cloud.google.com/apis/library/drive.googleapis.com";
+}
+
 export function driveAuthUrl(state: string, loginHint?: string) {
   return driveClient().generateAuthUrl({ access_type: "offline", prompt: "consent", scope: DRIVE_SCOPES, state, login_hint: loginHint });
 }

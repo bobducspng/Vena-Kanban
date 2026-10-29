@@ -19,6 +19,11 @@ export function BackupStatus() {
   const { data: b } = useQuery({ queryKey: ["backupStatus"], queryFn: api.org.backupStatus });
   const { data: d } = useQuery({ queryKey: ["driveStatus"], queryFn: api.org.driveStatus });
   const disconnect = useMutation({ mutationFn: api.org.driveDisconnect, onSuccess: () => qc.invalidateQueries({ queryKey: ["driveStatus"] }) });
+  const test = useMutation({
+    mutationFn: api.org.driveTest,
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["driveStatus"] }); toast("Funcionou: pastas criadas no Drive", "success"); },
+    onError: (e) => toast(e instanceof Error && /API do Google Drive/i.test(e.message) ? "A API do Drive ainda não está ativa. Se acabou de ativar, espere mais um minuto e tente de novo." : `Falhou: ${e instanceof Error ? e.message : e}`, "error"),
+  });
 
   // Back from Google: ?drive=ok or ?drive=erro&motivo=…
   const driveResult = params.get("drive");
@@ -77,9 +82,20 @@ export function BackupStatus() {
               Conectado a <strong>{d.email}</strong>
               {d.folderUrl && <> · <a href={d.folderUrl} target="_blank" rel="noreferrer" className="text-accent hover:underline">abrir a pasta</a></>}
             </p>
-            {d.last ? (
+            {!d.folderUrl && (
+              <div className="flex flex-col gap-2 rounded-md border border-warning p-3 text-sm text-text">
+                <p className="inline-flex items-center gap-2 font-medium"><AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" /> Falta um passo: ativar a API do Google Drive</p>
+                <ol className="list-decimal space-y-1 pl-5 text-xs">
+                  <li>Abra <a href={d.enableApiUrl} target="_blank" rel="noreferrer" className="text-accent underline">este link</a> (já vai no projeto do Venaflow no Google Cloud) com a conta que criou o login do Venaflow.</li>
+                  <li>Clique no botão azul <strong>Ativar</strong> (ou "Enable"). Se aparecer "Gerenciar", já está ativada.</li>
+                  <li>Espere 1 a 2 minutos e clique em <strong>Testar agora</strong> aqui embaixo.</li>
+                </ol>
+                <Button size="sm" className="self-start" loading={test.isPending} onClick={() => test.mutate()}>Testar agora</Button>
+              </div>
+            )}
+            {d.folderUrl && (d.last ? (
               <p className={`text-xs ${d.last.status === "ok" ? "text-muted" : "text-danger"}`}>{when(d.last.at)}: {d.last.message}</p>
-            ) : <p className="text-xs text-muted">A primeira cópia vai junto com o próximo backup (03:30).</p>}
+            ) : <p className="text-xs text-muted">Pastas criadas. A primeira cópia vai junto com o próximo backup (03:30).</p>)}
             <button className="self-start text-xs text-danger" onClick={() => { if (confirm("Parar de copiar para o Drive? O que já está lá continua lá.")) disconnect.mutate(); }}>Desconectar</button>
           </>
         )}

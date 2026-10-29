@@ -1,3 +1,5 @@
+import { TRPCError } from "@trpc/server";
+import { Drive, enableDriveApiUrl, ensureFolders, unseal } from "../../driveBackup.js";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
@@ -57,7 +59,21 @@ export const orgRouter = router({
     if (!row) return { connected: false as const };
     let last: { status: string; at: string; message: string; filesSent?: number; dbSent?: number } | null = null;
     try { last = JSON.parse(await readFile(join(process.env.BACKUP_DIR ?? "/var/backups/fluxos", "drive-status.json"), "utf8")); } catch { /* not run yet */ }
-    return { connected: true as const, email: row.email, connectedAt: row.connectedAt, folderUrl: row.folderId ? `https://drive.google.com/drive/folders/${row.folderId}` : null, last };
+    return {
+      connected: true as const, email: row.email, connectedAt: row.connectedAt, last, enableApiUrl: enableDriveApiUrl(),
+      folderUrl: row.folderId ? `https://drive.google.com/drive/folders/${row.folderId}` : null,
+    };
+  }),
+  /** "Testar agora": creates the folders (proves the Drive answers) without waiting for the night. */
+  driveTest: adminProcedure.mutation(async ({ ctx }) => {
+    const row = (await db.select().from(driveBackups).where(eq(driveBackups.orgId, ctx.orgId)).limit(1))[0];
+    if (!row) throw new TRPCError({ code: "BAD_REQUEST", message: "Drive não conectado" });
+    try {
+      await ensureFolders(await Drive.forRefreshToken(unseal(row.refreshToken)), ctx.orgId);
+    } catch (e) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: e instanceof Error ? e.message : String(e) });
+    }
+    return { ok: true };
   }),
   driveDisconnect: adminProcedure.mutation(async ({ ctx }) => {
     await db.delete(driveBackups).where(eq(driveBackups.orgId, ctx.orgId));

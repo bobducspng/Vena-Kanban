@@ -278,6 +278,7 @@ export const api = {
     backupStatus: () => trpc.org.backupStatus.query(),
     driveStatus: () => trpc.org.driveStatus.query(),
     driveDisconnect: () => trpc.org.driveDisconnect.mutate(),
+    driveTest: () => trpc.org.driveTest.mutate(),
   },
 
   /** Papéis timbrados ("frentes") dos PDFs. */
