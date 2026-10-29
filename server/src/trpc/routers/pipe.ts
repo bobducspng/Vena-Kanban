@@ -72,6 +72,7 @@ export const pipeRouter = router({
       expirationMinutes: z.number().int().min(1).max(525_600 * 3).nullable().optional(),
       businessHoursOnly: z.boolean().optional(),
       folder: z.string().trim().max(100).nullable().optional(),
+      letterheadId: z.string().nullable().optional(), // papel timbrado (null = padrão da empresa)
     }))
     .mutation(async ({ ctx, input }) => {
       const pipe = (await db.select().from(pipes).where(and(eq(pipes.id, input.pipeId), eq(pipes.orgId, ctx.orgId), isNull(pipes.deletedAt))).limit(1))[0];

@@ -37,7 +37,7 @@ const toISO = (d: Date | string | null | undefined): string =>
 const toISON = (d: Date | string | null | undefined): string | null =>
   d == null ? null : (d instanceof Date ? d.toISOString() : d);
 
-type SrvPipe = { id: string; name: string; description: string | null; createdAt: Date | string; icon?: string | null; color?: string | null; noun?: string | null; createButtonLabel?: string | null; titleFieldId?: string | null; subtitleFieldIds?: unknown; deletedAt?: Date | string | null; expirationMinutes?: number | null; businessHoursOnly?: boolean; myRole?: string | null; folder?: string | null };
+type SrvPipe = { id: string; name: string; description: string | null; createdAt: Date | string; icon?: string | null; color?: string | null; noun?: string | null; createButtonLabel?: string | null; titleFieldId?: string | null; subtitleFieldIds?: unknown; deletedAt?: Date | string | null; expirationMinutes?: number | null; businessHoursOnly?: boolean; myRole?: string | null; folder?: string | null; letterheadId?: string | null };
 type SrvPhase = { id: string; pipeId: string; name: string; color: string | null; position: number; isStart: boolean; isEnd: boolean; description: string | null; canCreateCard: boolean; allowedTo?: string[]; assigneeIds?: string[]; slaMinutes?: number | null };
 type SrvField = { id: string; pipeId: string; phaseId: string; label: string; type: string; required: boolean; options: unknown; position: number; description: string | null; help: string | null; editableOtherPhases: boolean; isUnique: boolean; validationRegex: string | null; archivedAt: Date | string | null; settings?: unknown };
 type SrvCard = { id: string; number: number; pipeId: string; currentPhaseId: string; title: string; dueDate: Date | string | null; done: boolean; version: number; createdAt: Date | string; values: { fieldId: string; value: unknown }[]; assigneeIds: string[]; labelIds: string[]; checklistDone: number; checklistTotal: number; commentCount: number; attachmentCount: number;
@@ -50,7 +50,7 @@ const mapPipe = (p: SrvPipe): Pipe => ({
   icon: p.icon, color: p.color, noun: p.noun, createButtonLabel: p.createButtonLabel, titleFieldId: p.titleFieldId,
   subtitleFieldIds: Array.isArray(p.subtitleFieldIds) ? (p.subtitleFieldIds as string[]) : [], deletedAt: toISON(p.deletedAt),
   expirationMinutes: p.expirationMinutes ?? null, businessHoursOnly: !!p.businessHoursOnly,
-  myRole: (p.myRole as Pipe["myRole"]) ?? null, folder: p.folder ?? null,
+  myRole: (p.myRole as Pipe["myRole"]) ?? null, folder: p.folder ?? null, letterheadId: p.letterheadId ?? null,
 });
 const mapPhase = (p: SrvPhase): Phase => ({ id: p.id, pipeId: p.pipeId, name: p.name, color: p.color ?? "gray", position: p.position, isStart: p.isStart, isEnd: p.isEnd, description: p.description, canCreateCard: p.canCreateCard, allowedTo: p.allowedTo ?? [], assigneeIds: p.assigneeIds ?? [], slaMinutes: p.slaMinutes ?? null });
 const mapField = (f: SrvField): FieldDef => ({ id: f.id, pipeId: f.pipeId, phaseId: f.phaseId, label: f.label, type: f.type as FieldType, required: f.required, options: Array.isArray(f.options) ? (f.options as string[]) : undefined, position: f.position, description: f.description, help: f.help, editableOtherPhases: f.editableOtherPhases, isUnique: f.isUnique, validationRegex: f.validationRegex, archivedAt: toISON(f.archivedAt),
@@ -78,7 +78,7 @@ type FieldProps = { description?: string | null; help?: string | null; editableO
 
 /** JSON over plain HTTP with the session cookie; server errors become Error(message). */
 /** A modelo de PDF as edited (own letterhead when useDefaultLayout is false). */
-export type PdfTemplateInput = { name: string; body: string; useDefaultLayout: boolean; showLogo: boolean; header: string | null; footer: string | null };
+export type PdfTemplateInput = { name: string; body: string; layoutMode: "pipe" | "fixed" | "field"; letterheadId: string | null; layoutFieldId: string | null };
 
 async function fileFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, { credentials: "include", ...init });
@@ -132,7 +132,7 @@ export const api = {
     update: async (input: {
       pipeId: string; name?: string; description?: string | null; icon?: string | null; color?: PhaseColor | null;
       noun?: string | null; createButtonLabel?: string | null; titleFieldId?: string | null; subtitleFieldIds?: string[];
-      expirationMinutes?: number | null; businessHoursOnly?: boolean; folder?: string | null;
+      expirationMinutes?: number | null; businessHoursOnly?: boolean; folder?: string | null; letterheadId?: string | null;
     }): Promise<Pipe> => mapPipe(await trpc.pipe.update.mutate(input)),
     clone: (pipeId: string, name: string) => trpc.pipe.clone.mutate({ pipeId, name }),
     remove: (pipeId: string) => trpc.pipe.remove.mutate({ pipeId }),
@@ -275,11 +275,20 @@ export const api = {
     update: (name: string) => trpc.org.update.mutate({ name }),
     audit: (before?: Date, limit = 100) => trpc.org.audit.query({ before, limit }),
     map: () => trpc.org.map.query(),
-    updatePdfLayout: (header: string, footer: string) => trpc.org.updatePdfLayout.mutate({ header, footer }),
-    uploadLogo: (file: File) => fileFetch<{ ok: true }>("/files/branding/logo", { method: "POST", headers: { "Content-Type": file.type || "application/octet-stream" }, body: file }),
-    removeLogo: () => fileFetch<{ ok: true }>("/files/branding/logo", { method: "DELETE" }),
-    logoUrl: () => `${API_URL}/files/branding/logo?t=${Date.now()}`,
-    previewUrl: (templateId?: string) => `${API_URL}/files/branding/preview${templateId ? `?templateId=${templateId}` : ""}`,
+  },
+
+  /** Papéis timbrados ("frentes") dos PDFs. */
+  letterhead: {
+    list: () => trpc.letterhead.list.query(),
+    create: (input: { name: string; header: string; footer: string }) => trpc.letterhead.create.mutate(input),
+    update: (input: { id: string; name: string; header: string; footer: string }) => trpc.letterhead.update.mutate(input),
+    remove: (id: string) => trpc.letterhead.remove.mutate({ id }),
+    setDefault: (id: string) => trpc.letterhead.setDefault.mutate({ id }),
+    uploadLogo: (id: string, file: File) => fileFetch<{ ok: true }>(`/files/branding/letterheads/${id}/logo`, { method: "POST", headers: { "Content-Type": file.type || "application/octet-stream" }, body: file }),
+    removeLogo: (id: string) => fileFetch<{ ok: true }>(`/files/branding/letterheads/${id}/logo`, { method: "DELETE" }),
+    logoUrl: (id: string, v: number) => `${API_URL}/files/branding/letterheads/${id}/logo?v=${v}`,
+    previewUrl: (q: { letterheadId?: string; templateId?: string }) =>
+      `${API_URL}/files/branding/preview?${new URLSearchParams(q as Record<string, string>).toString()}`,
   },
 
   people: {
@@ -313,7 +322,8 @@ export const api = {
   },
 
   pdf: {
-    templates: (pipeId: string) => trpc.pdf.templates.query({ pipeId }),
+    templates: async (pipeId: string) =>
+      (await trpc.pdf.templates.query({ pipeId })).map((t) => ({ ...t, layoutMode: t.layoutMode as PdfTemplateInput["layoutMode"] })),
     defaultBody: () => trpc.pdf.defaultBody.query(),
     create: (input: { pipeId: string } & PdfTemplateInput) => trpc.pdf.create.mutate(input),
     update: (input: { templateId: string } & PdfTemplateInput) => trpc.pdf.update.mutate(input),

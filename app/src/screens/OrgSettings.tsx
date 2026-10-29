@@ -13,7 +13,7 @@ import { useToast } from "../components/ui/Toast";
 import { BiSettings } from "../components/app/BiSettings";
 import { PeopleSettings } from "../components/app/PeopleSettings";
 import { OrgNameSettings, AuditSettings } from "../components/app/OrgAdmin";
-import { PdfLayoutSettings } from "../components/app/PdfLayoutSettings";
+import { LetterheadsSettings } from "../components/app/PdfLayoutSettings";
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const fmt = (d: string) => { const [y, m, dd] = d.split("-"); return `${dd}/${m}/${y}`; };
@@ -110,7 +110,7 @@ export function OrgSettings() {
 
             <PeopleSettings />
 
-            <PdfLayoutSettings />
+            <LetterheadsSettings />
 
             <BiSettings />
 

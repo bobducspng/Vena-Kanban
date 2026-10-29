@@ -168,6 +168,7 @@ function PipeSection({ pipe, phases, fields }: { pipe: Pipe; phases: Phase[]; fi
   });
   const onError = (e: unknown) => toast(errMsg(e), "error");
   const { data: allPipes } = useQuery({ queryKey: ["pipes"], queryFn: api.pipe.list });
+  const { data: frentes } = useQuery({ queryKey: ["letterheads"], queryFn: api.letterhead.list });
   const folders = [...new Set((allPipes ?? []).map((p) => p.folder).filter(Boolean))] as string[];
   const clone = useMutation({
     mutationFn: (name: string) => api.pipe.clone(pipe.id, name),
@@ -235,6 +236,12 @@ function PipeSection({ pipe, phases, fields }: { pipe: Pipe; phases: Phase[]; fi
           <Input id="pipe-folder" list="pipe-folders" {...bind("folder")} placeholder="Ex.: Financeiro" maxLength={100} />
           <datalist id="pipe-folders">{folders.map((f) => <option key={f} value={f} />)}</datalist>
         </div>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor="pipe-letterhead" className="text-sm font-medium text-text">Papel timbrado dos PDFs (frente)</label>
+        <Select id="pipe-letterhead" value={pipe.letterheadId ?? "__default"} onValueChange={(v) => update.mutate({ pipeId: pipe.id, letterheadId: v === "__default" ? null : v })}
+          options={[{ value: "__default", label: `Padrão da empresa${frentes?.find((f) => f.isDefault) ? ` (${frentes.find((f) => f.isDefault)!.name})` : ""}` }, ...(frentes ?? []).map((f) => ({ value: f.id, label: f.name }))]} />
+        <p className="text-xs text-muted">Logo, cabeçalho e rodapé dos PDFs deste pipe. As frentes ficam em Configurações → Papéis timbrados.</p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">

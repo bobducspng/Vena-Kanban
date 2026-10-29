@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { eq } from "drizzle-orm";
 import { db } from "./db/client.js";
-import { attachments, cards, organizations, pdfTemplates, pipes } from "./db/schema.js";
+import { attachments, cards, fields, letterheads, organizations, pdfTemplates, pipes } from "./db/schema.js";
 import { cardContext, type CardContext } from "./templates.js";
 import { UPLOAD_DIR } from "./uploads.js";
 import { logEvent } from "./trpc/cardAccess.js";
@@ -38,19 +38,37 @@ function rich(doc: PDFKit.PDFDocument, line: string, size: number, opts: PDFKit.
 
 /** Papel timbrado: logo, cabeçalho e rodapé (texts with {campos}). Nothing set = the plain look. */
 export interface Layout { orgName: string; logo: Buffer | null; header: string | null; footer: string | null }
-type Tpl = Pick<typeof pdfTemplates.$inferSelect, "useDefaultLayout" | "showLogo" | "header" | "footer">;
+type Tpl = Pick<typeof pdfTemplates.$inferSelect, "layoutMode" | "letterheadId" | "layoutFieldId">;
+type Letterhead = typeof letterheads.$inferSelect;
 
 // Logos live next to the attachments, outside the web root: data/uploads/_branding/<id>.
 export const BRANDING_DIR = join(UPLOAD_DIR, "_branding");
 export const isImage = (b: Buffer) => (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) || (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff);
+const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
 
-/** The org's letterhead, or the modelo's own when it does not use the default. */
-export async function layoutFor(orgId: string, tpl: Tpl | null): Promise<Layout> {
-  const org = (await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1))[0];
-  const own = tpl && !tpl.useDefaultLayout;
-  const logoId = own && !tpl.showLogo ? null : org?.pdfLogo;
-  const logo = logoId ? await readFile(join(BRANDING_DIR, logoId)).catch(() => null) : null;
-  return { orgName: org?.name ?? "Venaflow", logo, header: (own ? tpl.header : org?.pdfHeader) || null, footer: (own ? tpl.footer : org?.pdfFooter) || null };
+/**
+ * Which frente (papel timbrado) a PDF uses: the modelo's fixed one; or the frente named by
+ * a field of the card ("Frente: Vena Food"); else the pipe's; else the org's default.
+ */
+export async function pickLetterhead(orgId: string, pipeId: string | null, tpl: Tpl | null, fill?: (t: string) => string): Promise<Letterhead | null> {
+  const all = await db.select().from(letterheads).where(eq(letterheads.orgId, orgId));
+  const byId = (id: string | null | undefined) => (id ? all.find((l) => l.id === id) ?? null : null);
+  if (tpl?.layoutMode === "fixed" && byId(tpl.letterheadId)) return byId(tpl.letterheadId);
+  if (tpl?.layoutMode === "field" && tpl.layoutFieldId && fill) {
+    const f = (await db.select({ label: fields.label }).from(fields).where(eq(fields.id, tpl.layoutFieldId)).limit(1))[0];
+    const value = f ? norm(fill(`{${f.label}}`)) : "";
+    const hit = value ? all.find((l) => norm(l.name) === value) : undefined;
+    if (hit) return hit;
+  }
+  const pipe = pipeId ? (await db.select({ letterheadId: pipes.letterheadId }).from(pipes).where(eq(pipes.id, pipeId)).limit(1))[0] : undefined;
+  const org = (await db.select({ def: organizations.defaultLetterheadId }).from(organizations).where(eq(organizations.id, orgId)).limit(1))[0];
+  return byId(pipe?.letterheadId) ?? byId(org?.def);
+}
+
+export async function layoutOf(orgId: string, lh: Letterhead | null): Promise<Layout> {
+  const org = (await db.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, orgId)).limit(1))[0];
+  const logo = lh?.logo ? await readFile(join(BRANDING_DIR, lh.logo)).catch(() => null) : null;
+  return { orgName: org?.name ?? "Venaflow", logo, header: lh?.header || null, footer: lh?.footer || null };
 }
 
 /** Render a card into a PDF buffer with the given modelo (null = default summary). */
@@ -58,7 +76,9 @@ export async function renderCardPdf(cardId: string, tpl: (Tpl & { body: string }
   const ctx = await cardContext(cardId);
   const card = (await db.select({ pipeId: cards.pipeId }).from(cards).where(eq(cards.id, cardId)).limit(1))[0];
   const pipe = card ? (await db.select({ orgId: pipes.orgId }).from(pipes).where(eq(pipes.id, card.pipeId)).limit(1))[0] : undefined;
-  const layout = pipe ? await layoutFor(pipe.orgId, tpl) : { orgName: "Venaflow", logo: null, header: null, footer: null };
+  const layout = pipe
+    ? await layoutOf(pipe.orgId, await pickLetterhead(pipe.orgId, card!.pipeId, tpl, ctx.fill))
+    : { orgName: "Venaflow", logo: null, header: null, footer: null };
   return buildPdf(ctx, layout, tpl?.body ?? null);
 }
 

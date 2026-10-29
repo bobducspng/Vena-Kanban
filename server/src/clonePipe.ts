@@ -58,7 +58,7 @@ export async function clonePipe(sourceId: string, orgId: string, name: string, u
       });
     }
     for (const { createdAt: _c3, updatedAt: _u3, ...t } of srcTpls) await tx.insert(emailTemplates).values({ ...t, id: id(t.id), pipeId: newId });
-    for (const { createdAt: _c4, updatedAt: _u4, ...t } of srcPdfs) await tx.insert(pdfTemplates).values({ ...t, id: id(t.id), pipeId: newId });
+    for (const { createdAt: _c4, updatedAt: _u4, ...t } of srcPdfs) await tx.insert(pdfTemplates).values({ ...t, id: id(t.id), pipeId: newId, layoutFieldId: idN(t.layoutFieldId) });
     if (srcMembers.length) await tx.insert(pipeMembers).values(srcMembers.map((m) => ({ pipeId: newId, userId: m.userId, role: m.role })));
   });
   return { pipeId: newId, automations: srcRules.length };

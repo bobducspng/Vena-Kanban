@@ -158,6 +158,7 @@ export interface Pipe {
   businessHoursOnly?: boolean; // count SLAs in business time (org calendar)
   myRole?: PipeRole | null; // only from pipe.get
   folder?: string | null; // pasta na tela inicial
+  letterheadId?: string | null; // papel timbrado (frente) dos PDFs; null = padrão da empresa
 }
 
 /** A notification of the sino. */

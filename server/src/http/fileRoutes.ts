@@ -4,12 +4,12 @@ import { mkdir, writeFile, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { eq, and, asc, isNull } from "drizzle-orm";
 import { db } from "../db/client.js";
-import { attachments, cards, cardFields, fields, memberships, organizations, pdfTemplates, pipes } from "../db/schema.js";
+import { attachments, cards, cardFields, fields, letterheads, memberships, pdfTemplates, pipes } from "../db/schema.js";
 import { getUserIdFromRequest } from "../auth/session.js";
 import { logEvent } from "../trpc/cardAccess.js";
 import { assertCardWrite, canSeeCard } from "../access.js";
 import { recordAudit } from "../audit.js";
-import { BRANDING_DIR, buildPdf, isImage, layoutFor, sampleContext } from "../pdf.js";
+import { BRANDING_DIR, buildPdf, isImage, layoutOf, pickLetterhead, sampleContext } from "../pdf.js";
 
 import { UPLOAD_DIR } from "../uploads.js";
 export { UPLOAD_DIR };
@@ -129,59 +129,76 @@ fileRoutes.delete("/files/:id", async (req, res) => {
   res.json({ ok: true });
 });
 
-// --- Papel timbrado dos PDFs (admins) ------------------------------------------------
+// --- Papéis timbrados (frentes) dos PDFs --------------------------------------------
 const MAX_LOGO = 2 * 1024 * 1024;
 
-/** Upload the org logo (PNG or JPEG, up to 2 MB); replaces the previous one. */
-fileRoutes.post("/files/branding/logo", raw({ type: () => true, limit: MAX_LOGO }), async (req, res) => {
+/** Delete a logo file unless another frente still uses it (migrated frentes may share one). */
+export async function dropLogoFile(logo: string) {
+  const users = await db.select({ id: letterheads.id }).from(letterheads).where(eq(letterheads.logo, logo)).limit(1);
+  if (!users.length) await unlink(join(BRANDING_DIR, logo)).catch(() => undefined);
+}
+
+async function letterheadFor(req: Request, admin: boolean) {
   const who = await caller(req);
-  if (!who) return res.status(401).json({ error: "Faça login para continuar" });
-  if (who.role !== "admin") return res.status(403).json({ error: "Apenas administradores" });
+  if (!who) return { error: [401, "Faça login para continuar"] as const };
+  if (admin && who.role !== "admin") return { error: [403, "Apenas administradores"] as const };
+  const lh = (await db.select().from(letterheads).where(and(eq(letterheads.id, String(req.params.id)), eq(letterheads.orgId, who.orgId))).limit(1))[0];
+  if (!lh) return { error: [404, "Papel timbrado não encontrado"] as const };
+  return { who, lh };
+}
+
+/** Upload a frente's logo (PNG or JPEG, up to 2 MB); replaces the previous one. */
+fileRoutes.post("/files/branding/letterheads/:id/logo", raw({ type: () => true, limit: MAX_LOGO }), async (req, res) => {
+  const r = await letterheadFor(req, true);
+  if ("error" in r) return res.status(r.error![0]).json({ error: r.error![1] });
   const body = req.body as Buffer;
   if (!Buffer.isBuffer(body) || !isImage(body)) return res.status(400).json({ error: "Envie uma imagem PNG ou JPG." });
   const id = crypto.randomUUID();
   await mkdir(BRANDING_DIR, { recursive: true });
   await writeFile(join(BRANDING_DIR, id), body);
-  const old = (await db.select({ logo: organizations.pdfLogo }).from(organizations).where(eq(organizations.id, who.orgId)).limit(1))[0]?.logo;
-  await db.update(organizations).set({ pdfLogo: id }).where(eq(organizations.id, who.orgId));
-  if (old) await unlink(join(BRANDING_DIR, old)).catch(() => undefined);
-  await recordAudit(who.orgId, who.userId, "org.uploadLogo", { bytes: body.length });
+  await db.update(letterheads).set({ logo: id }).where(eq(letterheads.id, r.lh.id));
+  if (r.lh.logo) await dropLogoFile(r.lh.logo);
+  await recordAudit(r.who.orgId, r.who.userId, "letterhead.uploadLogo", { id: r.lh.id, name: r.lh.name, bytes: body.length });
   res.json({ ok: true });
 });
 
-fileRoutes.delete("/files/branding/logo", async (req, res) => {
-  const who = await caller(req);
-  if (!who) return res.status(401).json({ error: "Faça login para continuar" });
-  if (who.role !== "admin") return res.status(403).json({ error: "Apenas administradores" });
-  const old = (await db.select({ logo: organizations.pdfLogo }).from(organizations).where(eq(organizations.id, who.orgId)).limit(1))[0]?.logo;
-  await db.update(organizations).set({ pdfLogo: null }).where(eq(organizations.id, who.orgId));
-  if (old) await unlink(join(BRANDING_DIR, old)).catch(() => undefined);
-  await recordAudit(who.orgId, who.userId, "org.removeLogo", {});
+fileRoutes.delete("/files/branding/letterheads/:id/logo", async (req, res) => {
+  const r = await letterheadFor(req, true);
+  if ("error" in r) return res.status(r.error![0]).json({ error: r.error![1] });
+  await db.update(letterheads).set({ logo: null }).where(eq(letterheads.id, r.lh.id));
+  if (r.lh.logo) await dropLogoFile(r.lh.logo);
+  await recordAudit(r.who.orgId, r.who.userId, "letterhead.removeLogo", { id: r.lh.id, name: r.lh.name });
   res.json({ ok: true });
 });
 
-fileRoutes.get("/files/branding/logo", async (req, res) => {
-  const who = await caller(req);
-  if (!who) return res.status(401).send("Faça login para continuar");
-  const logo = (await db.select({ logo: organizations.pdfLogo }).from(organizations).where(eq(organizations.id, who.orgId)).limit(1))[0]?.logo;
-  const path = logo ? join(BRANDING_DIR, logo) : null;
+fileRoutes.get("/files/branding/letterheads/:id/logo", async (req, res) => {
+  const r = await letterheadFor(req, false);
+  if ("error" in r) return res.status(r.error![0]).send(r.error![1]);
+  const path = r.lh.logo ? join(BRANDING_DIR, r.lh.logo) : null;
   if (!path || !existsSync(path)) return res.status(404).send("Sem logo");
   res.setHeader("Cache-Control", "no-store");
   res.sendFile(path);
 });
 
-/** "Ver exemplo": a made-up card with the letterhead (?templateId= uses that modelo's). */
+/** "Ver exemplo": a made-up card printed with a frente (?letterheadId=) or as a modelo would (?templateId=). */
 fileRoutes.get("/files/branding/preview", async (req, res) => {
   const who = await caller(req);
   if (!who) return res.status(401).send("Faça login para continuar");
-  const tplId = req.query.templateId ? String(req.query.templateId) : null;
-  const tpl = tplId ? (await db.select().from(pdfTemplates).where(eq(pdfTemplates.id, tplId)).limit(1))[0] : null;
-  if (tpl) {
-    const pipe = (await db.select({ orgId: pipes.orgId }).from(pipes).where(eq(pipes.id, tpl.pipeId)).limit(1))[0];
-    if (pipe?.orgId !== who.orgId) return res.status(404).send("Modelo não encontrado");
+  const ctx = sampleContext();
+  let lh = null;
+  let body: string | null = null;
+  if (req.query.templateId) {
+    const tpl = (await db.select().from(pdfTemplates).where(eq(pdfTemplates.id, String(req.query.templateId))).limit(1))[0];
+    const pipe = tpl ? (await db.select({ orgId: pipes.orgId }).from(pipes).where(eq(pipes.id, tpl.pipeId)).limit(1))[0] : undefined;
+    if (!tpl || pipe?.orgId !== who.orgId) return res.status(404).send("Modelo não encontrado");
+    lh = await pickLetterhead(who.orgId, tpl.pipeId, tpl, ctx.fill);
+    body = tpl.body;
+  } else if (req.query.letterheadId) {
+    lh = (await db.select().from(letterheads).where(and(eq(letterheads.id, String(req.query.letterheadId)), eq(letterheads.orgId, who.orgId))).limit(1))[0] ?? null;
+    if (!lh) return res.status(404).send("Papel timbrado não encontrado");
   }
-  const bytes = await buildPdf(sampleContext(), await layoutFor(who.orgId, tpl ?? null), tpl?.body ?? null);
+  const bytes = await buildPdf(ctx, await layoutOf(who.orgId, lh), body);
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", "inline; filename=\"exemplo.pdf\"");
+  res.setHeader("Content-Disposition", 'inline; filename="exemplo.pdf"');
   res.send(bytes);
 });

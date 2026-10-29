@@ -9,9 +9,10 @@ import { DEFAULT_BODY, generateCardPdf } from "../../pdf.js";
 
 const tpl = {
   name: z.string().trim().min(1).max(255), body: z.string().min(1).max(50_000),
-  // Own letterhead instead of the org's (Configurações > Papel timbrado).
-  useDefaultLayout: z.boolean().default(true), showLogo: z.boolean().default(true),
-  header: z.string().max(2000).nullable().default(null), footer: z.string().max(2000).nullable().default(null),
+  // Which frente: the pipe's, a fixed one, or the one named by a field of the card.
+  layoutMode: z.enum(["pipe", "fixed", "field"]).default("pipe"),
+  letterheadId: z.string().nullable().default(null),
+  layoutFieldId: z.string().nullable().default(null),
 };
 
 async function templateInOrg(templateId: string, orgId: string) {

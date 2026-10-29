@@ -6,6 +6,7 @@ import type { FieldDef } from "../../data/types";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
+import { Select } from "../ui/Select";
 import { Textarea } from "../ui/Textarea";
 import { useToast } from "../ui/Toast";
 import { Placeholders } from "./EmailParts";
@@ -54,13 +55,15 @@ function PdfTemplateModal({ pipeId, fields, editing, onClose }: { pipeId: string
   const qc = useQueryClient();
   const toast = useToast();
   const existing = editing && editing !== "new" ? editing : null;
-  const [t, setT] = useState<PdfTemplateInput>({ name: "", body: "", useDefaultLayout: true, showLogo: true, header: null, footer: null });
+  const [t, setT] = useState<PdfTemplateInput>({ name: "", body: "", layoutMode: "pipe", letterheadId: null, layoutFieldId: null });
+  const { data: frentes } = useQuery({ queryKey: ["letterheads"], queryFn: api.letterhead.list, enabled: !!editing });
+  const pickFields = fields.filter((f) => ["select", "radio", "short_text"].includes(f.type));
   const { name, body } = t;
   const setName = (v: string) => setT((x) => ({ ...x, name: v }));
   const setBody = (f: string | ((b: string) => string)) => setT((x) => ({ ...x, body: typeof f === "function" ? f(x.body) : f }));
   useEffect(() => {
     if (!editing) return;
-    setT({ name: existing?.name ?? "", body: "", useDefaultLayout: existing?.useDefaultLayout ?? true, showLogo: existing?.showLogo ?? true, header: existing?.header ?? null, footer: existing?.footer ?? null });
+    setT({ name: existing?.name ?? "", body: "", layoutMode: existing?.layoutMode ?? "pipe", letterheadId: existing?.letterheadId ?? null, layoutFieldId: existing?.layoutFieldId ?? null });
     setBody(existing?.body ?? "# Pedido #{#}: {Título}\n\n**Fase:** {Fase}\n\n## Dados\n{Todos os campos}\n\n---\nAprovado por: ______________________   Data: ____/____/______");
   }, [editing]); // eslint-disable-line react-hooks/exhaustive-deps
   const save = useMutation({
@@ -84,22 +87,30 @@ function PdfTemplateModal({ pipeId, fields, editing, onClose }: { pipeId: string
           </ul>
         </div>
         <fieldset className="flex flex-col gap-2 rounded-md border border-border p-3">
-          <legend className="px-1 text-sm font-medium text-text">Logo, cabeçalho e rodapé</legend>
-          <label className="inline-flex items-center gap-2 text-sm text-text">
-            <input type="checkbox" className="h-4 w-4 accent-accent" checked={t.useDefaultLayout} onChange={(e) => setT({ ...t, useDefaultLayout: e.target.checked })} />
-            Usar o papel timbrado padrão (Configurações → Papel timbrado dos PDFs)
-          </label>
-          {!t.useDefaultLayout && (
+          <legend className="px-1 text-sm font-medium text-text">Papel timbrado (logo, cabeçalho e rodapé)</legend>
+          {([
+            ["pipe", "O do pipe (Configurar pipe → Papel timbrado; se não houver, o padrão da empresa)"],
+            ["fixed", "Sempre a mesma frente"],
+            ["field", "A frente escolhida num campo do card"],
+          ] as const).map(([mode, label]) => (
+            <label key={mode} className="inline-flex items-center gap-2 text-sm text-text">
+              <input type="radio" name="pdf-layout" className="h-4 w-4 accent-accent" checked={t.layoutMode === mode} onChange={() => setT({ ...t, layoutMode: mode })} />
+              {label}
+            </label>
+          ))}
+          {t.layoutMode === "fixed" && (
+            <Select aria-label="Frente" placeholder="Escolha a frente" value={t.letterheadId ?? undefined} onValueChange={(v) => setT({ ...t, letterheadId: v })}
+              options={(frentes ?? []).map((f) => ({ value: f.id, label: f.name }))} />
+          )}
+          {t.layoutMode === "field" && (
             <>
-              <label className="inline-flex items-center gap-2 text-sm text-text">
-                <input type="checkbox" className="h-4 w-4 accent-accent" checked={t.showLogo} onChange={(e) => setT({ ...t, showLogo: e.target.checked })} />
-                Mostrar o logo da empresa
-              </label>
-              <Textarea aria-label="Cabeçalho deste modelo" rows={3} placeholder="Cabeçalho deste modelo (vazio = sem cabeçalho)" value={t.header ?? ""} onChange={(e) => setT({ ...t, header: e.target.value || null })} />
-              <Textarea aria-label="Rodapé deste modelo" rows={2} placeholder="Rodapé deste modelo (vazio = rodapé simples com data e página)" value={t.footer ?? ""} onChange={(e) => setT({ ...t, footer: e.target.value || null })} />
+              <Select aria-label="Campo da frente" placeholder="Campo do card que diz a frente" value={t.layoutFieldId ?? undefined} onValueChange={(v) => setT({ ...t, layoutFieldId: v })}
+                options={pickFields.map((f) => ({ value: f.id, label: f.label }))} />
+              <p className="text-xs text-muted">O valor do campo precisa ser igual ao nome de uma frente (ex.: lista de opções com {(frentes ?? []).map((f) => `"${f.name}"`).join(", ") || "os nomes das frentes"}). Se não bater, vale o do pipe.</p>
             </>
           )}
-          {existing && <a href={api.org.previewUrl(existing.id)} target="_blank" rel="noreferrer" className="self-start text-xs text-accent hover:underline">Ver exemplo (como está salvo)</a>}
+          {!frentes?.length && <p className="text-xs text-warning">Nenhuma frente cadastrada ainda: crie em Configurações → Papéis timbrados (frentes).</p>}
+          {existing && <a href={api.letterhead.previewUrl({ templateId: existing.id })} target="_blank" rel="noreferrer" className="self-start text-xs text-accent hover:underline">Ver exemplo (como está salvo)</a>}
         </fieldset>
         <p className="text-xs text-muted">Clique para inserir um dado do card:</p>
         <Placeholders fields={fields} onPick={(p) => setBody((b) => `${b}${p}`)} />

@@ -16,10 +16,8 @@ const updatedAt = () =>
 export const organizations = mysqlTable("organizations", {
   id: id(),
   name: varchar("name", { length: 255 }).notNull(),
-  // Papel timbrado dos PDFs (padrão da empresa): logo file id + header/footer text with {campos}.
-  pdfLogo: varchar("pdf_logo", { length: 64 }),
-  pdfHeader: text("pdf_header"),
-  pdfFooter: text("pdf_footer"),
+  // Papel timbrado used when a pipe does not pick one (see letterheads).
+  defaultLetterheadId: ref("default_letterhead_id"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -73,6 +71,8 @@ export const pipes = mysqlTable("pipes", {
   expirationMinutes: int("expiration_minutes"),
   // Count SLAs/expiration in business time (org calendar) instead of calendar time.
   businessHoursOnly: boolean("business_hours_only").notNull().default(false),
+  // Papel timbrado of this pipe's PDFs (null = the org's default).
+  letterheadId: ref("letterhead_id"),
   // Pasta na tela inicial (null = sem pasta).
   folder: varchar("folder", { length: 100 }),
   deletedAt: datetime("deleted_at", { fsp: 3 }),
@@ -154,17 +154,29 @@ export const emailTemplates = mysqlTable("email_templates", {
   updatedAt: updatedAt(),
 }, (t) => ({ pipeIdx: index("idx_emailtpl_pipe").on(t.pipeId) }));
 
+// Papéis timbrados ("frentes" da empresa): logo + cabeçalho + rodapé of the PDFs.
+// Texts accept {campos} of the card and {Data de hoje}.
+export const letterheads = mysqlTable("letterheads", {
+  id: id(),
+  orgId: ref("org_id").notNull(),
+  name: varchar("name", { length: 120 }).notNull(),
+  logo: varchar("logo", { length: 64 }), // file id in data/uploads/_branding
+  header: text("header"),
+  footer: text("footer"),
+  createdAt: createdAt(),
+}, (t) => ({ orgIdx: index("idx_letterheads_org").on(t.orgId) }));
+
 // Modelos de PDF of a pipe (M11): text with {placeholders} and light markup (see pdf.ts).
 export const pdfTemplates = mysqlTable("pdf_templates", {
   id: id(),
   pipeId: ref("pipe_id").notNull(),
   name: varchar("name", { length: 255 }).notNull(),
   body: text("body").notNull(),
-  // false = this modelo has its own header/footer (and may drop the logo).
-  useDefaultLayout: boolean("use_default_layout").notNull().default(true),
-  showLogo: boolean("show_logo").notNull().default(true),
-  header: text("header"),
-  footer: text("footer"),
+  // Which papel timbrado: "pipe" (the pipe's / org default) · "fixed" (letterheadId) ·
+  // "field" (the frente named by the value of layoutFieldId on the card).
+  layoutMode: varchar("layout_mode", { length: 16 }).notNull().default("pipe"),
+  letterheadId: ref("letterhead_id"),
+  layoutFieldId: ref("layout_field_id"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 }, (t) => ({ pipeIdx: index("idx_pdftpl_pipe").on(t.pipeId) }));
