@@ -67,3 +67,9 @@ ls -1d "$DEST"/files/20* 2>/dev/null | head -n -"$KEEP" | xargs -r rm -rf
 
 write_status ok "Backup concluído"
 echo "ok $(date '+%d/%m/%Y %H:%M') · livre no disco: $(df -h "$DEST" | awk 'NR==2 {print $4}')"
+
+# 4. Cópia fora da VM: Google Drive (se conectado em Configurações > Backup) -------------
+# Uma falha aqui avisa os administradores, mas não desfaz o backup local (que está ok).
+if ! (cd "$APP" && BACKUP_DIR="$DEST" node server/dist/scripts/driveSync.js "$DEST/db" "$UPLOADS"); then
+  (cd "$APP" && node server/dist/scripts/backupAlert.js "A cópia no Google Drive falhou ($(date '+%d/%m/%Y %H:%M')). O backup na VM está ok. Veja Configurações > Backup.") || true
+fi

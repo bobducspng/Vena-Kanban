@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { z } from "zod";
 import { eq, and, lt, desc, inArray, isNull } from "drizzle-orm";
 import { db } from "../../db/client.js";
-import { organizations, auditLog, users, pipes, dataTables, fields, pipeMembers } from "../../db/schema.js";
+import { organizations, auditLog, users, pipes, dataTables, fields, pipeMembers, driveBackups } from "../../db/schema.js";
 import { router, protectedProcedure, adminProcedure } from "../trpc.js";
 
 export const orgRouter = router({
@@ -48,6 +48,20 @@ export const orgRouter = router({
     } catch {
       return { installed: false as const };
     }
+  }),
+
+  /** Cópia no Google Drive: connected account + result of the last nightly copy. */
+  driveStatus: adminProcedure.query(async ({ ctx }) => {
+    const row = (await db.select({ email: driveBackups.email, folderId: driveBackups.folderId, connectedAt: driveBackups.connectedAt })
+      .from(driveBackups).where(eq(driveBackups.orgId, ctx.orgId)).limit(1))[0];
+    if (!row) return { connected: false as const };
+    let last: { status: string; at: string; message: string; filesSent?: number; dbSent?: number } | null = null;
+    try { last = JSON.parse(await readFile(join(process.env.BACKUP_DIR ?? "/var/backups/fluxos", "drive-status.json"), "utf8")); } catch { /* not run yet */ }
+    return { connected: true as const, email: row.email, connectedAt: row.connectedAt, folderUrl: row.folderId ? `https://drive.google.com/drive/folders/${row.folderId}` : null, last };
+  }),
+  driveDisconnect: adminProcedure.mutation(async ({ ctx }) => {
+    await db.delete(driveBackups).where(eq(driveBackups.orgId, ctx.orgId));
+    return { ok: true };
   }),
 
   /** Auditoria, newest first; `before` pages back. */

@@ -276,6 +276,8 @@ export const api = {
     audit: (before?: Date, limit = 100) => trpc.org.audit.query({ before, limit }),
     map: () => trpc.org.map.query(),
     backupStatus: () => trpc.org.backupStatus.query(),
+    driveStatus: () => trpc.org.driveStatus.query(),
+    driveDisconnect: () => trpc.org.driveDisconnect.mutate(),
   },
 
   /** Papéis timbrados ("frentes") dos PDFs. */

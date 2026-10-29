@@ -275,6 +275,19 @@ export const fieldConditions = mysqlTable("field_conditions", {
   createdAt: createdAt(),
 }, (t) => ({ phaseIdx: index("idx_conditions_phase").on(t.phaseId, t.position), pipeIdx: index("idx_conditions_pipe").on(t.pipeId) }));
 
+// Cópia do backup no Google Drive (one per org). The refresh token is encrypted
+// (AES-GCM, key derived from SESSION_SECRET), so a stolen dump alone does not open the Drive.
+export const driveBackups = mysqlTable("drive_backups", {
+  orgId: ref("org_id").primaryKey(),
+  email: varchar("email", { length: 320 }).notNull(), // Google account it writes to
+  refreshToken: text("refresh_token").notNull(), // encrypted
+  folderId: varchar("folder_id", { length: 128 }),
+  dbFolderId: varchar("db_folder_id", { length: 128 }),
+  filesFolderId: varchar("files_folder_id", { length: 128 }),
+  connectedBy: ref("connected_by"),
+  connectedAt: createdAt(),
+});
+
 // Auditoria: every configuration change made by an admin (who, what, when, with which data).
 export const auditLog = mysqlTable("audit_log", {
   id: id(),
