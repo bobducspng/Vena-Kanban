@@ -306,7 +306,8 @@ export type AutomationAction =
   | { type: "move_parent"; phaseId: string }
   | { type: "formula"; fieldId: string; expression: string }
   | { type: "http"; method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; url: string; headers: { name: string; value: string }[]; body?: string; saveToFieldId?: string }
-  | { type: "send_email"; templateId: string; to?: string };
+  | { type: "send_email"; templateId: string; to?: string }
+  | { type: "generate_pdf"; templateId: string | null };
 
 /** E-mail template of a pipe ({Campo} placeholders). */
 export interface EmailTemplate {

@@ -14,7 +14,8 @@
     "test:conditions": "tsx test/conditions.check.ts",
     "test:formula": "tsx test/formula.check.ts",
     "test:automations": "tsx test/automations.check.ts",
-    "test:business": "tsx test/businessTime.check.ts"
+    "test:business": "tsx test/businessTime.check.ts",
+    "test:pdf": "tsx test/pdf.check.ts"
   },
   "dependencies": {
     "@trpc/server": "^11.19.0",
@@ -27,6 +28,8 @@
     "helmet": "^8.3.0",
     "mysql2": "^3.24.6",
     "nodemailer": "^7.0.13",
+    "pdf-lib": "^1.17.1",
+    "pdfkit": "^0.20.2",
     "superjson": "^2.2.6",
     "zod": "^4.6.7"
   },
@@ -36,6 +39,7 @@
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.5",
     "@types/nodemailer": "^8.0.2",
+    "@types/pdfkit": "^0.17.7",
     "drizzle-kit": "^0.31.11",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"

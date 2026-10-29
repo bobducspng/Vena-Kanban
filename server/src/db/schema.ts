@@ -150,6 +150,16 @@ export const emailTemplates = mysqlTable("email_templates", {
   updatedAt: updatedAt(),
 }, (t) => ({ pipeIdx: index("idx_emailtpl_pipe").on(t.pipeId) }));
 
+// Modelos de PDF of a pipe (M11): text with {placeholders} and light markup (see pdf.ts).
+export const pdfTemplates = mysqlTable("pdf_templates", {
+  id: id(),
+  pipeId: ref("pipe_id").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  body: text("body").notNull(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => ({ pipeIdx: index("idx_pdftpl_pipe").on(t.pipeId) }));
+
 // E-mails sent from a card (manually or by an automation).
 export const cardEmails = mysqlTable("card_emails", {
   id: id(),

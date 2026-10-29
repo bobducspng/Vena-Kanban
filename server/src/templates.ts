@@ -21,13 +21,16 @@ export interface CardContext {
   fill: (tpl: string, esc?: (s: string) => string) => string;
   /** Recipient list from "a@b.com, {E-mail do fornecedor}; {Solicitante}". Invalid ones dropped. */
   recipients: (spec: string) => string[];
+  /** Every filled field, in form order (phase, then position) — the PDF's {Todos os campos}. */
+  entries: () => { phase: string; label: string; value: string }[];
+  card: { number: number; title: string };
 }
 
 export async function cardContext(cardId: string): Promise<CardContext> {
   const card = (await db.select({ id: cards.id, number: cards.number, title: cards.title, pipeId: cards.pipeId, phaseId: cards.currentPhaseId }).from(cards).where(eq(cards.id, cardId)).limit(1))[0];
   if (!card) throw new Error("card não encontrado");
   const [defs, vals, phase, pipe, req, asg] = await Promise.all([
-    db.select({ id: fields.id, label: fields.label, type: fields.type }).from(fields).where(eq(fields.pipeId, card.pipeId)),
+    db.select({ id: fields.id, label: fields.label, type: fields.type, phaseId: fields.phaseId, position: fields.position, archivedAt: fields.archivedAt }).from(fields).where(eq(fields.pipeId, card.pipeId)),
     db.select().from(cardFields).where(eq(cardFields.cardId, cardId)),
     db.select({ name: phases.name }).from(phases).where(eq(phases.id, card.phaseId)).limit(1),
     db.select({ name: pipes.name }).from(pipes).where(eq(pipes.id, card.pipeId)).limit(1),
@@ -35,6 +38,7 @@ export async function cardContext(cardId: string): Promise<CardContext> {
     db.select({ email: users.email, name: users.name }).from(cardAssignees).innerJoin(users, eq(users.id, cardAssignees.userId)).where(eq(cardAssignees.cardId, cardId)),
   ]);
   const value = new Map(vals.map((v) => [v.fieldId, v.value]));
+  const phaseList = await db.select({ id: phases.id, name: phases.name, position: phases.position }).from(phases).where(eq(phases.pipeId, card.pipeId));
 
   // Ids inside list values → names.
   const ids = vals.flatMap((v) => (Array.isArray(v.value) ? (v.value as string[]) : []));
@@ -84,6 +88,15 @@ export async function cardContext(cardId: string): Promise<CardContext> {
 
   return {
     fill: (tpl, esc = (s) => s) => tpl.replace(/\{([^}]*)\}/g, (_m, raw: string) => esc(resolve(raw))),
+    card: { number: card.number, title: card.title },
+    entries: () => {
+      const order = new Map(phaseList.map((p) => [p.id, p]));
+      return defs
+        .filter((d) => !d.archivedAt && !["statement", "id"].includes(d.type) && order.has(d.phaseId))
+        .sort((a, b) => order.get(a.phaseId)!.position - order.get(b.phaseId)!.position || a.position - b.position)
+        .map((d) => ({ phase: order.get(d.phaseId)!.name, label: d.label, value: show(d.id) }))
+        .filter((e) => e.value !== "");
+    },
     recipients: (spec) => [...new Set(
       spec.replace(/\{([^}]*)\}/g, (_m, raw: string) => resolve(raw)).split(/[,;\s]+/).map((s) => s.trim().toLowerCase()).filter((s) => EMAIL.test(s)),
     )],

@@ -11,6 +11,7 @@ import { evaluate, FormulaError, type FValue } from "./formula.js";
 import { sweepAlerts } from "./slaService.js";
 import { cardContext } from "./templates.js";
 import { renderTemplate, sendFromCard } from "./emails.js";
+import { generateCardPdf } from "./pdf.js";
 import { notifyAssigned, notifyAutomationFailed, pruneNotifications } from "./notify.js";
 
 /**
@@ -72,6 +73,8 @@ export const action = z.discriminatedUnion("type", [
   }),
   // E-mail from a template of the pipe; `to` overrides the template's recipients.
   z.object({ type: z.literal("send_email"), templateId: z.string(), to: z.string().max(1000).optional() }),
+  // PDF from a modelo of the pipe (null = resumo do card), kept as a card attachment.
+  z.object({ type: z.literal("generate_pdf"), templateId: z.string().nullable() }),
 ]);
 export type Action = z.infer<typeof action>;
 type Trigger = z.infer<typeof trigger>;
@@ -188,6 +191,10 @@ async function runAction(rule: typeof automationRules.$inferSelect, a: Action, c
       if (!to.length) throw new Error("nenhum destinatário válido (o campo de e-mail está vazio?)");
       await sendFromCard({ cardId: card.id, to, cc: r.cc, subject: r.subject, body: r.body, templateId: a.templateId, via: actor.automation });
       return `e-mail para ${to.join(", ")}`;
+    }
+    case "generate_pdf": {
+      const file = await generateCardPdf(card.id, a.templateId, null);
+      return `PDF gerado: ${file?.filename}`;
     }
   }
 }

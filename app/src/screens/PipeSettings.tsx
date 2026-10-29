@@ -20,6 +20,7 @@ import { EmailTemplatesSection } from "../components/app/EmailParts";
 import { FieldEditorModal } from "../components/app/FieldEditorModal";
 import { cn } from "../lib/cn";
 import { PipeMembers } from "../components/app/PeopleSettings";
+import { PdfTemplatesSection } from "../components/app/PdfParts";
 import { Avatar } from "../components/ui/Avatar";
 
 const COLOR_LABEL: Record<PhaseColor, string> = {
@@ -142,6 +143,8 @@ export function PipeSettings() {
         <PublicFormSettings pipeId={pipeId} />
 
         <EmailTemplatesSection pipeId={pipeId} fields={(fields ?? []).filter((f) => !f.archivedAt)} />
+
+        <PdfTemplatesSection pipeId={pipeId} fields={(fields ?? []).filter((f) => !f.archivedAt)} />
 
         <LabelsManager pipeId={pipeId} />
 
@@ -275,7 +278,7 @@ function PipeSection({ pipe, phases, fields }: { pipe: Pipe; phases: Phase[]; fi
       </fieldset>
       <div className="flex flex-wrap gap-2 border-t border-border pt-3">
         <Button variant="secondary" size="sm" loading={clone.isPending}
-          onClick={() => { const n = prompt("Nome do novo pipe (copia fases, campos, condicionais, automações, templates e membros; não copia cards):", `${pipe.name} (cópia)`)?.trim(); if (n) clone.mutate(n); }}>
+          onClick={() => { const n = prompt("Nome do novo pipe (copia fases, campos, condicionais, automações, templates, modelos de PDF e membros; não copia cards):", `${pipe.name} (cópia)`)?.trim(); if (n) clone.mutate(n); }}>
           <Copy className="h-4 w-4" aria-hidden="true" /> Clonar pipe
         </Button>
         <Button variant="danger" size="sm" loading={remove.isPending}

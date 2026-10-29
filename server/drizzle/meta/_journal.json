@@ -127,6 +127,13 @@
       "when": 1793277217777,
       "tag": "0017_audit_folders",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "5",
+      "when": 1793279940641,
+      "tag": "0018_pdf_templates",
+      "breakpoints": true
     }
   ]
 }

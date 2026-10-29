@@ -182,7 +182,7 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
           <LabelsSection card={card} pipeId={pipeId} onChanged={refresh} />
           <DueDateSection card={card} onChanged={refresh} />
           <ChecklistSection cardId={card.id} onChanged={refresh} />
-          <AttachmentsSection cardId={card.id} onChanged={refresh} />
+          <AttachmentsSection cardId={card.id} pipeId={card.pipeId} onChanged={refresh} />
           <CommentsSection cardId={card.id} members={members ?? []} onChanged={refresh} />
           <EmailsSection cardId={card.id} pipeId={pipeId} />
           <OutsideSection cardId={card.id} phaseName={current.name} />

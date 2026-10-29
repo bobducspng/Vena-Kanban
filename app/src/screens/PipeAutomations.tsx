@@ -40,6 +40,7 @@ const ACTION_LABEL: Record<AutomationAction["type"], string> = {
   formula: "Calcular fórmula",
   http: "Chamar outro sistema (HTTP)",
   send_email: "Enviar e-mail (template)",
+  generate_pdf: "Gerar PDF (anexa ao card)",
 };
 const NOT_WRITABLE = ["connection", "attachment", "id"];
 
@@ -282,6 +283,7 @@ function blank(type: AutomationAction["type"], phases: Phase[]): AutomationActio
     case "formula": return { type, fieldId: "", expression: "" };
     case "http": return { type, method: "POST", url: "https://", headers: [{ name: "Content-Type", value: "application/json" }], body: "" };
     case "send_email": return { type, templateId: "" };
+    case "generate_pdf": return { type, templateId: null };
   }
 }
 
@@ -462,6 +464,7 @@ function ActionEditor({ index, action, phases, fields, onChange, onRemove }: {
       )}
 
       {action.type === "send_email" && <SendEmailEditor action={action} onChange={onChange} pipeId={fields[0]?.pipeId ?? ""} />}
+      {action.type === "generate_pdf" && <GeneratePdfEditor action={action} onChange={onChange} pipeId={fields[0]?.pipeId ?? ""} />}
 
       {action.type === "move_parent" && (
         <div className="grid gap-2 sm:grid-cols-2">
@@ -523,6 +526,14 @@ function TestModal({ rule, onClose }: { rule: AutomationRule | null; onClose: ()
         )}
       </div>
     </Modal>
+  );
+}
+
+function GeneratePdfEditor({ action, onChange, pipeId }: { action: Extract<AutomationAction, { type: "generate_pdf" }>; onChange: (a: AutomationAction) => void; pipeId: string }) {
+  const { data: templates } = useQuery({ queryKey: ["pdfTemplates", pipeId], queryFn: () => api.pdf.templates(pipeId), enabled: !!pipeId });
+  return (
+    <Select aria-label="Modelo de PDF" value={action.templateId ?? "__summary"} onValueChange={(v) => onChange({ ...action, templateId: v === "__summary" ? null : v })}
+      options={[{ value: "__summary", label: "Resumo do card (todos os campos)" }, ...(templates ?? []).map((t) => ({ value: t.id, label: t.name }))]} />
   );
 }
 

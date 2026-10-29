@@ -2,12 +2,12 @@ import { eq, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "./db/client.js";
 import {
-  pipes, phases, phaseTransitions, phaseAssignees, fields, labels, fieldConditions, automationRules, emailTemplates, pipeMembers,
+  pipes, phases, phaseTransitions, phaseAssignees, fields, labels, fieldConditions, automationRules, emailTemplates, pipeMembers, pdfTemplates,
 } from "./db/schema.js";
 
 /**
  * Clonar pipe (M10b): the whole configuration — phases, "Mover para", responsáveis
- * da fase, fields, etiquetas, condicionais, automações, templates de e-mail and
+ * da fase, fields, etiquetas, condicionais, automações, templates de e-mail, modelos de PDF and
  * members — without cards, public form or history. Every id gets a new one; ids
  * inside JSON settings (conditions, automation triggers/actions, connection
  * settings) are rewritten through the same map, so the copy points at itself.
@@ -19,7 +19,7 @@ export async function clonePipe(sourceId: string, orgId: string, name: string, u
 
   const srcPhases = await db.select().from(phases).where(eq(phases.pipeId, sourceId));
   const phaseIds = srcPhases.map((p) => p.id);
-  const [srcFields, srcLabels, srcConds, srcRules, srcTpls, srcMembers, srcTrans, srcPhaseAss] = await Promise.all([
+  const [srcFields, srcLabels, srcConds, srcRules, srcTpls, srcMembers, srcTrans, srcPhaseAss, srcPdfs] = await Promise.all([
     db.select().from(fields).where(eq(fields.pipeId, sourceId)),
     db.select().from(labels).where(eq(labels.pipeId, sourceId)),
     db.select().from(fieldConditions).where(eq(fieldConditions.pipeId, sourceId)),
@@ -28,10 +28,11 @@ export async function clonePipe(sourceId: string, orgId: string, name: string, u
     db.select().from(pipeMembers).where(eq(pipeMembers.pipeId, sourceId)),
     phaseIds.length ? db.select().from(phaseTransitions).where(inArray(phaseTransitions.fromPhaseId, phaseIds)) : [],
     phaseIds.length ? db.select().from(phaseAssignees).where(inArray(phaseAssignees.phaseId, phaseIds)) : [],
+    db.select().from(pdfTemplates).where(eq(pdfTemplates.pipeId, sourceId)),
   ]);
 
   const map = new Map<string, string>([[sourceId, crypto.randomUUID()]]);
-  for (const r of [...srcPhases, ...srcFields, ...srcLabels, ...srcConds, ...srcRules, ...srcTpls]) map.set(r.id, crypto.randomUUID());
+  for (const r of [...srcPhases, ...srcFields, ...srcLabels, ...srcConds, ...srcRules, ...srcTpls, ...srcPdfs]) map.set(r.id, crypto.randomUUID());
   const id = (old: string) => map.get(old) ?? old;
   const idN = (old: string | null) => (old ? id(old) : old);
   // Ids are UUIDs, so a plain text replace inside JSON cannot hit anything else.
@@ -57,6 +58,7 @@ export async function clonePipe(sourceId: string, orgId: string, name: string, u
       });
     }
     for (const { createdAt: _c3, updatedAt: _u3, ...t } of srcTpls) await tx.insert(emailTemplates).values({ ...t, id: id(t.id), pipeId: newId });
+    for (const { createdAt: _c4, updatedAt: _u4, ...t } of srcPdfs) await tx.insert(pdfTemplates).values({ ...t, id: id(t.id), pipeId: newId });
     if (srcMembers.length) await tx.insert(pipeMembers).values(srcMembers.map((m) => ({ pipeId: newId, userId: m.userId, role: m.role })));
   });
   return { pipeId: newId, automations: srcRules.length };

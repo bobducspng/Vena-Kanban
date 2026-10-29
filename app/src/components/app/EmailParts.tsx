@@ -15,7 +15,7 @@ const SPECIAL = ["#", "Título", "Fase", "Pipe", "Link do card", "Solicitante", 
 const list = (s: string) => s.split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean);
 
 /** Clickable {placeholders}: the card's fields + the special ones. */
-function Placeholders({ fields, onPick }: { fields: FieldDef[]; onPick: (p: string) => void }) {
+export function Placeholders({ fields, onPick }: { fields: FieldDef[]; onPick: (p: string) => void }) {
   return (
     <div className="flex flex-wrap gap-1">
       {[...SPECIAL, ...fields.filter((f) => !["attachment", "id"].includes(f.type)).map((f) => f.label)].map((p) => (

@@ -303,6 +303,15 @@ export const api = {
       (await trpc.email.history.query({ cardId })).map((e) => ({ ...e, status: e.status as CardEmail["status"], createdAt: toISO(e.createdAt) })),
   },
 
+  pdf: {
+    templates: (pipeId: string) => trpc.pdf.templates.query({ pipeId }),
+    defaultBody: () => trpc.pdf.defaultBody.query(),
+    create: (input: { pipeId: string; name: string; body: string }) => trpc.pdf.create.mutate(input),
+    update: (input: { templateId: string; name: string; body: string }) => trpc.pdf.update.mutate(input),
+    remove: (templateId: string) => trpc.pdf.remove.mutate({ templateId }),
+    generate: (cardId: string, templateId: string | null) => trpc.pdf.generate.mutate({ cardId, templateId }),
+  },
+
   outside: {
     phaseLinks: (cardId: string) => trpc.outside.phaseLinks.query({ cardId }),
     createPhaseLink: (input: { cardId: string; sendTo?: string; note?: string }) => trpc.outside.createPhaseLink.mutate(input),

@@ -10,6 +10,7 @@ import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Tag } from "../ui/Tag";
 import { Textarea } from "../ui/Textarea";
+import { GeneratePdfButton } from "./PdfParts";
 import { useToast } from "../ui/Toast";
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : "Algo deu errado");
@@ -175,7 +176,7 @@ export function ChecklistSection({ cardId, onChanged }: { cardId: string; onChan
 
 const fmtSize = (n: number | null) => (n == null ? "" : n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`);
 
-export function AttachmentsSection({ cardId, onChanged }: { cardId: string; onChanged: () => void }) {
+export function AttachmentsSection({ cardId, pipeId, onChanged }: { cardId: string; pipeId?: string; onChanged: () => void }) {
   const qc = useQueryClient();
   const toast = useToast();
   const { me, isAdmin } = useMe();
@@ -193,6 +194,7 @@ export function AttachmentsSection({ cardId, onChanged }: { cardId: string; onCh
     <Section title="Anexos" action={
       <>
         <input ref={input} type="file" multiple hidden onChange={(e) => { const l = Array.from(e.target.files ?? []); e.target.value = ""; if (l.length) upload.mutate(l); }} />
+        {pipeId && <GeneratePdfButton cardId={cardId} pipeId={pipeId} onDone={done} />}
         <Button size="sm" variant="secondary" loading={upload.isPending} onClick={() => input.current?.click()}><Paperclip className="h-4 w-4" aria-hidden="true" /> Anexar</Button>
       </>
     }>
