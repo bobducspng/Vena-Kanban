@@ -8,7 +8,7 @@ import { cards, memberships, notifications, users } from "./db/schema.js";
  * Never throws: a failed notification must not break the action that caused it.
  */
 
-type Kind = "mention" | "assigned" | "late" | "expired" | "overdue" | "automation_failed";
+type Kind = "mention" | "assigned" | "late" | "expired" | "overdue" | "automation_failed" | "outside";
 
 async function write(userIds: string[], n: { type: Kind; title: string; body?: string; cardId?: string; pipeId?: string; link?: string }, exceptUserId?: string | null) {
   const ids = [...new Set(userIds)].filter((u) => u && u !== exceptUserId);
@@ -53,6 +53,12 @@ export async function notifyAlert(assigneeIds: string[], cardId: string, kind: "
 export async function notifyAutomationFailed(orgId: string, pipeId: string, ruleName: string, message: string) {
   const admins = (await db.select({ userId: memberships.userId }).from(memberships).where(and(eq(memberships.orgId, orgId), eq(memberships.role, "admin")))).map((m) => m.userId);
   await write(admins, { type: "automation_failed", title: `Automação "${ruleName}" falhou`, body: message.slice(0, 500), pipeId, link: `/pipes/${pipeId}/automations` });
+}
+
+/** Something came from outside on a card (requester message, phase form filled): its responsáveis. */
+export async function notifyOutside(assigneeIds: string[], cardId: string, title: string, body?: string) {
+  const card = await cardLabel(cardId);
+  await write(assigneeIds, { type: "outside", title, body: body ? `${card.text}: ${body.slice(0, 200)}` : card.text, cardId, pipeId: card.pipeId });
 }
 
 /** Keep the table small: read notifications older than 90 days go away. */

@@ -159,7 +159,7 @@ export interface Pipe {
 /** A notification of the sino. */
 export interface Notification {
   id: string;
-  type: "mention" | "assigned" | "late" | "expired" | "overdue" | "automation_failed";
+  type: "mention" | "assigned" | "late" | "expired" | "overdue" | "automation_failed" | "outside";
   title: string;
   body: string | null;
   cardId: string | null;

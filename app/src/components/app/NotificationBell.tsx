@@ -1,13 +1,13 @@
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Popover from "@radix-ui/react-popover";
-import { AlarmClock, AtSign, Bell, Clock, UserPlus, Zap } from "lucide-react";
+import { AlarmClock, AtSign, Bell, Clock, Globe, UserPlus, Zap } from "lucide-react";
 import { api } from "../../data/store";
 import type { Notification } from "../../data/types";
 import { cn } from "../../lib/cn";
 
 const ICON: Record<Notification["type"], typeof Bell> = {
-  mention: AtSign, assigned: UserPlus, late: Clock, expired: AlarmClock, overdue: AlarmClock, automation_failed: Zap,
+  mention: AtSign, assigned: UserPlus, late: Clock, expired: AlarmClock, overdue: AlarmClock, automation_failed: Zap, outside: Globe,
 };
 const ago = (iso: string) => {
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);

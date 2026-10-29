@@ -8,7 +8,7 @@ import { Select } from "../ui/Select";
 import { Textarea } from "../ui/Textarea";
 import { useToast } from "../ui/Toast";
 
-type Branding = { description: string; color: string; buttonText: string; confirmMessage: string; allowMultiple: boolean; askEmail: "no" | "optional" | "required" };
+type Branding = { description: string; color: string; buttonText: string; confirmMessage: string; allowMultiple: boolean; askEmail: "no" | "optional" | "required"; showInPortal: boolean };
 
 /** Formulário público of a pipe: publish, link/embed, look and texts. */
 export function PublicFormSettings({ pipeId }: { pipeId: string }) {
@@ -103,6 +103,10 @@ export function PublicFormSettings({ pipeId }: { pipeId: string }) {
               <label className="inline-flex items-center gap-2 text-sm text-text">
                 <input type="checkbox" className="h-4 w-4 accent-accent" checked={f.closed} onChange={(e) => update.mutate({ pipeId, closed: e.target.checked })} />
                 Fechado (link no ar, mas não recebe respostas)
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm text-text">
+                <input type="checkbox" className="h-4 w-4 accent-accent" checked={!!b.showInPortal} onChange={(e) => saveBranding({ showInPortal: e.target.checked })} />
+                Mostrar no portal (<a href={`${import.meta.env.BASE_URL}portal`} target="_blank" rel="noreferrer" className="text-accent">abrir portal</a>)
               </label>
             </div>
           </div>

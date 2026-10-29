@@ -112,6 +112,29 @@ export const requests = mysqlTable("requests", {
   createdAt: createdAt(),
 }, (t) => ({ cardIdx: index("idx_requests_card").on(t.cardId), emailIdx: index("idx_requests_email").on(t.email), tokenUq: uniqueIndex("uq_requests_token").on(t.accessToken) }));
 
+// Formulário de fase por link: someone outside fills the fields of one phase of a card.
+export const phaseFormLinks = mysqlTable("phase_form_links", {
+  id: id(),
+  cardId: ref("card_id").notNull(),
+  phaseId: ref("phase_id").notNull(),
+  token: char("token", { length: 43 }).notNull(),
+  sentTo: varchar("sent_to", { length: 320 }),
+  createdBy: ref("created_by"),
+  submittedAt: datetime("submitted_at", { fsp: 3 }),
+  revokedAt: datetime("revoked_at", { fsp: 3 }),
+  createdAt: createdAt(),
+}, (t) => ({ cardIdx: index("idx_phaselinks_card").on(t.cardId), tokenUq: uniqueIndex("uq_phaselinks_token").on(t.token) }));
+
+// "Meus pedidos": messages between the requester (outside) and the team, per request.
+export const requestMessages = mysqlTable("request_messages", {
+  id: id(),
+  requestId: ref("request_id").notNull(),
+  fromRequester: boolean("from_requester").notNull(),
+  authorId: ref("author_id"), // team member (null when from the requester)
+  body: text("body").notNull(),
+  createdAt: createdAt(),
+}, (t) => ({ reqIdx: index("idx_reqmsg_request").on(t.requestId, t.createdAt) }));
+
 // In-app notifications (sino): mentions, assignments, alerts, automation failures.
 export const notifications = mysqlTable("notifications", {
   id: id(),

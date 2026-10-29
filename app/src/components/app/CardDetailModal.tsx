@@ -13,6 +13,7 @@ import { useToast } from "../ui/Toast";
 import type { Card, CardEvent, CardFieldValue, CardTimeline, FieldDef, Phase, User } from "../../data/types";
 import { AssigneesSection, AttachmentsSection, ChecklistSection, CommentsSection, DueDateSection, LabelsSection } from "./CardSections";
 import { fieldStates } from "../../lib/conditions";
+import { OutsideSection } from "./OutsideSection";
 import { withState } from "../../lib/useFieldStates";
 
 /** S06 — card detail in two columns: left = title, actions and phase fields;
@@ -182,6 +183,7 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
           <ChecklistSection cardId={card.id} onChanged={refresh} />
           <AttachmentsSection cardId={card.id} onChanged={refresh} />
           <CommentsSection cardId={card.id} members={members ?? []} onChanged={refresh} />
+          <OutsideSection cardId={card.id} phaseName={current.name} />
 
           <section aria-label="Histórico" className="flex flex-col gap-2 border-t border-border pt-4">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Histórico</h3>
@@ -310,6 +312,9 @@ function describe(e: CardEvent, phases: Phase[], members: User[]): string {
     case "expired": return "Card expirou (prazo do pipe)";
     case "overdue": return "Card venceu (data de vencimento)";
     case "autofill_refreshed": return `${who} atualizou dados do cadastro`;
+    case "phase_link_created": return `${who} pediu para alguém de fora preencher a fase`;
+    case "request_message": return "Solicitante enviou uma mensagem";
+    case "request_reply": return `${who} respondeu ao solicitante`;
     default: return e.type;
   }
 }

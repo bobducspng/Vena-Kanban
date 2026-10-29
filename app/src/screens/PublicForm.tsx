@@ -8,6 +8,7 @@ import { Button } from "../components/ui/Button";
 import { Field } from "../components/ui/Field";
 import { Input } from "../components/ui/Input";
 import { Spinner } from "../components/ui/Spinner";
+import { PublicShell as Shell } from "../components/app/PublicShell";
 
 type Value = CardFieldValue["value"];
 interface Definition {
@@ -113,14 +114,5 @@ export function PublicForm() {
         </form>
       )}
     </Shell>
-  );
-}
-
-function Shell({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
-  return (
-    <div className="min-h-screen bg-surface px-4 py-8" style={style}>
-      <main className="mx-auto max-w-xl rounded-lg bg-bg p-6 shadow-card">{children}</main>
-      <p className="mt-4 text-center text-xs text-muted">Enviado com Fluxos</p>
-    </div>
   );
 }

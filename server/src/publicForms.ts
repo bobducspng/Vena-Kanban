@@ -25,6 +25,7 @@ export const branding = z.object({
   confirmMessage: z.string().max(2000).default("Recebemos sua solicitação. Obrigado!"),
   allowMultiple: z.boolean().default(true), // "enviar outra resposta" after submitting
   askEmail: z.enum(["no", "optional", "required"]).default("optional"), // requester e-mail (confirmation + tracking)
+  showInPortal: z.boolean().default(false), // listed on the public portal page
 });
 export type Branding = z.infer<typeof branding>;
 export const readBranding = (raw: unknown): Branding => branding.parse(raw ?? {});

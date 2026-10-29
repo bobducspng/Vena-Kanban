@@ -263,6 +263,14 @@ export const api = {
     regenerate: (pipeId: string) => trpc.publicForm.regenerate.mutate({ pipeId }),
   },
 
+  outside: {
+    phaseLinks: (cardId: string) => trpc.outside.phaseLinks.query({ cardId }),
+    createPhaseLink: (input: { cardId: string; sendTo?: string; note?: string }) => trpc.outside.createPhaseLink.mutate(input),
+    revokePhaseLink: (linkId: string) => trpc.outside.revokePhaseLink.mutate({ linkId }),
+    request: (cardId: string) => trpc.outside.request.query({ cardId }),
+    reply: (requestId: string, body: string) => trpc.outside.reply.mutate({ requestId, body }),
+  },
+
   notification: {
     list: async (): Promise<Notification[]> =>
       (await trpc.notification.list.query()).map((n) => ({ ...n, type: n.type as Notification["type"], readAt: toISON(n.readAt), createdAt: toISO(n.createdAt) })),
