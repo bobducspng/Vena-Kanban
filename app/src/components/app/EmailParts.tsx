@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Mail, Pencil, Plus, Send, Trash2 } from "lucide-react";
+import { Mail, Pencil, Plus, Send, Smartphone, Trash2 } from "lucide-react";
+import { describeReport, makeResponsive } from "../../lib/responsiveEmail";
 import { api } from "../../data/store";
 import type { EmailTemplate, FieldDef } from "../../data/types";
 import { Button } from "../ui/Button";
@@ -73,7 +74,9 @@ function TemplateModal({ pipeId, fields, editing, onClose }: { pipeId: string; f
   const existing = editing && editing !== "new" ? editing : null;
   const [t, setT] = useState<Omit<EmailTemplate, "id" | "pipeId">>({ name: "", toSpec: "", ccSpec: "", subject: "", format: "text", body: "" });
   const [focus, setFocus] = useState<"toSpec" | "ccSpec" | "subject" | "body">("body");
+  const [undo, setUndo] = useState<string | null>(null); // HTML before "Ajustar para celular"
   useEffect(() => {
+    setUndo(null);
     if (editing) setT(existing ? { name: existing.name, toSpec: existing.toSpec, ccSpec: existing.ccSpec, subject: existing.subject, format: existing.format, body: existing.body } : { name: "", toSpec: "{Solicitante}", ccSpec: "", subject: "Solicitação #{#}: {Título}", format: "text", body: "Olá,\n\n\n\nAtenciosamente,\nEquipe Vena" });
   }, [editing]); // eslint-disable-line react-hooks/exhaustive-deps
   const save = useMutation({
@@ -97,6 +100,15 @@ function TemplateModal({ pipeId, fields, editing, onClose }: { pipeId: string; f
               {f === "text" ? "Texto simples" : "HTML (e-mail formatado)"}
             </button>
           ))}
+          {t.format === "html" && t.body.trim() && (
+            <Button size="sm" variant="secondary" type="button" onClick={() => {
+              const r = makeResponsive(t.body, (h) => new DOMParser().parseFromString(h, "text/html"));
+              setUndo(t.body); setT({ ...t, body: r.html }); toast(describeReport(r.report), "success");
+            }}><Smartphone className="h-4 w-4" aria-hidden="true" /> Ajustar para celular (responsivo)</Button>
+          )}
+          {t.format === "html" && undo !== null && (
+            <button type="button" className="text-xs text-accent hover:underline" onClick={() => { setT({ ...t, body: undo }); setUndo(null); }}>Desfazer ajuste</button>
+          )}
           {t.format === "html" && (
             <label className="cursor-pointer text-xs text-accent hover:underline">
               Enviar arquivo .html
