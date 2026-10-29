@@ -69,6 +69,8 @@ export const pipes = mysqlTable("pipes", {
   expirationMinutes: int("expiration_minutes"),
   // Count SLAs/expiration in business time (org calendar) instead of calendar time.
   businessHoursOnly: boolean("business_hours_only").notNull().default(false),
+  // Pasta na tela inicial (null = sem pasta).
+  folder: varchar("folder", { length: 100 }),
   deletedAt: datetime("deleted_at", { fsp: 3 }),
   createdBy: ref("created_by"),
   createdAt: createdAt(),
@@ -209,6 +211,16 @@ export const fieldConditions = mysqlTable("field_conditions", {
   onFalse: json("on_false").notNull(), // FieldAction[]
   createdAt: createdAt(),
 }, (t) => ({ phaseIdx: index("idx_conditions_phase").on(t.phaseId, t.position), pipeIdx: index("idx_conditions_pipe").on(t.pipeId) }));
+
+// Auditoria: every configuration change made by an admin (who, what, when, with which data).
+export const auditLog = mysqlTable("audit_log", {
+  id: id(),
+  orgId: ref("org_id").notNull(),
+  userId: ref("user_id"),
+  action: varchar("action", { length: 128 }).notNull(), // tRPC path, e.g. "field.update"
+  input: text("input"), // JSON of the request, truncated
+  createdAt: createdAt(),
+}, (t) => ({ orgIdx: index("idx_audit_org").on(t.orgId, t.createdAt) }));
 
 // Who may open a pipe (closed by default; org admins see every pipe).
 // role: member (all cards) · my_cards (only cards they created or are responsável) · read (view + comment)

@@ -12,6 +12,7 @@ import { Spinner } from "../components/ui/Spinner";
 import { useToast } from "../components/ui/Toast";
 import { BiSettings } from "../components/app/BiSettings";
 import { PeopleSettings } from "../components/app/PeopleSettings";
+import { OrgNameSettings, AuditSettings } from "../components/app/OrgAdmin";
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const fmt = (d: string) => { const [y, m, dd] = d.split("-"); return `${dd}/${m}/${y}`; };
@@ -50,6 +51,8 @@ export function OrgSettings() {
           <h2 className="text-xl text-text">Configurações da organização</h2>
           <p className="text-sm text-muted">Expediente e feriados usados pelos prazos dos pipes que contam só horário útil.</p>
         </div>
+
+        <OrgNameSettings />
 
         {isLoading || !cal ? <Spinner className="h-4 w-4" label="Carregando" /> : (
           <>
@@ -107,6 +110,8 @@ export function OrgSettings() {
             <PeopleSettings />
 
             <BiSettings />
+
+            <AuditSettings />
           </>
         )}
       </div>

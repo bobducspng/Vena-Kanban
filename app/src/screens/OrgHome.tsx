@@ -18,6 +18,16 @@ const STRIPE: Record<string, string> = {
   green: "border-l-label-green", teal: "border-l-label-teal", blue: "border-l-label-blue", purple: "border-l-label-purple", pink: "border-l-label-pink",
 };
 
+/** Pipes grouped by pasta (alphabetical); pipes without one come first, untitled. */
+function byFolder<T extends { folder?: string | null; name: string }>(list: T[]): [string, T[]][] {
+  const groups = new Map<string, T[]>();
+  for (const p of [...list].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))) {
+    const k = p.folder ?? "";
+    groups.set(k, [...(groups.get(k) ?? []), p]);
+  }
+  return [...groups.entries()].sort(([a], [b]) => (a === "" ? -1 : b === "" ? 1 : a.localeCompare(b, "pt-BR")));
+}
+
 export function OrgHome() {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -65,8 +75,12 @@ export function OrgHome() {
             {isAdmin && <Button className="mt-4" onClick={() => setOpen(true)}>Criar pipe</Button>}
           </div>
         ) : (
+          <div className="flex flex-col gap-6">
+          {byFolder(pipes).map(([folder, list]) => (
+          <section key={folder} aria-label={folder || "Pipes sem pasta"} className="flex flex-col gap-2">
+          {folder && <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">{folder}</h3>}
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {pipes.map((p) => (
+            {list.map((p) => (
               <li key={p.id}>
                 <button
                   onClick={() => navigate(`/pipes/${p.id}`)}
@@ -78,6 +92,9 @@ export function OrgHome() {
               </li>
             ))}
           </ul>
+          </section>
+          ))}
+          </div>
         )}
         {isAdmin && <DeletedPipes />}
         {isAdmin && <AutomationFailures />}

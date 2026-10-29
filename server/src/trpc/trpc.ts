@@ -6,6 +6,7 @@ import { db } from "../db/client.js";
 import { memberships } from "../db/schema.js";
 import { getUserIdFromRequest } from "../auth/session.js";
 import { assertPipeRead, runAs } from "../access.js";
+import { recordAudit } from "../audit.js";
 
 export interface Context {
   userId: string | null;
@@ -37,9 +38,15 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
   return runAs(userId, ctx.role, () => next({ ctx: { ...ctx, userId, orgId } }));
 });
 
-export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
+/** Admins only. Every successful change goes to the audit log (Configurações > Auditoria). */
+export const adminProcedure = protectedProcedure.use(async ({ ctx, next, path, type, getRawInput }) => {
   if (ctx.role !== "admin") throw new TRPCError({ code: "FORBIDDEN", message: "Apenas administradores" });
-  return next({ ctx });
+  const result = await next({ ctx });
+  if (type === "mutation" && result.ok) {
+    await recordAudit(ctx.orgId, ctx.userId, path, await getRawInput().catch(() => undefined))
+      .catch((err) => console.error("audit failed:", err));
+  }
+  return result;
 });
 
 /** Assert that a pipe belongs to the caller's org. The one authorization choke

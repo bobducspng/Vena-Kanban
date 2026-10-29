@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
 import { pipes, phases, fields, phaseTransitions, pipeMembers } from "../../db/schema.js";
 import { pipeRole } from "../../access.js";
+import { clonePipe } from "../../clonePipe.js";
 import { router, protectedProcedure, adminProcedure } from "../trpc.js";
 
 export const pipeRouter = router({
@@ -70,11 +71,13 @@ export const pipeRouter = router({
       subtitleFieldIds: z.array(z.string()).max(5).optional(),
       expirationMinutes: z.number().int().min(1).max(525_600 * 3).nullable().optional(),
       businessHoursOnly: z.boolean().optional(),
+      folder: z.string().trim().max(100).nullable().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const pipe = (await db.select().from(pipes).where(and(eq(pipes.id, input.pipeId), eq(pipes.orgId, ctx.orgId), isNull(pipes.deletedAt))).limit(1))[0];
       if (!pipe) throw new TRPCError({ code: "NOT_FOUND", message: "Pipe não encontrado" });
       const { pipeId, ...patch } = input;
+      if (patch.folder === "") patch.folder = null;
       if (patch.titleFieldId) {
         // Must be a start-form field holding text-like values.
         const start = (await db.select().from(phases).where(and(eq(phases.pipeId, pipeId), eq(phases.isStart, true))).limit(1))[0];
@@ -91,6 +94,10 @@ export const pipeRouter = router({
       if (Object.keys(patch).length) await db.update(pipes).set(patch).where(eq(pipes.id, pipeId));
       return (await db.select().from(pipes).where(eq(pipes.id, pipeId)).limit(1))[0];
     }),
+
+  /** Copy of the configuration (no cards); automations come over turned off. */
+  clone: adminProcedure.input(z.object({ pipeId: z.string(), name: z.string().trim().min(1).max(255) })).mutation(({ ctx, input }) =>
+    clonePipe(input.pipeId, ctx.orgId, input.name, ctx.userId)),
 
   /** Excluir = hide the pipe (restorable by an admin); cards stay in the database. */
   remove: adminProcedure.input(z.object({ pipeId: z.string() })).mutation(async ({ ctx, input }) => {

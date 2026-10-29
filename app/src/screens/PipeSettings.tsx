@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, Pencil, Plus, Trash2, Flag, CheckCircle2, Archive, ArchiveRestore } from "lucide-react";
+import { ArrowDown, ArrowUp, Pencil, Plus, Trash2, Flag, CheckCircle2, Archive, ArchiveRestore, Copy } from "lucide-react";
 import { api } from "../data/store";
 import { useMe } from "../lib/useMe";
 import { EDITABLE_FIELD_TYPES, PHASE_COLORS, type FieldDef, type Phase, type PhaseColor, type Pipe } from "../data/types";
@@ -161,9 +161,21 @@ function PipeSection({ pipe, phases, fields }: { pipe: Pipe; phases: Phase[]; fi
   const navigate = useNavigate();
   const [form, setForm] = useState({
     name: pipe.name, description: pipe.description ?? "", icon: pipe.icon ?? "", noun: pipe.noun ?? "", createButtonLabel: pipe.createButtonLabel ?? "",
+    folder: pipe.folder ?? "",
+  });
+  const onError = (e: unknown) => toast(errMsg(e), "error");
+  const { data: allPipes } = useQuery({ queryKey: ["pipes"], queryFn: api.pipe.list });
+  const folders = [...new Set((allPipes ?? []).map((p) => p.folder).filter(Boolean))] as string[];
+  const clone = useMutation({
+    mutationFn: (name: string) => api.pipe.clone(pipe.id, name),
+    onSuccess: (r) => {
+      done();
+      toast(r.automations ? `Pipe clonado. As ${r.automations} automação(ões) vieram desligadas: revise e ligue.` : "Pipe clonado", "success");
+      navigate(`/pipes/${r.pipeId}/settings`);
+    },
+    onError,
   });
   const done = () => { qc.invalidateQueries({ queryKey: ["pipe", pipe.id] }); qc.invalidateQueries({ queryKey: ["pipes"] }); };
-  const onError = (e: unknown) => toast(errMsg(e), "error");
   const update = useMutation({ mutationFn: (patch: Parameters<typeof api.pipe.update>[0]) => api.pipe.update(patch), onSuccess: done, onError });
   const remove = useMutation({
     mutationFn: () => api.pipe.remove(pipe.id),
@@ -210,9 +222,16 @@ function PipeSection({ pipe, phases, fields }: { pipe: Pipe; phases: Phase[]; fi
             options={PHASE_COLORS.map((c) => ({ value: c, label: COLOR_LABEL[c] }))} />
         </div>
       </div>
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="pipe-description" className="text-sm font-medium text-text">Descrição</label>
-        <Input id="pipe-description" {...bind("description")} placeholder="Para que serve este processo" />
+      <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_14rem]">
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="pipe-description" className="text-sm font-medium text-text">Descrição</label>
+          <Input id="pipe-description" {...bind("description")} placeholder="Para que serve este processo" />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="pipe-folder" className="text-sm font-medium text-text">Pasta</label>
+          <Input id="pipe-folder" list="pipe-folders" {...bind("folder")} placeholder="Ex.: Financeiro" maxLength={100} />
+          <datalist id="pipe-folders">{folders.map((f) => <option key={f} value={f} />)}</datalist>
+        </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
@@ -254,7 +273,11 @@ function PipeSection({ pipe, phases, fields }: { pipe: Pipe; phases: Phase[]; fi
           ))}
         </div>
       </fieldset>
-      <div className="border-t border-border pt-3">
+      <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+        <Button variant="secondary" size="sm" loading={clone.isPending}
+          onClick={() => { const n = prompt("Nome do novo pipe (copia fases, campos, condicionais, automações, templates e membros; não copia cards):", `${pipe.name} (cópia)`)?.trim(); if (n) clone.mutate(n); }}>
+          <Copy className="h-4 w-4" aria-hidden="true" /> Clonar pipe
+        </Button>
         <Button variant="danger" size="sm" loading={remove.isPending}
           onClick={() => { if (prompt(`Para excluir, digite o nome do pipe: ${pipe.name}`)?.trim() === pipe.name) remove.mutate(); }}>
           <Trash2 className="h-4 w-4" aria-hidden="true" /> Excluir pipe

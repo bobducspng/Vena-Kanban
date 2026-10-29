@@ -157,6 +157,7 @@ export interface Pipe {
   expirationMinutes?: number | null; // prazo do pipe ("expirado" after this)
   businessHoursOnly?: boolean; // count SLAs in business time (org calendar)
   myRole?: PipeRole | null; // only from pipe.get
+  folder?: string | null; // pasta na tela inicial
 }
 
 /** A notification of the sino. */

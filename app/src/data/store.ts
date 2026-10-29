@@ -37,7 +37,7 @@ const toISO = (d: Date | string | null | undefined): string =>
 const toISON = (d: Date | string | null | undefined): string | null =>
   d == null ? null : (d instanceof Date ? d.toISOString() : d);
 
-type SrvPipe = { id: string; name: string; description: string | null; createdAt: Date | string; icon?: string | null; color?: string | null; noun?: string | null; createButtonLabel?: string | null; titleFieldId?: string | null; subtitleFieldIds?: unknown; deletedAt?: Date | string | null; expirationMinutes?: number | null; businessHoursOnly?: boolean; myRole?: string | null };
+type SrvPipe = { id: string; name: string; description: string | null; createdAt: Date | string; icon?: string | null; color?: string | null; noun?: string | null; createButtonLabel?: string | null; titleFieldId?: string | null; subtitleFieldIds?: unknown; deletedAt?: Date | string | null; expirationMinutes?: number | null; businessHoursOnly?: boolean; myRole?: string | null; folder?: string | null };
 type SrvPhase = { id: string; pipeId: string; name: string; color: string | null; position: number; isStart: boolean; isEnd: boolean; description: string | null; canCreateCard: boolean; allowedTo?: string[]; assigneeIds?: string[]; slaMinutes?: number | null };
 type SrvField = { id: string; pipeId: string; phaseId: string; label: string; type: string; required: boolean; options: unknown; position: number; description: string | null; help: string | null; editableOtherPhases: boolean; isUnique: boolean; validationRegex: string | null; archivedAt: Date | string | null; settings?: unknown };
 type SrvCard = { id: string; number: number; pipeId: string; currentPhaseId: string; title: string; dueDate: Date | string | null; done: boolean; version: number; createdAt: Date | string; values: { fieldId: string; value: unknown }[]; assigneeIds: string[]; labelIds: string[]; checklistDone: number; checklistTotal: number; commentCount: number; attachmentCount: number;
@@ -50,7 +50,7 @@ const mapPipe = (p: SrvPipe): Pipe => ({
   icon: p.icon, color: p.color, noun: p.noun, createButtonLabel: p.createButtonLabel, titleFieldId: p.titleFieldId,
   subtitleFieldIds: Array.isArray(p.subtitleFieldIds) ? (p.subtitleFieldIds as string[]) : [], deletedAt: toISON(p.deletedAt),
   expirationMinutes: p.expirationMinutes ?? null, businessHoursOnly: !!p.businessHoursOnly,
-  myRole: (p.myRole as Pipe["myRole"]) ?? null,
+  myRole: (p.myRole as Pipe["myRole"]) ?? null, folder: p.folder ?? null,
 });
 const mapPhase = (p: SrvPhase): Phase => ({ id: p.id, pipeId: p.pipeId, name: p.name, color: p.color ?? "gray", position: p.position, isStart: p.isStart, isEnd: p.isEnd, description: p.description, canCreateCard: p.canCreateCard, allowedTo: p.allowedTo ?? [], assigneeIds: p.assigneeIds ?? [], slaMinutes: p.slaMinutes ?? null });
 const mapField = (f: SrvField): FieldDef => ({ id: f.id, pipeId: f.pipeId, phaseId: f.phaseId, label: f.label, type: f.type as FieldType, required: f.required, options: Array.isArray(f.options) ? (f.options as string[]) : undefined, position: f.position, description: f.description, help: f.help, editableOtherPhases: f.editableOtherPhases, isUnique: f.isUnique, validationRegex: f.validationRegex, archivedAt: toISON(f.archivedAt),
@@ -129,8 +129,9 @@ export const api = {
     update: async (input: {
       pipeId: string; name?: string; description?: string | null; icon?: string | null; color?: PhaseColor | null;
       noun?: string | null; createButtonLabel?: string | null; titleFieldId?: string | null; subtitleFieldIds?: string[];
-      expirationMinutes?: number | null; businessHoursOnly?: boolean;
+      expirationMinutes?: number | null; businessHoursOnly?: boolean; folder?: string | null;
     }): Promise<Pipe> => mapPipe(await trpc.pipe.update.mutate(input)),
+    clone: (pipeId: string, name: string) => trpc.pipe.clone.mutate({ pipeId, name }),
     remove: (pipeId: string) => trpc.pipe.remove.mutate({ pipeId }),
     listDeleted: async (): Promise<Pipe[]> => (await trpc.pipe.listDeleted.query()).map(mapPipe),
     restore: (pipeId: string) => trpc.pipe.restore.mutate({ pipeId }),
@@ -264,6 +265,12 @@ export const api = {
     update: (input: { pipeId: string; title?: string | null; closed?: boolean; branding?: Record<string, unknown> }) =>
       trpc.publicForm.update.mutate(input as Parameters<typeof trpc.publicForm.update.mutate>[0]),
     regenerate: (pipeId: string) => trpc.publicForm.regenerate.mutate({ pipeId }),
+  },
+
+  org: {
+    get: () => trpc.org.get.query(),
+    update: (name: string) => trpc.org.update.mutate({ name }),
+    audit: (before?: Date, limit = 100) => trpc.org.audit.query({ before, limit }),
   },
 
   people: {

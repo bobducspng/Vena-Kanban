@@ -20,6 +20,7 @@ import { emailRouter } from "./email.js";
 import { dashboardRouter } from "./dashboard.js";
 import { biRouter } from "./bi.js";
 import { peopleRouter } from "./people.js";
+import { orgRouter } from "./org.js";
 
 export const appRouter = router({
   user: userRouter,
@@ -43,6 +44,7 @@ export const appRouter = router({
   dashboard: dashboardRouter,
   bi: biRouter,
   people: peopleRouter,
+  org: orgRouter,
 });
 
 // The front-end imports this type for an end-to-end-typed client.
