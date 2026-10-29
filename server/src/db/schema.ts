@@ -210,6 +210,15 @@ export const fieldConditions = mysqlTable("field_conditions", {
   createdAt: createdAt(),
 }, (t) => ({ phaseIdx: index("idx_conditions_phase").on(t.phaseId, t.position), pipeIdx: index("idx_conditions_pipe").on(t.pipeId) }));
 
+// Who may open a pipe (closed by default; org admins see every pipe).
+// role: member (all cards) · my_cards (only cards they created or are responsável) · read (view + comment)
+export const pipeMembers = mysqlTable("pipe_members", {
+  pipeId: ref("pipe_id").notNull(),
+  userId: ref("user_id").notNull(),
+  role: varchar("role", { length: 16 }).notNull().default("member"),
+  createdAt: createdAt(),
+}, (t) => ({ pk: primaryKey({ columns: [t.pipeId, t.userId] }), userIdx: index("idx_pipemembers_user").on(t.userId) }));
+
 // Responsáveis da fase: added to a card while it sits in the phase.
 export const phaseAssignees = mysqlTable("phase_assignees", {
   phaseId: ref("phase_id").notNull(),

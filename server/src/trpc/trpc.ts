@@ -5,6 +5,7 @@ import { eq, and } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { memberships } from "../db/schema.js";
 import { getUserIdFromRequest } from "../auth/session.js";
+import { assertPipeRead, runAs } from "../access.js";
 
 export interface Context {
   userId: string | null;
@@ -31,7 +32,9 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
   if (!ctx.userId || !ctx.orgId) {
     throw new TRPCError({ code: "UNAUTHORIZED", message: "Faça login para continuar" });
   }
-  return next({ ctx: { ...ctx, userId: ctx.userId, orgId: ctx.orgId } });
+  // The caller rides along the request, so pipe access checks know who is asking.
+  const userId = ctx.userId, orgId = ctx.orgId;
+  return runAs(userId, ctx.role, () => next({ ctx: { ...ctx, userId, orgId } }));
 });
 
 export const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -46,4 +49,6 @@ export async function assertPipeInOrg(pipeId: string, orgId: string): Promise<vo
   const row = (await db.select({ id: pipes.id }).from(pipes)
     .where(and(eq(pipes.id, pipeId), eq(pipes.orgId, orgId))).limit(1))[0];
   if (!row) throw new TRPCError({ code: "NOT_FOUND", message: "Pipe não encontrado" });
+  // Closed by default: the caller must be an org admin or a member of the pipe.
+  await assertPipeRead(pipeId);
 }

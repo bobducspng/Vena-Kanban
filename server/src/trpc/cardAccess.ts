@@ -3,12 +3,22 @@ import { TRPCError } from "@trpc/server";
 import { db } from "../db/client.js";
 import { cards, cardEvents } from "../db/schema.js";
 import { assertPipeInOrg } from "./trpc.js";
+import { assertCardWrite, canSeeCard } from "../access.js";
 
 /** Load a card and authorize its pipe. `allowDeleted` lets trash screens see it. */
 export async function cardInOrg(cardId: string, orgId: string, allowDeleted = false) {
   const card = (await db.select().from(cards).where(eq(cards.id, cardId)).limit(1))[0];
   if (!card || (card.deletedAt && !allowDeleted)) throw new TRPCError({ code: "NOT_FOUND", message: "Card não encontrado" });
   await assertPipeInOrg(card.pipeId, orgId);
+  // "Só os meus cards": someone else's card does not exist for this person.
+  if (!(await canSeeCard(card))) throw new TRPCError({ code: "NOT_FOUND", message: "Card não encontrado" });
+  return card;
+}
+
+/** cardInOrg + the caller may change it (not "somente leitura"; "só os meus" owns it). */
+export async function cardForWrite(cardId: string, orgId: string, allowDeleted = false) {
+  const card = await cardInOrg(cardId, orgId, allowDeleted);
+  await assertCardWrite(card);
   return card;
 }
 

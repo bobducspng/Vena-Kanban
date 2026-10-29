@@ -4,12 +4,12 @@ import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
 import { checklistItems } from "../../db/schema.js";
 import { router, protectedProcedure } from "../trpc.js";
-import { cardInOrg } from "../cardAccess.js";
+import { cardInOrg, cardForWrite } from "../cardAccess.js";
 
 async function itemInOrg(itemId: string, orgId: string) {
   const item = (await db.select().from(checklistItems).where(eq(checklistItems.id, itemId)).limit(1))[0];
   if (!item) throw new TRPCError({ code: "NOT_FOUND", message: "Item não encontrado" });
-  await cardInOrg(item.cardId, orgId);
+  await cardForWrite(item.cardId, orgId);
   return item;
 }
 
@@ -22,7 +22,7 @@ export const checklistRouter = router({
   add: protectedProcedure
     .input(z.object({ cardId: z.string(), text: z.string().trim().min(1).max(500) }))
     .mutation(async ({ ctx, input }) => {
-      await cardInOrg(input.cardId, ctx.orgId);
+      await cardForWrite(input.cardId, ctx.orgId);
       const [{ max }] = await db.select({ max: sql<number | null>`MAX(${checklistItems.position})` })
         .from(checklistItems).where(eq(checklistItems.cardId, input.cardId));
       const id = crypto.randomUUID();

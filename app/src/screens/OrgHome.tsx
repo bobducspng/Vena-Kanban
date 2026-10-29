@@ -58,9 +58,9 @@ export function OrgHome() {
         ) : !pipes || pipes.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border-input p-12 text-center">
             <LayoutGrid className="mx-auto h-8 w-8 text-muted" aria-hidden="true" />
-            <p className="mt-3 text-sm font-medium text-text">Nenhum pipe ainda</p>
+            <p className="mt-3 text-sm font-medium text-text">{isAdmin ? "Nenhum pipe ainda" : "Você ainda não está em nenhum pipe"}</p>
             <p className="mt-1 text-sm text-muted">
-              {isAdmin ? "Crie seu primeiro processo para começar." : "Peça a um administrador para criar o primeiro processo."}
+              {isAdmin ? "Crie seu primeiro processo para começar." : "Peça a um administrador para adicionar você aos pipes em que vai trabalhar."}
             </p>
             {isAdmin && <Button className="mt-4" onClick={() => setOpen(true)}>Criar pipe</Button>}
           </div>

@@ -4,7 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
 import { cardEmails, emailTemplates, users } from "../../db/schema.js";
 import { router, protectedProcedure, adminProcedure, assertPipeInOrg } from "../trpc.js";
-import { cardInOrg } from "../cardAccess.js";
+import { cardInOrg, cardForWrite } from "../cardAccess.js";
 import { renderTemplate, sendFromCard } from "../../emails.js";
 import { mailEnabled, MAX_RECIPIENTS } from "../../mailer.js";
 
@@ -67,7 +67,7 @@ export const emailRouter = router({
       attachmentIds: z.array(z.string()).max(20).default([]), templateId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const card = await cardInOrg(input.cardId, ctx.orgId);
+      const card = await cardForWrite(input.cardId, ctx.orgId);
       const me = (await db.select({ email: users.email }).from(users).where(eq(users.id, ctx.userId)).limit(1))[0];
       try {
         await sendFromCard({ ...input, cardId: card.id, sentBy: ctx.userId, replyTo: me?.email });

@@ -55,7 +55,10 @@ authRoutes.get("/auth/google/callback", async (req, res) => {
     }
     const member = (await db.select().from(memberships).where(eq(memberships.userId, user.id)).limit(1))[0];
     if (!member) {
-      await db.insert(memberships).values({ id: crypto.randomUUID(), orgId: org.id, userId: user.id, role: "admin" });
+      // The first person sets the org up (admin); everyone after starts as a member
+      // with no pipes until an admin adds them (closed by default, M10).
+      const anyone = (await db.select({ id: memberships.id }).from(memberships).where(eq(memberships.orgId, org.id)).limit(1))[0];
+      await db.insert(memberships).values({ id: crypto.randomUUID(), orgId: org.id, userId: user.id, role: anyone ? "member" : "admin" });
     }
 
     const token = await createSession(user.id);

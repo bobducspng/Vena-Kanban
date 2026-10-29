@@ -8,6 +8,7 @@ import { db } from "../db/client.js";
 import { attachments, cards, cardFields, fields, memberships, pipes } from "../db/schema.js";
 import { getUserIdFromRequest } from "../auth/session.js";
 import { logEvent } from "../trpc/cardAccess.js";
+import { assertCardWrite, canSeeCard } from "../access.js";
 
 // Attachments live on the VM's disk (decision 2026-10-28), outside the repo's code:
 // <repo>/data/uploads/<cardId>/<attachmentId>. From server/{src,dist}/http that is ../../../data.
@@ -22,11 +23,20 @@ async function caller(req: Request) {
   return m ? { userId, orgId: m.orgId, role: m.role } : null;
 }
 
-/** The card, if it exists, is not in the trash and belongs to the caller's org. */
-async function cardFor(cardId: string, orgId: string) {
-  const row = (await db.select({ id: cards.id, pipeId: cards.pipeId, deletedAt: cards.deletedAt, orgId: pipes.orgId })
+type Who = NonNullable<Awaited<ReturnType<typeof caller>>>;
+
+/** The card, if it exists, is not in the trash, belongs to the caller's org and they may see it (M10). */
+async function cardFor(cardId: string, who: Who) {
+  const row = (await db.select({ id: cards.id, pipeId: cards.pipeId, createdBy: cards.createdBy, deletedAt: cards.deletedAt, orgId: pipes.orgId })
     .from(cards).innerJoin(pipes, eq(pipes.id, cards.pipeId)).where(eq(cards.id, cardId)).limit(1))[0];
-  return row && !row.deletedAt && row.orgId === orgId ? row : null;
+  if (!row || row.deletedAt || row.orgId !== who.orgId) return null;
+  return (await canSeeCard(row, { userId: who.userId, orgRole: who.role })) ? row : null;
+}
+
+/** Message when the caller may not change the card, or null. */
+async function writeDenied(card: { id: string; pipeId: string; createdBy: string | null }, who: Who) {
+  try { await assertCardWrite(card, { userId: who.userId, orgRole: who.role }); return null; }
+  catch (e) { return e instanceof Error ? e.message : "Sem permissão"; }
 }
 
 const safeName = (s: string) => s.replace(/[\\/\r\n"]+/g, "_").slice(0, 255) || "arquivo";
@@ -52,8 +62,10 @@ export const fileRoutes = Router();
 fileRoutes.post("/files/cards/:cardId", raw({ type: () => true, limit: MAX_BYTES }), async (req, res) => {
   const who = await caller(req);
   if (!who) return res.status(401).json({ error: "Faça login para continuar" });
-  const card = await cardFor(String(req.params.cardId), who.orgId);
+  const card = await cardFor(String(req.params.cardId), who);
   if (!card) return res.status(404).json({ error: "Card não encontrado" });
+  const denied = await writeDenied(card, who);
+  if (denied) return res.status(403).json({ error: denied });
   const body = req.body as Buffer;
   if (!Buffer.isBuffer(body) || body.length === 0) return res.status(400).json({ error: "Arquivo vazio" });
 
@@ -78,7 +90,7 @@ fileRoutes.post("/files/cards/:cardId", raw({ type: () => true, limit: MAX_BYTES
 fileRoutes.get("/files/cards/:cardId", async (req, res) => {
   const who = await caller(req);
   if (!who) return res.status(401).json({ error: "Faça login para continuar" });
-  const card = await cardFor(String(req.params.cardId), who.orgId);
+  const card = await cardFor(String(req.params.cardId), who);
   if (!card) return res.status(404).json({ error: "Card não encontrado" });
   const fieldId = req.query.fieldId ? String(req.query.fieldId) : null;
   const scope = fieldId ? eq(attachments.cardFieldId, fieldId) : isNull(attachments.cardFieldId);
@@ -90,7 +102,7 @@ fileRoutes.get("/files/:id", async (req, res) => {
   const who = await caller(req);
   if (!who) return res.status(401).send("Faça login para continuar");
   const att = (await db.select().from(attachments).where(eq(attachments.id, String(req.params.id))).limit(1))[0];
-  if (!att?.cardId || !(await cardFor(att.cardId, who.orgId))) return res.status(404).send("Arquivo não encontrado");
+  if (!att?.cardId || !(await cardFor(att.cardId, who))) return res.status(404).send("Arquivo não encontrado");
   const path = join(UPLOAD_DIR, att.cardId, att.id);
   if (!existsSync(path)) return res.status(404).send("Arquivo não encontrado no disco");
   const inline = /^(image\/|application\/pdf)/.test(att.mimeType ?? "");
@@ -105,7 +117,10 @@ fileRoutes.delete("/files/:id", async (req, res) => {
   const who = await caller(req);
   if (!who) return res.status(401).json({ error: "Faça login para continuar" });
   const att = (await db.select().from(attachments).where(eq(attachments.id, String(req.params.id))).limit(1))[0];
-  if (!att?.cardId || !(await cardFor(att.cardId, who.orgId))) return res.status(404).json({ error: "Arquivo não encontrado" });
+  const card = att?.cardId ? await cardFor(att.cardId, who) : null;
+  if (!att?.cardId || !card) return res.status(404).json({ error: "Arquivo não encontrado" });
+  const denied = await writeDenied(card, who);
+  if (denied) return res.status(403).json({ error: denied });
   if (att.uploadedBy !== who.userId && who.role !== "admin") return res.status(403).json({ error: "Só quem enviou pode excluir" });
   await db.delete(attachments).where(eq(attachments.id, att.id));
   if (att.cardFieldId) await editFieldList(att.cardId, att.cardFieldId, (ids) => ids.filter((x) => x !== att.id));

@@ -1,4 +1,6 @@
 import { NavLink } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../../data/store";
 import { BarChart3, Columns3, List } from "lucide-react";
 import { cn } from "../../lib/cn";
 
@@ -6,11 +8,14 @@ const SHOW_DASHBOARD = true;
 
 /** Views of a pipe: Quadro (kanban), Lista (table), Dashboard. */
 export function PipeTabs({ pipeId }: { pipeId: string }) {
+  const { data: pipe } = useQuery({ queryKey: ["pipe", pipeId], queryFn: () => api.pipe.get(pipeId) });
+  // The dashboard counts every card, so "só os meus cards" does not get it.
+  const dashboard = SHOW_DASHBOARD && pipe?.myRole !== "my_cards";
   const tabs = [
     { to: `/pipes/${pipeId}`, label: "Quadro", icon: Columns3, end: true },
     { to: `/pipes/${pipeId}/list`, label: "Lista", icon: List, end: true },
     // Dashboard tab arrives with M9b.
-    ...(SHOW_DASHBOARD ? [{ to: `/pipes/${pipeId}/dashboard`, label: "Dashboard", icon: BarChart3, end: true }] : []),
+    ...(dashboard ? [{ to: `/pipes/${pipeId}/dashboard`, label: "Dashboard", icon: BarChart3, end: true }] : []),
   ];
   return (
     <nav aria-label="Visões do pipe" className="flex gap-1">

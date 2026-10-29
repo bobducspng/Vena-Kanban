@@ -4,7 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
 import { phaseFormLinks, phases, requestMessages, requests, users } from "../../db/schema.js";
 import { router, protectedProcedure } from "../trpc.js";
-import { cardInOrg, logEvent } from "../cardAccess.js";
+import { cardInOrg, cardForWrite, logEvent } from "../cardAccess.js";
 import { newToken } from "../../publicForms.js";
 import { env } from "../../env.js";
 import { sendMail } from "../../mailer.js";
@@ -26,7 +26,7 @@ export const outsideRouter = router({
   createPhaseLink: protectedProcedure
     .input(z.object({ cardId: z.string(), sendTo: z.string().trim().email().max(320).optional(), note: z.string().max(2000).optional() }))
     .mutation(async ({ ctx, input }) => {
-      const card = await cardInOrg(input.cardId, ctx.orgId);
+      const card = await cardForWrite(input.cardId, ctx.orgId);
       const phase = (await db.select().from(phases).where(eq(phases.id, card.currentPhaseId)).limit(1))[0];
       const token = newToken();
       await db.insert(phaseFormLinks).values({ id: crypto.randomUUID(), cardId: card.id, phaseId: card.currentPhaseId, token, sentTo: input.sendTo ?? null, createdBy: ctx.userId });
@@ -47,7 +47,7 @@ export const outsideRouter = router({
   revokePhaseLink: protectedProcedure.input(z.object({ linkId: z.string() })).mutation(async ({ ctx, input }) => {
     const link = (await db.select().from(phaseFormLinks).where(eq(phaseFormLinks.id, input.linkId)).limit(1))[0];
     if (!link) throw new TRPCError({ code: "NOT_FOUND" });
-    await cardInOrg(link.cardId, ctx.orgId);
+    await cardForWrite(link.cardId, ctx.orgId);
     await db.update(phaseFormLinks).set({ revokedAt: new Date() }).where(eq(phaseFormLinks.id, link.id));
     return { ok: true };
   }),
@@ -70,7 +70,7 @@ export const outsideRouter = router({
   reply: protectedProcedure.input(z.object({ requestId: z.string(), body: z.string().trim().min(1).max(5000) })).mutation(async ({ ctx, input }) => {
     const req = (await db.select().from(requests).where(eq(requests.id, input.requestId)).limit(1))[0];
     if (!req) throw new TRPCError({ code: "NOT_FOUND" });
-    const card = await cardInOrg(req.cardId, ctx.orgId);
+    const card = await cardForWrite(req.cardId, ctx.orgId);
     await db.insert(requestMessages).values({ id: crypto.randomUUID(), requestId: req.id, fromRequester: false, authorId: ctx.userId, body: input.body });
     await logEvent(card.id, "request_reply", ctx.userId);
     let mailed = false;

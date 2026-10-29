@@ -9,6 +9,7 @@ import { isEmpty, validateValue, applySideEffects } from "./fieldRules.js";
 import { fieldStates, mustFill, type ConditionDef } from "./conditions.js";
 import { autofillValues, readSettings, finishBlocker } from "./connections.js";
 import { notifyAssigned } from "./notify.js";
+import { asSystem } from "./access.js";
 
 /**
  * Card operations shared by the API (people) and the automation engine.
@@ -35,7 +36,7 @@ let listener: Listener | null = null;
 export function onCardHappening(fn: Listener) { listener = fn; }
 async function announce(e: CardHappening) {
   if (!listener) return;
-  try { await listener(e); } catch (err) { console.error("automation listener failed:", err); }
+  try { await asSystem(() => listener!(e)); } catch (err) { console.error("automation listener failed:", err); }
 }
 /** For alerts raised by the SLA sweep. */
 export const announceHappening = announce;

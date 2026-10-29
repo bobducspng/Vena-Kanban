@@ -2,17 +2,25 @@ import { z } from "zod";
 import { eq, and, inArray, isNull, isNotNull, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
-import { pipes, phases, fields, phaseTransitions } from "../../db/schema.js";
+import { pipes, phases, fields, phaseTransitions, pipeMembers } from "../../db/schema.js";
+import { pipeRole } from "../../access.js";
 import { router, protectedProcedure, adminProcedure } from "../trpc.js";
 
 export const pipeRouter = router({
-  list: protectedProcedure.query(({ ctx }) =>
-    db.select().from(pipes).where(and(eq(pipes.orgId, ctx.orgId), isNull(pipes.deletedAt)))
-  ),
+  // Closed by default (M10): admins see every pipe, everyone else the ones they were added to.
+  list: protectedProcedure.query(async ({ ctx }) => {
+    const all = await db.select().from(pipes).where(and(eq(pipes.orgId, ctx.orgId), isNull(pipes.deletedAt)));
+    if (ctx.role === "admin") return all;
+    const mine = new Set((await db.select({ pipeId: pipeMembers.pipeId }).from(pipeMembers).where(eq(pipeMembers.userId, ctx.userId))).map((m) => m.pipeId));
+    return all.filter((p) => mine.has(p.id));
+  }),
 
+  /** The pipe plus the caller's role in it (the screens hide what they cannot do). */
   get: protectedProcedure.input(z.object({ pipeId: z.string() })).query(async ({ ctx, input }) => {
-    return (await db.select().from(pipes)
-      .where(and(eq(pipes.id, input.pipeId), eq(pipes.orgId, ctx.orgId), isNull(pipes.deletedAt))).limit(1))[0] ?? null;
+    const pipe = (await db.select().from(pipes)
+      .where(and(eq(pipes.id, input.pipeId), eq(pipes.orgId, ctx.orgId), isNull(pipes.deletedAt))).limit(1))[0];
+    const myRole = pipe ? await pipeRole(pipe.id) : null;
+    return pipe && myRole ? { ...pipe, myRole } : null;
   }),
 
   // Configuring pipes is admin-only.

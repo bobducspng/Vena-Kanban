@@ -115,9 +115,13 @@ export function PipeKanban() {
             <Button variant="ghost" aria-label="Lixeira" title="Lixeira" onClick={() => setTrashOpen(true)}>
               <Trash2 className="h-4 w-4" aria-hidden="true" />
             </Button>
-            <Button onClick={() => setStartFor({})}>
-              <Plus className="h-4 w-4" aria-hidden="true" /> {pipe?.createButtonLabel || `Novo ${pipe?.noun || "card"}`}
-            </Button>
+            {pipe?.myRole === "read" ? (
+              <span className="rounded-pill border border-border px-3 py-1 text-xs text-muted">Somente leitura</span>
+            ) : (
+              <Button onClick={() => setStartFor({})}>
+                <Plus className="h-4 w-4" aria-hidden="true" /> {pipe?.createButtonLabel || `Novo ${pipe?.noun || "card"}`}
+              </Button>
+            )}
           </div>
         </div>
 

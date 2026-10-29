@@ -2,11 +2,12 @@ import { z } from "zod";
 import { eq, and, inArray, isNull, isNotNull, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
-import { cards, cardFields, cardAssignees, cardLabels, fields, labels, memberships, checklistItems, cardPhaseHistory, phases, pipes } from "../../db/schema.js";
+import { cards, cardFields, cardAssignees, cardLabels, fields, labels, memberships, checklistItems, cardPhaseHistory, phases, pipes, pipeMembers } from "../../db/schema.js";
 import { calendarOf, deadlinesOf } from "../../slaService.js";
 import { notifyAssigned } from "../../notify.js";
 import { businessMinutesBetween } from "../../businessTime.js";
-import { cardInOrg, logEvent } from "../cardAccess.js";
+import { cardInOrg, cardForWrite, logEvent } from "../cardAccess.js";
+import { assertPipeWrite, caller, canSeeCard, pipeRole } from "../../access.js";
 import { linkedFrom } from "../../connections.js";
 import { hydrate, shaped, writeValues, autofillFor, createCard, setFieldValue, moveCard } from "../../cardService.js";
 import { router, protectedProcedure, adminProcedure, assertPipeInOrg } from "../trpc.js";
@@ -14,11 +15,20 @@ import { router, protectedProcedure, adminProcedure, assertPipeInOrg } from "../
 // Lists hold checklist options, user ids (responsáveis) or label ids (etiquetas).
 const valueSchema = z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string().max(255)).max(200)]);
 
+/** "Só os meus cards": keep the ones the caller created or is responsável for. */
+async function visible<T extends { id: string; createdBy: string | null }>(pipeId: string, rows: T[]) {
+  if ((await pipeRole(pipeId)) !== "my_cards" || !rows.length) return rows;
+  const me = caller()!.userId;
+  const mine = new Set((await db.select({ cardId: cardAssignees.cardId }).from(cardAssignees)
+    .where(and(eq(cardAssignees.userId, me), inArray(cardAssignees.cardId, rows.map((r) => r.id))))).map((r) => r.cardId));
+  return rows.filter((r) => r.createdBy === me || mine.has(r.id));
+}
+
 // Create / set value / move live in cardService.ts (shared with the automation engine).
 export const cardRouter = router({
   listByPipe: protectedProcedure.input(z.object({ pipeId: z.string() })).query(async ({ ctx, input }) => {
     await assertPipeInOrg(input.pipeId, ctx.orgId);
-    const rows = await db.select().from(cards).where(and(eq(cards.pipeId, input.pipeId), isNull(cards.deletedAt)));
+    const rows = await visible(input.pipeId, await db.select().from(cards).where(and(eq(cards.pipeId, input.pipeId), isNull(cards.deletedAt))));
     const h = await hydrate(rows.map((r) => r.id));
     return rows.map((r) => ({ ...r, ...h.get(r.id)! }));
   }),
@@ -27,6 +37,7 @@ export const cardRouter = router({
     const row = (await db.select().from(cards).where(eq(cards.id, input.cardId)).limit(1))[0];
     if (!row || row.deletedAt) return null;
     await assertPipeInOrg(row.pipeId, ctx.orgId);
+    if (!(await canSeeCard(row))) return null;
     const h = await hydrate([row.id]);
     return { ...row, ...h.get(row.id)! };
   }),
@@ -41,6 +52,7 @@ export const cardRouter = router({
     }))
     .mutation(async ({ ctx, input }) => {
       await assertPipeInOrg(input.pipeId, ctx.orgId);
+      await assertPipeWrite(input.pipeId);
       const cardId = await createCard({ ...input, orgId: ctx.orgId, actor: { userId: ctx.userId, depth: 0 } });
       return shaped(cardId);
     }),
@@ -48,7 +60,7 @@ export const cardRouter = router({
   updateField: protectedProcedure
     .input(z.object({ cardId: z.string(), fieldId: z.string(), value: valueSchema }))
     .mutation(async ({ ctx, input }) => {
-      const card = await cardInOrg(input.cardId, ctx.orgId);
+      const card = await cardForWrite(input.cardId, ctx.orgId);
       await setFieldValue({ card, fieldId: input.fieldId, value: input.value, orgId: ctx.orgId, actor: { userId: ctx.userId, depth: 0 }, checkEditable: true });
       return shaped(card.id);
     }),
@@ -56,7 +68,7 @@ export const cardRouter = router({
   move: protectedProcedure
     .input(z.object({ cardId: z.string(), toPhaseId: z.string(), version: z.number().int().optional() }))
     .mutation(async ({ ctx, input }) => {
-      const card = await cardInOrg(input.cardId, ctx.orgId);
+      const card = await cardForWrite(input.cardId, ctx.orgId);
       await moveCard({ card, toPhaseId: input.toPhaseId, actor: { userId: ctx.userId, depth: 0 }, checkTransition: true, version: input.version });
       return shaped(card.id);
     }),
@@ -69,7 +81,7 @@ export const cardRouter = router({
       dueDate: z.string().datetime({ offset: true }).nullable().optional(),
     }))
     .mutation(async ({ ctx, input }) => {
-      const card = await cardInOrg(input.cardId, ctx.orgId);
+      const card = await cardForWrite(input.cardId, ctx.orgId);
       const patch: { title?: string; dueDate?: Date | null } = {};
       if (input.title !== undefined && input.title !== card.title) patch.title = input.title;
       if (input.dueDate !== undefined) patch.dueDate = input.dueDate ? new Date(input.dueDate) : null;
@@ -85,7 +97,7 @@ export const cardRouter = router({
   setAssignees: protectedProcedure
     .input(z.object({ cardId: z.string(), userIds: z.array(z.string()).max(50) }))
     .mutation(async ({ ctx, input }) => {
-      const card = await cardInOrg(input.cardId, ctx.orgId);
+      const card = await cardForWrite(input.cardId, ctx.orgId);
       const ids = [...new Set(input.userIds)];
       const members = ids.length
         ? await db.select({ userId: memberships.userId }).from(memberships).where(and(eq(memberships.orgId, ctx.orgId), inArray(memberships.userId, ids)))
@@ -105,7 +117,7 @@ export const cardRouter = router({
   setLabels: protectedProcedure
     .input(z.object({ cardId: z.string(), labelIds: z.array(z.string()).max(50) }))
     .mutation(async ({ ctx, input }) => {
-      const card = await cardInOrg(input.cardId, ctx.orgId);
+      const card = await cardForWrite(input.cardId, ctx.orgId);
       const ids = [...new Set(input.labelIds)];
       const valid = ids.length ? await db.select({ id: labels.id }).from(labels).where(and(eq(labels.pipeId, card.pipeId), inArray(labels.id, ids))) : [];
       if (valid.length !== ids.length) throw new TRPCError({ code: "BAD_REQUEST", message: "Etiqueta inválida" });
@@ -119,14 +131,14 @@ export const cardRouter = router({
 
   /** Send to the trash (lixeira). Restorable. */
   remove: protectedProcedure.input(z.object({ cardId: z.string() })).mutation(async ({ ctx, input }) => {
-    const card = await cardInOrg(input.cardId, ctx.orgId);
+    const card = await cardForWrite(input.cardId, ctx.orgId);
     await db.update(cards).set({ deletedAt: new Date(), deletedBy: ctx.userId }).where(eq(cards.id, card.id));
     await logEvent(card.id, "deleted", ctx.userId);
     return { ok: true };
   }),
 
   restore: protectedProcedure.input(z.object({ cardId: z.string() })).mutation(async ({ ctx, input }) => {
-    const card = await cardInOrg(input.cardId, ctx.orgId, true);
+    const card = await cardForWrite(input.cardId, ctx.orgId, true);
     await db.update(cards).set({ deletedAt: null, deletedBy: null }).where(eq(cards.id, card.id));
     await logEvent(card.id, "restored", ctx.userId);
     return shaped(card.id);
@@ -134,13 +146,13 @@ export const cardRouter = router({
 
   listTrash: protectedProcedure.input(z.object({ pipeId: z.string() })).query(async ({ ctx, input }) => {
     await assertPipeInOrg(input.pipeId, ctx.orgId);
-    return db.select({ id: cards.id, number: cards.number, title: cards.title, deletedAt: cards.deletedAt, deletedBy: cards.deletedBy })
-      .from(cards).where(and(eq(cards.pipeId, input.pipeId), isNotNull(cards.deletedAt))).orderBy(desc(cards.deletedAt));
+    return visible(input.pipeId, await db.select({ id: cards.id, number: cards.number, title: cards.title, deletedAt: cards.deletedAt, deletedBy: cards.deletedBy, createdBy: cards.createdBy })
+      .from(cards).where(and(eq(cards.pipeId, input.pipeId), isNotNull(cards.deletedAt))).orderBy(desc(cards.deletedAt)));
   }),
 
   /** Copy a card in the same phase: fields (except "valor único"), labels, assignees, checklist (unticked). */
   duplicate: protectedProcedure.input(z.object({ cardId: z.string() })).mutation(async ({ ctx, input }) => {
-    const card = await cardInOrg(input.cardId, ctx.orgId);
+    const card = await cardForWrite(input.cardId, ctx.orgId);
     const src = (await hydrate([card.id])).get(card.id)!;
     // Not copied: "valor único" values and attachment fields (files belong to the original).
     const uniques = new Set((await db.select({ id: fields.id, isUnique: fields.isUnique, type: fields.type }).from(fields)
@@ -168,7 +180,7 @@ export const cardRouter = router({
 
   /** "Atualizar do cadastro": copy the mapped values again from the connected item. */
   refillConnection: protectedProcedure.input(z.object({ cardId: z.string(), fieldId: z.string() })).mutation(async ({ ctx, input }) => {
-    const card = await cardInOrg(input.cardId, ctx.orgId);
+    const card = await cardForWrite(input.cardId, ctx.orgId);
     const field = (await db.select().from(fields).where(eq(fields.id, input.fieldId)).limit(1))[0];
     if (!field || field.pipeId !== card.pipeId || field.type !== "connection") throw new TRPCError({ code: "BAD_REQUEST", message: "Campo inválido" });
     const row = (await db.select().from(cardFields).where(and(eq(cardFields.cardId, card.id), eq(cardFields.fieldId, field.id))).limit(1))[0];
@@ -202,7 +214,7 @@ export const cardRouter = router({
 
   /** "Meu trabalho": cards where I am a responsável (not in the trash), across pipes. */
   myWork: protectedProcedure.query(async ({ ctx }) => {
-    return db.select({
+    const rows = await db.select({
       id: cards.id, number: cards.number, title: cards.title, pipeId: cards.pipeId, pipeName: pipes.name, pipeIcon: pipes.icon,
       phaseName: phases.name, dueDate: cards.dueDate, done: cards.done, lateAt: cards.lateAt, expiredAt: cards.expiredAt,
       overdueAt: cards.overdueAt, updatedAt: cards.updatedAt, createdAt: cards.createdAt,
@@ -214,6 +226,10 @@ export const cardRouter = router({
       .where(and(eq(cardAssignees.userId, ctx.userId), eq(pipes.orgId, ctx.orgId), isNull(cards.deletedAt), isNull(pipes.deletedAt)))
       .orderBy(desc(cards.updatedAt))
       .limit(500);
+    if (ctx.role === "admin") return rows;
+    // Only pipes the person is still in.
+    const mine = new Set((await db.select({ pipeId: pipeMembers.pipeId }).from(pipeMembers).where(eq(pipeMembers.userId, ctx.userId))).map((m) => m.pipeId));
+    return rows.filter((r) => mine.has(r.pipeId));
   }),
 
   /** Ações em massa (admins, as in the original): each card goes through the same

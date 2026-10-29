@@ -2,6 +2,8 @@
 // fake data layer and the future tRPC/MySQL backend share one shape.
 
 export type Role = "admin" | "member" | "guest";
+/** The caller's access to a pipe (M10): admin = org admin; the others come from the pipe's members. */
+export type PipeRole = "admin" | "member" | "my_cards" | "read";
 
 export type FieldType =
   | "short_text" | "long_text" | "email" | "phone" | "number" | "currency"
@@ -154,6 +156,7 @@ export interface Pipe {
   deletedAt?: string | null;
   expirationMinutes?: number | null; // prazo do pipe ("expirado" after this)
   businessHoursOnly?: boolean; // count SLAs in business time (org calendar)
+  myRole?: PipeRole | null; // only from pipe.get
 }
 
 /** A notification of the sino. */

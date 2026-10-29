@@ -37,7 +37,7 @@ const toISO = (d: Date | string | null | undefined): string =>
 const toISON = (d: Date | string | null | undefined): string | null =>
   d == null ? null : (d instanceof Date ? d.toISOString() : d);
 
-type SrvPipe = { id: string; name: string; description: string | null; createdAt: Date | string; icon?: string | null; color?: string | null; noun?: string | null; createButtonLabel?: string | null; titleFieldId?: string | null; subtitleFieldIds?: unknown; deletedAt?: Date | string | null; expirationMinutes?: number | null; businessHoursOnly?: boolean };
+type SrvPipe = { id: string; name: string; description: string | null; createdAt: Date | string; icon?: string | null; color?: string | null; noun?: string | null; createButtonLabel?: string | null; titleFieldId?: string | null; subtitleFieldIds?: unknown; deletedAt?: Date | string | null; expirationMinutes?: number | null; businessHoursOnly?: boolean; myRole?: string | null };
 type SrvPhase = { id: string; pipeId: string; name: string; color: string | null; position: number; isStart: boolean; isEnd: boolean; description: string | null; canCreateCard: boolean; allowedTo?: string[]; assigneeIds?: string[]; slaMinutes?: number | null };
 type SrvField = { id: string; pipeId: string; phaseId: string; label: string; type: string; required: boolean; options: unknown; position: number; description: string | null; help: string | null; editableOtherPhases: boolean; isUnique: boolean; validationRegex: string | null; archivedAt: Date | string | null; settings?: unknown };
 type SrvCard = { id: string; number: number; pipeId: string; currentPhaseId: string; title: string; dueDate: Date | string | null; done: boolean; version: number; createdAt: Date | string; values: { fieldId: string; value: unknown }[]; assigneeIds: string[]; labelIds: string[]; checklistDone: number; checklistTotal: number; commentCount: number; attachmentCount: number;
@@ -50,6 +50,7 @@ const mapPipe = (p: SrvPipe): Pipe => ({
   icon: p.icon, color: p.color, noun: p.noun, createButtonLabel: p.createButtonLabel, titleFieldId: p.titleFieldId,
   subtitleFieldIds: Array.isArray(p.subtitleFieldIds) ? (p.subtitleFieldIds as string[]) : [], deletedAt: toISON(p.deletedAt),
   expirationMinutes: p.expirationMinutes ?? null, businessHoursOnly: !!p.businessHoursOnly,
+  myRole: (p.myRole as Pipe["myRole"]) ?? null,
 });
 const mapPhase = (p: SrvPhase): Phase => ({ id: p.id, pipeId: p.pipeId, name: p.name, color: p.color ?? "gray", position: p.position, isStart: p.isStart, isEnd: p.isEnd, description: p.description, canCreateCard: p.canCreateCard, allowedTo: p.allowedTo ?? [], assigneeIds: p.assigneeIds ?? [], slaMinutes: p.slaMinutes ?? null });
 const mapField = (f: SrvField): FieldDef => ({ id: f.id, pipeId: f.pipeId, phaseId: f.phaseId, label: f.label, type: f.type as FieldType, required: f.required, options: Array.isArray(f.options) ? (f.options as string[]) : undefined, position: f.position, description: f.description, help: f.help, editableOtherPhases: f.editableOtherPhases, isUnique: f.isUnique, validationRegex: f.validationRegex, archivedAt: toISON(f.archivedAt),
@@ -263,6 +264,14 @@ export const api = {
     update: (input: { pipeId: string; title?: string | null; closed?: boolean; branding?: Record<string, unknown> }) =>
       trpc.publicForm.update.mutate(input as Parameters<typeof trpc.publicForm.update.mutate>[0]),
     regenerate: (pipeId: string) => trpc.publicForm.regenerate.mutate({ pipeId }),
+  },
+
+  people: {
+    list: () => trpc.people.list.query(),
+    setOrgRole: (userId: string, role: "admin" | "member") => trpc.people.setOrgRole.mutate({ userId, role }),
+    remove: (userId: string) => trpc.people.remove.mutate({ userId }),
+    pipeMembers: (pipeId: string) => trpc.people.pipeMembers.query({ pipeId }),
+    setPipeRole: (pipeId: string, userId: string, role: "member" | "my_cards" | "read" | null) => trpc.people.setPipeRole.mutate({ pipeId, userId, role }),
   },
 
   bi: {

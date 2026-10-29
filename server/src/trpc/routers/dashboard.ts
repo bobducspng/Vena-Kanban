@@ -1,8 +1,10 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { and, eq, gte, inArray, isNull } from "drizzle-orm";
 import { db } from "../../db/client.js";
 import { cardAssignees, cardPhaseHistory, cards, phases, pipes, users } from "../../db/schema.js";
 import { router, protectedProcedure, assertPipeInOrg } from "../trpc.js";
+import { pipeRole } from "../../access.js";
 import { calendarOf } from "../../slaService.js";
 import { businessMinutesBetween } from "../../businessTime.js";
 
@@ -22,6 +24,8 @@ const weekStart = (t: number) => {
 export const dashboardRouter = router({
   pipe: protectedProcedure.input(z.object({ pipeId: z.string(), days: z.number().int().min(7).max(365).default(90) })).query(async ({ ctx, input }) => {
     await assertPipeInOrg(input.pipeId, ctx.orgId);
+    // The numbers cover every card, so "só os meus cards" does not get them.
+    if ((await pipeRole(input.pipeId)) === "my_cards") throw new TRPCError({ code: "FORBIDDEN", message: "O painel mostra todos os cards do pipe; seu acesso é só aos seus cards." });
     const now = Date.now();
     const since = new Date(now - input.days * DAY);
     const pipe = (await db.select({ business: pipes.businessHoursOnly }).from(pipes).where(eq(pipes.id, input.pipeId)).limit(1))[0];

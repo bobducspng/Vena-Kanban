@@ -19,6 +19,7 @@ import { PublicFormSettings } from "../components/app/PublicFormSettings";
 import { EmailTemplatesSection } from "../components/app/EmailParts";
 import { FieldEditorModal } from "../components/app/FieldEditorModal";
 import { cn } from "../lib/cn";
+import { PipeMembers } from "../components/app/PeopleSettings";
 import { Avatar } from "../components/ui/Avatar";
 
 const COLOR_LABEL: Record<PhaseColor, string> = {
@@ -143,6 +144,8 @@ export function PipeSettings() {
         <EmailTemplatesSection pipeId={pipeId} fields={(fields ?? []).filter((f) => !f.archivedAt)} />
 
         <LabelsManager pipeId={pipeId} />
+
+        <PipeMembers pipeId={pipeId} />
       </div>
     </AppShell>
   );
