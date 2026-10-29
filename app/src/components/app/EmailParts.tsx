@@ -71,10 +71,10 @@ function TemplateModal({ pipeId, fields, editing, onClose }: { pipeId: string; f
   const qc = useQueryClient();
   const toast = useToast();
   const existing = editing && editing !== "new" ? editing : null;
-  const [t, setT] = useState({ name: "", toSpec: "", ccSpec: "", subject: "", body: "" });
+  const [t, setT] = useState<Omit<EmailTemplate, "id" | "pipeId">>({ name: "", toSpec: "", ccSpec: "", subject: "", format: "text", body: "" });
   const [focus, setFocus] = useState<"toSpec" | "ccSpec" | "subject" | "body">("body");
   useEffect(() => {
-    if (editing) setT(existing ? { name: existing.name, toSpec: existing.toSpec, ccSpec: existing.ccSpec, subject: existing.subject, body: existing.body } : { name: "", toSpec: "{Solicitante}", ccSpec: "", subject: "Solicitação #{#}: {Título}", body: "Olá,\n\n\n\nAtenciosamente,\nEquipe Vena" });
+    if (editing) setT(existing ? { name: existing.name, toSpec: existing.toSpec, ccSpec: existing.ccSpec, subject: existing.subject, format: existing.format, body: existing.body } : { name: "", toSpec: "{Solicitante}", ccSpec: "", subject: "Solicitação #{#}: {Título}", format: "text", body: "Olá,\n\n\n\nAtenciosamente,\nEquipe Vena" });
   }, [editing]); // eslint-disable-line react-hooks/exhaustive-deps
   const save = useMutation({
     mutationFn: async (): Promise<unknown> => (existing ? api.email.updateTemplate({ templateId: existing.id, ...t }) : api.email.createTemplate({ pipeId, ...t })),
@@ -89,7 +89,39 @@ function TemplateModal({ pipeId, fields, editing, onClose }: { pipeId: string; f
         <Input aria-label="Para" placeholder="Para: e-mails ou {Campo de e-mail}, {Solicitante}, {Responsáveis}" value={t.toSpec} onFocus={() => setFocus("toSpec")} onChange={(e) => setT({ ...t, toSpec: e.target.value })} />
         <Input aria-label="Cópia" placeholder="Cópia (opcional)" value={t.ccSpec} onFocus={() => setFocus("ccSpec")} onChange={(e) => setT({ ...t, ccSpec: e.target.value })} />
         <Input aria-label="Assunto" placeholder="Assunto" value={t.subject} onFocus={() => setFocus("subject")} onChange={(e) => setT({ ...t, subject: e.target.value })} />
-        <Textarea aria-label="Corpo" rows={10} value={t.body} onFocus={() => setFocus("body")} onChange={(e) => setT({ ...t, body: e.target.value })} />
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-medium text-text">Mensagem:</span>
+          {(["text", "html"] as const).map((f) => (
+            <button key={f} type="button" aria-pressed={t.format === f} onClick={() => setT({ ...t, format: f })}
+              className={`rounded-pill border px-3 py-1 text-xs ${t.format === f ? "border-accent bg-surface text-text" : "border-border text-muted"}`}>
+              {f === "text" ? "Texto simples" : "HTML (e-mail formatado)"}
+            </button>
+          ))}
+          {t.format === "html" && (
+            <label className="cursor-pointer text-xs text-accent hover:underline">
+              Enviar arquivo .html
+              <input type="file" accept=".html,.htm,text/html" hidden onChange={async (e) => {
+                const f = e.target.files?.[0]; e.target.value = "";
+                if (f) { const html = await f.text(); setT((x) => ({ ...x, body: html })); }
+              }} />
+            </label>
+          )}
+        </div>
+        {t.format === "html" ? (
+          <div className="grid gap-3 lg:grid-cols-2">
+            <Textarea aria-label="HTML do e-mail" rows={16} className="font-mono text-xs" placeholder="Cole aqui o HTML do e-mail (pode usar {Campos} do card)"
+              value={t.body} onFocus={() => setFocus("body")} onChange={(e) => setT({ ...t, body: e.target.value })} />
+            <HtmlPreview html={t.body} />
+          </div>
+        ) : (
+          <Textarea aria-label="Corpo" rows={10} value={t.body} onFocus={() => setFocus("body")} onChange={(e) => setT({ ...t, body: e.target.value })} />
+        )}
+        {t.format === "html" && (
+          <p className="text-xs text-muted">
+            Use HTML de e-mail (tabelas e estilos inline, largura máxima ~600px) para ficar bom no Gmail, Outlook e celular. Imagens precisam estar
+            num endereço público (https://…). Os {"{Campos}"} entram com o valor do card. Quem não vê HTML recebe a versão em texto.
+          </p>
+        )}
         <p className="text-xs text-muted">Clique para inserir no campo selecionado ({focus === "body" ? "corpo" : focus === "subject" ? "assunto" : focus === "toSpec" ? "para" : "cópia"}):</p>
         <Placeholders fields={fields} onPick={(p) => setT((x) => ({ ...x, [focus]: `${x[focus]}${p}` }))} />
       </div>
@@ -117,7 +149,7 @@ export function EmailsSection({ cardId, pipeId }: { cardId: string; pipeId: stri
                   <span className={e.status === "failed" ? "text-danger" : "text-text"}>{e.subject}</span>
                   <span className="block text-muted">para {e.toList} · {new Date(e.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}{e.via ? ` · automação "${e.via}"` : ""}{e.status === "failed" ? ` · falhou: ${e.error}` : ""}</span>
                 </summary>
-                <p className="mt-1 whitespace-pre-wrap text-muted">{e.body}</p>
+                {e.format === "html" ? <div className="mt-1"><HtmlPreview html={e.body} compact /></div> : <p className="mt-1 whitespace-pre-wrap text-muted">{e.body}</p>}
               </details>
             </li>
           ))}
@@ -136,20 +168,21 @@ function SendModal({ open, cardId, pipeId, onClose }: { open: boolean; cardId: s
   const [cc, setCc] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [format, setFormat] = useState<"text" | "html">("text");
   const [files, setFiles] = useState<string[]>([]);
   const { data: templates } = useQuery({ queryKey: ["emailTemplates", pipeId], queryFn: () => api.email.templates(pipeId), enabled: open });
   const { data: attachments } = useQuery({ queryKey: ["files", cardId], queryFn: () => api.file.listByCard(cardId), enabled: open });
-  useEffect(() => { if (open) { setTemplateId(""); setTo(""); setCc(""); setSubject(""); setBody(""); setFiles([]); } }, [open]);
+  useEffect(() => { if (open) { setTemplateId(""); setTo(""); setCc(""); setSubject(""); setBody(""); setFormat("text"); setFiles([]); } }, [open]);
 
   const pick = async (id: string) => {
     setTemplateId(id);
     try {
       const r = await api.email.render(id, cardId);
-      setTo(r.to.join(", ")); setCc(r.cc.join(", ")); setSubject(r.subject); setBody(r.body);
+      setTo(r.to.join(", ")); setCc(r.cc.join(", ")); setSubject(r.subject); setBody(r.body); setFormat(r.format === "html" ? "html" : "text");
     } catch (e) { toast(errMsg(e), "error"); }
   };
   const send = useMutation({
-    mutationFn: () => api.email.send({ cardId, to: list(to), cc: list(cc), subject: subject.trim(), body, attachmentIds: files, templateId: templateId || undefined }),
+    mutationFn: () => api.email.send({ cardId, to: list(to), cc: list(cc), subject: subject.trim(), body, format, attachmentIds: files, templateId: templateId || undefined }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["cardEmails", cardId] }); qc.invalidateQueries({ queryKey: ["events", cardId] }); toast("E-mail enviado", "success"); onClose(); },
     onError: (e) => toast(errMsg(e), "error"),
   });
@@ -166,7 +199,17 @@ function SendModal({ open, cardId, pipeId, onClose }: { open: boolean; cardId: s
         <Input aria-label="Para" placeholder="Para (separe por vírgula)" value={to} onChange={(e) => setTo(e.target.value)} />
         <Input aria-label="Cópia" placeholder="Cópia (opcional)" value={cc} onChange={(e) => setCc(e.target.value)} />
         <Input aria-label="Assunto" placeholder="Assunto" value={subject} onChange={(e) => setSubject(e.target.value)} />
-        <Textarea aria-label="Mensagem" rows={10} value={body} onChange={(e) => setBody(e.target.value)} />
+        {format === "html" ? (
+          <>
+            <HtmlPreview html={body} />
+            <details className="text-xs text-muted">
+              <summary className="cursor-pointer text-accent">Editar o HTML deste envio</summary>
+              <Textarea aria-label="HTML da mensagem" rows={10} className="mt-1 font-mono text-xs" value={body} onChange={(e) => setBody(e.target.value)} />
+            </details>
+          </>
+        ) : (
+          <Textarea aria-label="Mensagem" rows={10} value={body} onChange={(e) => setBody(e.target.value)} />
+        )}
         {!!attachments?.length && (
           <fieldset className="flex flex-col gap-1">
             <legend className="text-xs font-medium text-muted">Anexar arquivos do card</legend>
@@ -182,5 +225,27 @@ function SendModal({ open, cardId, pipeId, onClose }: { open: boolean; cardId: s
         <p className="text-xs text-muted">Até 500 destinatários (limite do Google, somando Para e Cópia) e 20 MB de anexos.</p>
       </div>
     </Modal>
+  );
+}
+
+/** How an HTML e-mail looks, at computer or phone width. Rendered isolated (no scripts, no access to the app). */
+export function HtmlPreview({ html, compact }: { html: string; compact?: boolean }) {
+  const [width, setWidth] = useState<"desktop" | "mobile">("desktop");
+  return (
+    <div className="flex flex-col gap-1">
+      {!compact && (
+        <div className="flex gap-1 text-xs">
+          <span className="text-muted">Pré-visualização:</span>
+          {(["desktop", "mobile"] as const).map((w) => (
+            <button key={w} type="button" aria-pressed={width === w} onClick={() => setWidth(w)}
+              className={`rounded-pill border px-2 ${width === w ? "border-accent text-text" : "border-border text-muted"}`}>{w === "desktop" ? "Computador" : "Celular"}</button>
+          ))}
+        </div>
+      )}
+      <div className="overflow-auto rounded-md border border-border bg-surface p-2">
+        <iframe title="Pré-visualização do e-mail" sandbox="" srcDoc={html || "<p style='font-family:Arial;color:#888'>Cole o HTML para ver aqui.</p>"}
+          className="mx-auto block rounded bg-white" style={{ width: width === "mobile" ? 375 : "100%", maxWidth: "100%", height: compact ? 260 : 420, border: 0 }} />
+      </div>
+    </div>
   );
 }

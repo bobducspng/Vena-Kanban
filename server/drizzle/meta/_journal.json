@@ -183,6 +183,13 @@
       "when": 1793291301996,
       "tag": "0025_drop_drive_backups",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "5",
+      "when": 1793297031554,
+      "tag": "0026_email_html",
+      "breakpoints": true
     }
   ]
 }

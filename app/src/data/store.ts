@@ -319,14 +319,15 @@ export const api = {
 
   email: {
     enabled: (): Promise<boolean> => trpc.email.enabled.query(),
-    templates: (pipeId: string): Promise<EmailTemplate[]> => trpc.email.templates.query({ pipeId }),
+    templates: async (pipeId: string): Promise<EmailTemplate[]> =>
+      (await trpc.email.templates.query({ pipeId })).map((t) => ({ ...t, format: t.format === "html" ? "html" : "text" })),
     createTemplate: (input: Omit<EmailTemplate, "id">) => trpc.email.createTemplate.mutate(input),
     updateTemplate: (input: Omit<EmailTemplate, "pipeId" | "id"> & { templateId: string }) => trpc.email.updateTemplate.mutate(input),
     removeTemplate: (templateId: string) => trpc.email.removeTemplate.mutate({ templateId }),
     render: (templateId: string, cardId: string) => trpc.email.render.query({ templateId, cardId }),
-    send: (input: { cardId: string; to: string[]; cc: string[]; subject: string; body: string; attachmentIds: string[]; templateId?: string }) => trpc.email.send.mutate(input),
+    send: (input: { cardId: string; to: string[]; cc: string[]; subject: string; body: string; format: "text" | "html"; attachmentIds: string[]; templateId?: string }) => trpc.email.send.mutate(input),
     history: async (cardId: string): Promise<CardEmail[]> =>
-      (await trpc.email.history.query({ cardId })).map((e) => ({ ...e, status: e.status as CardEmail["status"], createdAt: toISO(e.createdAt) })),
+      (await trpc.email.history.query({ cardId })).map((e) => ({ ...e, status: e.status as CardEmail["status"], format: e.format === "html" ? "html" as const : "text" as const, createdAt: toISO(e.createdAt) })),
   },
 
   report: {

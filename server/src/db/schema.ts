@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import {
-  mysqlTable, char, varchar, text, int, bigint, boolean, datetime, json,
+  mysqlTable, char, varchar, text, mediumtext, int, bigint, boolean, datetime, json,
   mysqlEnum, index, uniqueIndex, primaryKey,
 } from "drizzle-orm/mysql-core";
 
@@ -149,7 +149,9 @@ export const emailTemplates = mysqlTable("email_templates", {
   toSpec: varchar("to_spec", { length: 1000 }).notNull().default(""), // "a@b.com, {E-mail}, {Solicitante}"
   ccSpec: varchar("cc_spec", { length: 1000 }).notNull().default(""),
   subject: varchar("subject", { length: 500 }).notNull(),
-  body: text("body").notNull(),
+  // "text" = plain text (shown in a simple layout) · "html" = the admin's own HTML e-mail.
+  format: varchar("format", { length: 8 }).notNull().default("text"),
+  body: mediumtext("body").notNull(),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 }, (t) => ({ pipeIdx: index("idx_emailtpl_pipe").on(t.pipeId) }));
@@ -221,7 +223,8 @@ export const cardEmails = mysqlTable("card_emails", {
   toList: varchar("to_list", { length: 2000 }).notNull(),
   ccList: varchar("cc_list", { length: 2000 }),
   subject: varchar("subject", { length: 500 }).notNull(),
-  body: text("body").notNull(),
+  format: varchar("format", { length: 8 }).notNull().default("text"), // text | html
+  body: mediumtext("body").notNull(),
   attachmentIds: json("attachment_ids"),
   sentBy: ref("sent_by"), // null = automation
   via: varchar("via", { length: 255 }), // automation name

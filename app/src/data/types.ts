@@ -323,6 +323,7 @@ export interface EmailTemplate {
   toSpec: string;
   ccSpec: string;
   subject: string;
+  format: "text" | "html"; // html = the admin's own (responsive) HTML e-mail
   body: string;
 }
 
@@ -333,6 +334,7 @@ export interface CardEmail {
   ccList: string | null;
   subject: string;
   body: string;
+  format?: "text" | "html";
   sentBy: string | null;
   via: string | null;
   status: "sent" | "failed";

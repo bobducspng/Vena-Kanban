@@ -13,7 +13,9 @@ const tpl = {
   toSpec: z.string().max(1000).default(""),
   ccSpec: z.string().max(1000).default(""),
   subject: z.string().trim().min(1).max(500),
-  body: z.string().min(1).max(20_000),
+  // HTML e-mails (with inline styles) are big; the request limit is 1 MB.
+  format: z.enum(["text", "html"]).default("text"),
+  body: z.string().min(1).max(900_000),
 };
 const addr = z.string().trim().email().max(320);
 
@@ -55,7 +57,7 @@ export const emailRouter = router({
     await cardInOrg(input.cardId, ctx.orgId);
     await templateInOrg(input.templateId, ctx.orgId);
     const r = await renderTemplate(input.templateId, input.cardId);
-    return { to: r.to, cc: r.cc, subject: r.subject, body: r.body };
+    return { to: r.to, cc: r.cc, subject: r.subject, body: r.body, format: r.format };
   }),
 
   /** Send from the card. Replies go to the sender's own e-mail (no shared inbox yet). */
@@ -63,7 +65,7 @@ export const emailRouter = router({
     .input(z.object({
       // The total (to + cc) is checked against Google's limit when sending.
       cardId: z.string(), to: z.array(addr).min(1).max(MAX_RECIPIENTS), cc: z.array(addr).max(MAX_RECIPIENTS).default([]),
-      subject: z.string().trim().min(1).max(500), body: z.string().min(1).max(50_000),
+      subject: z.string().trim().min(1).max(500), body: z.string().min(1).max(900_000), format: z.enum(["text", "html"]).default("text"),
       attachmentIds: z.array(z.string()).max(20).default([]), templateId: z.string().optional(),
     }))
     .mutation(async ({ ctx, input }) => {

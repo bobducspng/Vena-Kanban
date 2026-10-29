@@ -27,6 +27,8 @@ export const MAX_RECIPIENTS = 500;
 /** A free-text e-mail (card e-mails, templates). Throws with the reason on failure. */
 export async function sendCardMail(m: {
   to: string[]; cc?: string[]; subject: string; body: string; replyTo?: string;
+  /** The template's own HTML (the body is then its plain-text version). */
+  html?: string;
   attachments?: { filename: string; path: string; contentType?: string }[];
 }) {
   if (!transport) throw new Error("envio de e-mail não configurado na VM");
@@ -35,7 +37,7 @@ export async function sendCardMail(m: {
   if (m.to.length + (m.cc?.length ?? 0) > MAX_RECIPIENTS) {
     throw new Error(`o Google aceita no máximo ${MAX_RECIPIENTS} destinatários por e-mail (Para + Cópia)`);
   }
-  const html = `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:#15181d;white-space:pre-wrap">${escape(m.body)}</div>`;
+  const html = m.html ?? `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:#15181d;white-space:pre-wrap">${escape(m.body)}</div>`;
   await transport.sendMail({
     from: FROM, to: m.to, cc: m.cc?.length ? m.cc : undefined, replyTo: m.replyTo,
     subject: m.subject, text: m.body, html, attachments: m.attachments,

@@ -189,7 +189,7 @@ async function runAction(rule: typeof automationRules.$inferSelect, a: Action, c
       const r = await renderTemplate(a.templateId, card.id);
       const to = a.to?.trim() ? (await cardContext(card.id)).recipients(a.to) : r.to;
       if (!to.length) throw new Error("nenhum destinatário válido (o campo de e-mail está vazio?)");
-      await sendFromCard({ cardId: card.id, to, cc: r.cc, subject: r.subject, body: r.body, templateId: a.templateId, via: actor.automation });
+      await sendFromCard({ cardId: card.id, to, cc: r.cc, subject: r.subject, body: r.body, format: r.format, templateId: a.templateId, via: actor.automation });
       return `e-mail para ${to.join(", ")}`;
     }
     case "generate_pdf": {
