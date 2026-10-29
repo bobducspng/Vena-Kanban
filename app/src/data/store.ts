@@ -77,6 +77,9 @@ const mapUser = (u: SrvUser): User => ({ id: u.id, name: u.name ?? u.email, emai
 type FieldProps = { description?: string | null; help?: string | null; editableOtherPhases?: boolean; isUnique?: boolean; validationRegex?: string | null };
 
 /** JSON over plain HTTP with the session cookie; server errors become Error(message). */
+/** A modelo de PDF as edited (own letterhead when useDefaultLayout is false). */
+export type PdfTemplateInput = { name: string; body: string; useDefaultLayout: boolean; showLogo: boolean; header: string | null; footer: string | null };
+
 async function fileFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, { credentials: "include", ...init });
   const data = await res.json().catch(() => ({}));
@@ -272,6 +275,11 @@ export const api = {
     update: (name: string) => trpc.org.update.mutate({ name }),
     audit: (before?: Date, limit = 100) => trpc.org.audit.query({ before, limit }),
     map: () => trpc.org.map.query(),
+    updatePdfLayout: (header: string, footer: string) => trpc.org.updatePdfLayout.mutate({ header, footer }),
+    uploadLogo: (file: File) => fileFetch<{ ok: true }>("/files/branding/logo", { method: "POST", headers: { "Content-Type": file.type || "application/octet-stream" }, body: file }),
+    removeLogo: () => fileFetch<{ ok: true }>("/files/branding/logo", { method: "DELETE" }),
+    logoUrl: () => `${API_URL}/files/branding/logo?t=${Date.now()}`,
+    previewUrl: (templateId?: string) => `${API_URL}/files/branding/preview${templateId ? `?templateId=${templateId}` : ""}`,
   },
 
   people: {
@@ -307,8 +315,8 @@ export const api = {
   pdf: {
     templates: (pipeId: string) => trpc.pdf.templates.query({ pipeId }),
     defaultBody: () => trpc.pdf.defaultBody.query(),
-    create: (input: { pipeId: string; name: string; body: string }) => trpc.pdf.create.mutate(input),
-    update: (input: { templateId: string; name: string; body: string }) => trpc.pdf.update.mutate(input),
+    create: (input: { pipeId: string } & PdfTemplateInput) => trpc.pdf.create.mutate(input),
+    update: (input: { templateId: string } & PdfTemplateInput) => trpc.pdf.update.mutate(input),
     remove: (templateId: string) => trpc.pdf.remove.mutate({ templateId }),
     generate: (cardId: string, templateId: string | null) => trpc.pdf.generate.mutate({ cardId, templateId }),
   },

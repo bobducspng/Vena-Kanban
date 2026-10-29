@@ -6,8 +6,14 @@ import { router, protectedProcedure, adminProcedure } from "../trpc.js";
 
 export const orgRouter = router({
   get: protectedProcedure.query(async ({ ctx }) => {
-    const o = (await db.select({ id: organizations.id, name: organizations.name }).from(organizations).where(eq(organizations.id, ctx.orgId)).limit(1))[0];
-    return o ?? null;
+    const o = (await db.select({ id: organizations.id, name: organizations.name, pdfLogo: organizations.pdfLogo, pdfHeader: organizations.pdfHeader, pdfFooter: organizations.pdfFooter })
+      .from(organizations).where(eq(organizations.id, ctx.orgId)).limit(1))[0];
+    return o ? { ...o, hasLogo: !!o.pdfLogo } : null;
+  }),
+  /** Papel timbrado padrão dos PDFs (the logo is uploaded at /files/branding/logo). */
+  updatePdfLayout: adminProcedure.input(z.object({ header: z.string().max(2000), footer: z.string().max(2000) })).mutation(async ({ ctx, input }) => {
+    await db.update(organizations).set({ pdfHeader: input.header.trim() || null, pdfFooter: input.footer.trim() || null }).where(eq(organizations.id, ctx.orgId));
+    return { ok: true };
   }),
   /** The name shows on top of the portal. */
   update: adminProcedure.input(z.object({ name: z.string().trim().min(1).max(255) })).mutation(async ({ ctx, input }) => {

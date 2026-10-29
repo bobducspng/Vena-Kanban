@@ -16,6 +16,10 @@ const updatedAt = () =>
 export const organizations = mysqlTable("organizations", {
   id: id(),
   name: varchar("name", { length: 255 }).notNull(),
+  // Papel timbrado dos PDFs (padrão da empresa): logo file id + header/footer text with {campos}.
+  pdfLogo: varchar("pdf_logo", { length: 64 }),
+  pdfHeader: text("pdf_header"),
+  pdfFooter: text("pdf_footer"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -156,6 +160,11 @@ export const pdfTemplates = mysqlTable("pdf_templates", {
   pipeId: ref("pipe_id").notNull(),
   name: varchar("name", { length: 255 }).notNull(),
   body: text("body").notNull(),
+  // false = this modelo has its own header/footer (and may drop the logo).
+  useDefaultLayout: boolean("use_default_layout").notNull().default(true),
+  showLogo: boolean("show_logo").notNull().default(true),
+  header: text("header"),
+  footer: text("footer"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 }, (t) => ({ pipeIdx: index("idx_pdftpl_pipe").on(t.pipeId) }));

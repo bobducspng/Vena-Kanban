@@ -1,11 +1,11 @@
 import PDFDocument from "pdfkit";
 import { join } from "node:path";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { eq } from "drizzle-orm";
 import { db } from "./db/client.js";
 import { attachments, cards, organizations, pdfTemplates, pipes } from "./db/schema.js";
 import { cardContext, type CardContext } from "./templates.js";
-import { UPLOAD_DIR } from "./http/fileRoutes.js";
+import { UPLOAD_DIR } from "./uploads.js";
 import { logEvent } from "./trpc/cardAccess.js";
 
 /**
@@ -36,19 +36,54 @@ function rich(doc: PDFKit.PDFDocument, line: string, size: number, opts: PDFKit.
   });
 }
 
-/** Render a card into a PDF buffer with the given body (null = default summary). */
-export async function renderCardPdf(cardId: string, body: string | null): Promise<Buffer> {
+/** Papel timbrado: logo, cabeçalho e rodapé (texts with {campos}). Nothing set = the plain look. */
+export interface Layout { orgName: string; logo: Buffer | null; header: string | null; footer: string | null }
+type Tpl = Pick<typeof pdfTemplates.$inferSelect, "useDefaultLayout" | "showLogo" | "header" | "footer">;
+
+// Logos live next to the attachments, outside the web root: data/uploads/_branding/<id>.
+export const BRANDING_DIR = join(UPLOAD_DIR, "_branding");
+export const isImage = (b: Buffer) => (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) || (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff);
+
+/** The org's letterhead, or the modelo's own when it does not use the default. */
+export async function layoutFor(orgId: string, tpl: Tpl | null): Promise<Layout> {
+  const org = (await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1))[0];
+  const own = tpl && !tpl.useDefaultLayout;
+  const logoId = own && !tpl.showLogo ? null : org?.pdfLogo;
+  const logo = logoId ? await readFile(join(BRANDING_DIR, logoId)).catch(() => null) : null;
+  return { orgName: org?.name ?? "Venaflow", logo, header: (own ? tpl.header : org?.pdfHeader) || null, footer: (own ? tpl.footer : org?.pdfFooter) || null };
+}
+
+/** Render a card into a PDF buffer with the given modelo (null = default summary). */
+export async function renderCardPdf(cardId: string, tpl: (Tpl & { body: string }) | null): Promise<Buffer> {
   const ctx = await cardContext(cardId);
   const card = (await db.select({ pipeId: cards.pipeId }).from(cards).where(eq(cards.id, cardId)).limit(1))[0];
   const pipe = card ? (await db.select({ orgId: pipes.orgId }).from(pipes).where(eq(pipes.id, card.pipeId)).limit(1))[0] : undefined;
-  const org = pipe ? (await db.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, pipe.orgId)).limit(1))[0] : undefined;
-  return buildPdf(ctx, org?.name ?? "Venaflow", body);
+  const layout = pipe ? await layoutFor(pipe.orgId, tpl) : { orgName: "Venaflow", logo: null, header: null, footer: null };
+  return buildPdf(ctx, layout, tpl?.body ?? null);
 }
 
-/** The layout itself (no database): testable on its own. */
-export function buildPdf(ctx: Pick<CardContext, "fill" | "entries" | "card">, orgName: string, body: string | null): Promise<Buffer> {
+/** Made-up card for "Ver exemplo" (letterhead preview without a real card). */
+export function sampleContext(): Pick<CardContext, "fill" | "entries" | "card"> {
+  const values: Record<string, string> = { "#": "123", "título": "Exemplo de card", "titulo": "Exemplo de card", "pipe": "Pipe de exemplo", "fase": "Em andamento", "data de hoje": todayBR() };
+  return {
+    card: { number: 123, title: "Exemplo de card" },
+    fill: (t) => t.replace(/\{([^}]*)\}/g, (_m, k: string) => values[k.trim().toLowerCase()] ?? `[${k.trim()}]`),
+    entries: () => [
+      { phase: "Solicitação", label: "Cliente", value: "Empresa Exemplo Ltda" },
+      { phase: "Solicitação", label: "Valor", value: "R$ 1.234,56" },
+      { phase: "Aprovação", label: "Aprovado por", value: "Maria Souza" },
+    ],
+  };
+}
+export const todayBR = () => new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 
-  const doc = new PDFDocument({ size: "A4", margins: { top: 64, bottom: 64, left: 56, right: 56 }, bufferPages: true, info: { Title: clean(ctx.card.title), Creator: "Venaflow" } });
+/** The layout itself (no database): testable on its own. */
+export function buildPdf(ctx: Pick<CardContext, "fill" | "entries" | "card">, layout: Layout, body: string | null): Promise<Buffer> {
+  const header = layout.header ? clean(ctx.fill(layout.header)) : null;
+  const footer = layout.footer ? clean(ctx.fill(layout.footer)) : null;
+  // Room for the letterhead: a taller top when there is a logo or header text.
+  const top = layout.logo || header ? 108 : 64, bottom = footer ? 84 : 64;
+  const doc = new PDFDocument({ size: "A4", margins: { top, bottom, left: 56, right: 56 }, bufferPages: true, info: { Title: clean(ctx.card.title), Creator: "Venaflow" } });
   const chunks: Buffer[] = [];
   doc.on("data", (c: Buffer) => chunks.push(c));
   const done = new Promise<Buffer>((res) => doc.on("end", () => res(Buffer.concat(chunks))));
@@ -94,9 +129,25 @@ export function buildPdf(ctx: Pick<CardContext, "fill" | "entries" | "card">, or
     const bottom = doc.page.margins.bottom;
     doc.page.margins.bottom = 0; // writing inside the margin must not open a new page
     doc.font("Helvetica").fontSize(8).fillColor(MUTED);
-    doc.text(clean(orgName), 56, 32, { width: width / 2, lineBreak: false });
-    doc.text(`Card #${ctx.card.number}`, 56 + width / 2, 32, { width: width / 2, align: "right", lineBreak: false });
-    doc.text(`Gerado pelo Venaflow em ${nowBR()} · página ${i + 1} de ${range.count}`, 56, doc.page.height - 40, { width, align: "center", lineBreak: false });
+    if (layout.logo || header) {
+      let textX = 56;
+      if (layout.logo) {
+        try { doc.image(layout.logo, 56, 30, { fit: [160, 52], valign: "center" }); textX = 56 + 176; } catch { /* unreadable image: skip it */ }
+      }
+      if (header) doc.fontSize(8.5).fillColor(INK).text(header, textX, 32, { width: 56 + width - textX, align: "right", height: 56, ellipsis: true });
+      doc.moveTo(56, 92).lineTo(56 + width, 92).strokeColor(RULE).lineWidth(0.6).stroke();
+    } else {
+      doc.text(clean(layout.orgName), 56, 32, { width: width / 2, lineBreak: false });
+      doc.text(`Card #${ctx.card.number}`, 56 + width / 2, 32, { width: width / 2, align: "right", lineBreak: false });
+    }
+    doc.font("Helvetica").fontSize(8).fillColor(MUTED);
+    if (footer) {
+      doc.moveTo(56, doc.page.height - 70).lineTo(56 + width, doc.page.height - 70).strokeColor(RULE).lineWidth(0.6).stroke();
+      doc.text(footer, 56, doc.page.height - 62, { width, align: "center", height: 26, ellipsis: true });
+      doc.text(`página ${i + 1} de ${range.count}`, 56, doc.page.height - 34, { width, align: "right", lineBreak: false });
+    } else {
+      doc.text(`Gerado pelo Venaflow em ${nowBR()} · página ${i + 1} de ${range.count}`, 56, doc.page.height - 40, { width, align: "center", lineBreak: false });
+    }
     doc.page.margins.bottom = bottom;
   }
   doc.end();
@@ -143,7 +194,7 @@ export async function saveCardFile(cardId: string, filename: string, bytes: Buff
 export async function generateCardPdf(cardId: string, templateId: string | null, userId: string | null) {
   const tpl = templateId ? (await db.select().from(pdfTemplates).where(eq(pdfTemplates.id, templateId)).limit(1))[0] : null;
   if (templateId && !tpl) throw new Error("modelo de PDF não encontrado");
-  const bytes = await renderCardPdf(cardId, tpl?.body ?? null);
+  const bytes = await renderCardPdf(cardId, tpl ?? null);
   const number = (await db.select({ number: cards.number }).from(cards).where(eq(cards.id, cardId)).limit(1))[0]?.number;
   const base = clean(tpl?.name ?? "Resumo do card").replace(/[\\/:*?"<>|\n]+/g, "_").slice(0, 200);
   return saveCardFile(cardId, `${base} #${number}.pdf`, bytes, "application/pdf", userId);

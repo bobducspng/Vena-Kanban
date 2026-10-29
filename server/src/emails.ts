@@ -4,7 +4,7 @@ import { db } from "./db/client.js";
 import { attachments, cardEmails, cardEvents, emailTemplates } from "./db/schema.js";
 import { sendCardMail } from "./mailer.js";
 import { cardContext } from "./templates.js";
-import { UPLOAD_DIR } from "./http/fileRoutes.js";
+import { UPLOAD_DIR } from "./uploads.js";
 
 const MAX_ATTACH_BYTES = 20 * 1024 * 1024; // Gmail's limit is 25 MB including encoding
 

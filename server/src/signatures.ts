@@ -7,7 +7,7 @@ import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "./db/client.js";
 import { attachments, cardAssignees, cards, organizations, pipes, signatureRequests, signatureSigners, users } from "./db/schema.js";
 import { env } from "./env.js";
-import { UPLOAD_DIR } from "./http/fileRoutes.js";
+import { UPLOAD_DIR } from "./uploads.js";
 import { sendCardMail, sendMail } from "./mailer.js";
 import { notifyOutside } from "./notify.js";
 import { newToken } from "./publicForms.js";

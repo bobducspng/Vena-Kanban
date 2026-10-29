@@ -78,6 +78,7 @@ export async function cardContext(cardId: string): Promise<CardContext> {
     "responsáveis": () => asg.map((a) => a.email).join(", "),
     "responsaveis": () => asg.map((a) => a.email).join(", "),
     "link de acompanhamento": () => (req[0] ? requestUrl(req[0].token) : ""),
+    "data de hoje": () => new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }),
   };
   const resolve = (raw: string) => {
     const name = raw.trim().toLowerCase();

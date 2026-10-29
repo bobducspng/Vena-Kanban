@@ -7,7 +7,12 @@ import { router, protectedProcedure, adminProcedure, assertPipeInOrg } from "../
 import { cardForWrite } from "../cardAccess.js";
 import { DEFAULT_BODY, generateCardPdf } from "../../pdf.js";
 
-const tpl = { name: z.string().trim().min(1).max(255), body: z.string().min(1).max(50_000) };
+const tpl = {
+  name: z.string().trim().min(1).max(255), body: z.string().min(1).max(50_000),
+  // Own letterhead instead of the org's (Configurações > Papel timbrado).
+  useDefaultLayout: z.boolean().default(true), showLogo: z.boolean().default(true),
+  header: z.string().max(2000).nullable().default(null), footer: z.string().max(2000).nullable().default(null),
+};
 
 async function templateInOrg(templateId: string, orgId: string) {
   const t = (await db.select().from(pdfTemplates).where(eq(pdfTemplates.id, templateId)).limit(1))[0];
@@ -31,7 +36,8 @@ export const pdfRouter = router({
   }),
   update: adminProcedure.input(z.object({ templateId: z.string(), ...tpl })).mutation(async ({ ctx, input }) => {
     await templateInOrg(input.templateId, ctx.orgId);
-    await db.update(pdfTemplates).set({ name: input.name, body: input.body }).where(eq(pdfTemplates.id, input.templateId));
+    const { templateId, ...patch } = input;
+    await db.update(pdfTemplates).set(patch).where(eq(pdfTemplates.id, templateId));
     return { ok: true };
   }),
   remove: adminProcedure.input(z.object({ templateId: z.string() })).mutation(async ({ ctx, input }) => {

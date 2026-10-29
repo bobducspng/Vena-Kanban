@@ -1,18 +1,18 @@
 import { Router, raw, type Request } from "express";
-import { fileURLToPath } from "node:url";
-import { dirname, resolve, join } from "node:path";
+import { join } from "node:path";
 import { mkdir, writeFile, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { eq, and, asc, isNull } from "drizzle-orm";
 import { db } from "../db/client.js";
-import { attachments, cards, cardFields, fields, memberships, pipes } from "../db/schema.js";
+import { attachments, cards, cardFields, fields, memberships, organizations, pdfTemplates, pipes } from "../db/schema.js";
 import { getUserIdFromRequest } from "../auth/session.js";
 import { logEvent } from "../trpc/cardAccess.js";
 import { assertCardWrite, canSeeCard } from "../access.js";
+import { recordAudit } from "../audit.js";
+import { BRANDING_DIR, buildPdf, isImage, layoutFor, sampleContext } from "../pdf.js";
 
-// Attachments live on the VM's disk (decision 2026-10-28), outside the repo's code:
-// <repo>/data/uploads/<cardId>/<attachmentId>. From server/{src,dist}/http that is ../../../data.
-export const UPLOAD_DIR = process.env.UPLOAD_DIR ?? resolve(dirname(fileURLToPath(import.meta.url)), "../../../data/uploads");
+import { UPLOAD_DIR } from "../uploads.js";
+export { UPLOAD_DIR };
 const MAX_BYTES = 25 * 1024 * 1024;
 
 /** Session user + their org, or null. Same rules as the tRPC context. */
@@ -127,4 +127,61 @@ fileRoutes.delete("/files/:id", async (req, res) => {
   await unlink(join(UPLOAD_DIR, att.cardId, att.id)).catch(() => undefined);
   await logEvent(att.cardId, "attachment_removed", who.userId, { filename: att.filename });
   res.json({ ok: true });
+});
+
+// --- Papel timbrado dos PDFs (admins) ------------------------------------------------
+const MAX_LOGO = 2 * 1024 * 1024;
+
+/** Upload the org logo (PNG or JPEG, up to 2 MB); replaces the previous one. */
+fileRoutes.post("/files/branding/logo", raw({ type: () => true, limit: MAX_LOGO }), async (req, res) => {
+  const who = await caller(req);
+  if (!who) return res.status(401).json({ error: "Faça login para continuar" });
+  if (who.role !== "admin") return res.status(403).json({ error: "Apenas administradores" });
+  const body = req.body as Buffer;
+  if (!Buffer.isBuffer(body) || !isImage(body)) return res.status(400).json({ error: "Envie uma imagem PNG ou JPG." });
+  const id = crypto.randomUUID();
+  await mkdir(BRANDING_DIR, { recursive: true });
+  await writeFile(join(BRANDING_DIR, id), body);
+  const old = (await db.select({ logo: organizations.pdfLogo }).from(organizations).where(eq(organizations.id, who.orgId)).limit(1))[0]?.logo;
+  await db.update(organizations).set({ pdfLogo: id }).where(eq(organizations.id, who.orgId));
+  if (old) await unlink(join(BRANDING_DIR, old)).catch(() => undefined);
+  await recordAudit(who.orgId, who.userId, "org.uploadLogo", { bytes: body.length });
+  res.json({ ok: true });
+});
+
+fileRoutes.delete("/files/branding/logo", async (req, res) => {
+  const who = await caller(req);
+  if (!who) return res.status(401).json({ error: "Faça login para continuar" });
+  if (who.role !== "admin") return res.status(403).json({ error: "Apenas administradores" });
+  const old = (await db.select({ logo: organizations.pdfLogo }).from(organizations).where(eq(organizations.id, who.orgId)).limit(1))[0]?.logo;
+  await db.update(organizations).set({ pdfLogo: null }).where(eq(organizations.id, who.orgId));
+  if (old) await unlink(join(BRANDING_DIR, old)).catch(() => undefined);
+  await recordAudit(who.orgId, who.userId, "org.removeLogo", {});
+  res.json({ ok: true });
+});
+
+fileRoutes.get("/files/branding/logo", async (req, res) => {
+  const who = await caller(req);
+  if (!who) return res.status(401).send("Faça login para continuar");
+  const logo = (await db.select({ logo: organizations.pdfLogo }).from(organizations).where(eq(organizations.id, who.orgId)).limit(1))[0]?.logo;
+  const path = logo ? join(BRANDING_DIR, logo) : null;
+  if (!path || !existsSync(path)) return res.status(404).send("Sem logo");
+  res.setHeader("Cache-Control", "no-store");
+  res.sendFile(path);
+});
+
+/** "Ver exemplo": a made-up card with the letterhead (?templateId= uses that modelo's). */
+fileRoutes.get("/files/branding/preview", async (req, res) => {
+  const who = await caller(req);
+  if (!who) return res.status(401).send("Faça login para continuar");
+  const tplId = req.query.templateId ? String(req.query.templateId) : null;
+  const tpl = tplId ? (await db.select().from(pdfTemplates).where(eq(pdfTemplates.id, tplId)).limit(1))[0] : null;
+  if (tpl) {
+    const pipe = (await db.select({ orgId: pipes.orgId }).from(pipes).where(eq(pipes.id, tpl.pipeId)).limit(1))[0];
+    if (pipe?.orgId !== who.orgId) return res.status(404).send("Modelo não encontrado");
+  }
+  const bytes = await buildPdf(sampleContext(), await layoutFor(who.orgId, tpl ?? null), tpl?.body ?? null);
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", "inline; filename=\"exemplo.pdf\"");
+  res.send(bytes);
 });
