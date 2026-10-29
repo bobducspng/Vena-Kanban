@@ -2,7 +2,7 @@ import { NavLink } from "react-router-dom";
 import { BarChart3, Columns3, List } from "lucide-react";
 import { cn } from "../../lib/cn";
 
-const SHOW_DASHBOARD = false;
+const SHOW_DASHBOARD = true;
 
 /** Views of a pipe: Quadro (kanban), Lista (table), Dashboard. */
 export function PipeTabs({ pipeId }: { pipeId: string }) {

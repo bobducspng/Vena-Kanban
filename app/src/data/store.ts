@@ -265,6 +265,10 @@ export const api = {
     regenerate: (pipeId: string) => trpc.publicForm.regenerate.mutate({ pipeId }),
   },
 
+  dashboard: {
+    pipe: (pipeId: string, days: number) => trpc.dashboard.pipe.query({ pipeId, days }),
+  },
+
   email: {
     enabled: (): Promise<boolean> => trpc.email.enabled.query(),
     templates: (pipeId: string): Promise<EmailTemplate[]> => trpc.email.templates.query({ pipeId }),
