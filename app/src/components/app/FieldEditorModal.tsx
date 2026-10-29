@@ -50,6 +50,14 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
   const [isUnique, setIsUnique] = useState(false);
   const [regex, setRegex] = useState("");
   const [conn, setConn] = useState<ConnectionSettings>({ target: "table", targetId: "", canSearch: true, canCreate: true, multiple: false, fieldMap: [], requireChild: false, requireChildrenDone: false });
+  // Connection fields first, under their own title (as in the original), then the basic ones.
+  const typeOptions = types.some((t) => t.value === "connection")
+    ? [
+      { value: "connection:pipe", label: "Conexão de pipe", group: "Campos de conexão" },
+      { value: "connection:table", label: "Conexão de database", group: "Campos de conexão" },
+      ...types.filter((t) => t.value !== "connection").map((t) => ({ value: t.value, label: t.label, group: "Campos básicos" })),
+    ]
+    : types.map((t) => ({ value: t.value, label: t.label }));
   const isConnection = type === "connection";
   const { data: tables } = useQuery({ queryKey: ["databases"], queryFn: api.database.list, enabled: isConnection });
   const { data: pipes } = useQuery({ queryKey: ["pipes"], queryFn: api.pipe.list, enabled: isConnection });
@@ -115,21 +123,27 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
         </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="field-type" className="text-sm font-medium text-text">Tipo</label>
-          <Select id="field-type" value={type} disabled={!!existing} onValueChange={(v) => setType(v as EditableFieldType)} options={types.map((t) => ({ value: t.value, label: t.label }))} />
+          <Select id="field-type" value={isConnection ? `connection:${conn.target}` : type} disabled={!!existing} options={typeOptions}
+            onValueChange={(v) => {
+              // "Conexão de pipe" / "Conexão de database" are one field type with a different target.
+              if (v.startsWith("connection:")) { setType("connection"); setConn((c) => ({ ...c, target: v.slice(11) as "table" | "pipe", targetId: "" })); }
+              else setType(v as EditableFieldType);
+            }} />
           {existing && <p className="text-xs text-muted">O tipo não pode ser alterado depois de criado. Para mudar, crie um campo novo.</p>}
         </div>
         {isConnection && (
           <fieldset className="flex flex-col gap-3 rounded-md border border-border p-3">
-            <legend className="px-1 text-sm font-medium text-text">Conexão</legend>
-            <div className="grid gap-3 sm:grid-cols-[10rem_minmax(0,1fr)]">
-              <Select aria-label="Conectar com" value={conn.target} disabled={!!existing}
-                onValueChange={(v) => setConn((c) => ({ ...c, target: v as "table" | "pipe", targetId: "" }))}
-                options={[{ value: "table", label: "Database" }, { value: "pipe", label: "Pipe" }]} />
+            <legend className="px-1 text-sm font-medium text-text">{conn.target === "table" ? "Conexão de database" : "Conexão de pipe"}</legend>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs text-muted">{conn.target === "table" ? "Os cards buscam (ou cadastram) registros deste database:" : "Os cards se ligam a cards deste pipe (pai e filho):"}</span>
               <Select aria-label={conn.target === "table" ? "Database" : "Pipe"} value={conn.targetId || undefined} disabled={!!existing}
                 placeholder={conn.target === "table" ? "Escolha o database" : "Escolha o pipe"}
                 onValueChange={(v) => setConn((c) => ({ ...c, targetId: v }))}
                 options={(conn.target === "table" ? tables ?? [] : pipes ?? []).map((t) => ({ value: t.id, label: t.name }))} />
             </div>
+            {!existing && conn.target === "table" && tables && tables.length === 0 && (
+              <p className="text-xs text-muted">Nenhum database cadastrado ainda. Crie um no menu <strong>Databases</strong> (ex.: Clientes, Fornecedores) e volte aqui.</p>
+            )}
             {existing && <p className="text-xs text-muted">O destino não muda depois de criado (as conexões já feitas apontam para ele).</p>}
             <label className="inline-flex items-center gap-2 text-sm text-text">
               <input type="checkbox" className="h-4 w-4 accent-accent" checked={conn.canSearch} onChange={(e) => setConn((c) => ({ ...c, canSearch: e.target.checked }))} />

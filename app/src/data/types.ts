@@ -31,7 +31,7 @@ export const EDITABLE_FIELD_TYPES = [
   { value: "label_select", label: "Etiqueta (vira as etiquetas do card)" },
   { value: "attachment", label: "Anexo" },
   { value: "id", label: "ID do card (somente leitura)" },
-  { value: "connection", label: "Conexão (database ou outro pipe)" },
+  { value: "connection", label: "Conexão (pipe ou database)" },
 ] as const;
 export type EditableFieldType = (typeof EDITABLE_FIELD_TYPES)[number]["value"];
 

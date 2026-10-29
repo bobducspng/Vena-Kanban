@@ -5,6 +5,7 @@ import { cn } from "../../lib/cn";
 export interface SelectOption {
   value: string;
   label: string;
+  group?: string; // options with a group are listed under its title, in order of appearance
 }
 
 interface SelectProps {
@@ -16,6 +17,12 @@ interface SelectProps {
   invalid?: boolean;
   disabled?: boolean;
   "aria-label"?: string;
+}
+
+function groupsOf(options: SelectOption[]): [string, SelectOption[]][] {
+  const m = new Map<string, SelectOption[]>();
+  for (const o of options) m.set(o.group ?? "", [...(m.get(o.group ?? "") ?? []), o]);
+  return [...m.entries()];
 }
 
 /** Accessible select built on Radix (listbox semantics, keyboard, type-ahead). */
@@ -41,8 +48,12 @@ export function Select({ value, onValueChange, options, placeholder = "Selecione
           sideOffset={4}
           className="z-50 overflow-hidden rounded-md border border-border bg-surface-raised shadow-pop"
         >
-          <RSelect.Viewport className="p-1">
-            {options.map((o) => (
+          <RSelect.Viewport className="max-h-[min(24rem,var(--radix-select-content-available-height))] p-1">
+            {groupsOf(options).map(([group, list], gi) => (
+              <RSelect.Group key={group || gi}>
+                {gi > 0 && <RSelect.Separator className="my-1 h-px bg-border" />}
+                {group && <RSelect.Label className="px-3 py-1 text-xs font-semibold uppercase tracking-wide text-muted">{group}</RSelect.Label>}
+            {list.map((o) => (
               <RSelect.Item
                 key={o.value}
                 value={o.value}
@@ -56,6 +67,8 @@ export function Select({ value, onValueChange, options, placeholder = "Selecione
                 </RSelect.ItemIndicator>
                 <RSelect.ItemText>{o.label}</RSelect.ItemText>
               </RSelect.Item>
+            ))}
+              </RSelect.Group>
             ))}
           </RSelect.Viewport>
         </RSelect.Content>
