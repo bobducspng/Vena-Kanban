@@ -40,7 +40,7 @@ Tirados das dores mais citadas na comunidade [C §2, §4]:
 | Editar/excluir pipe | excluir exige digitar confirmação | ✅ (excluir = ocultar, restaurável) | M2 |
 | Visibilidade público/privado | privado = só admins e convidados | ⬜ | M10 |
 | Só responsáveis editam cards / só admin exclui | políticas do pipe | ⬜ | M10 |
-| Quem cria card pelo formulário | membros/convidados da empresa/externos | ⬜ | M7 |
+| Quem cria card pelo formulário | membros/convidados da empresa/externos | 🟡 (público/fechado) | M7 |
 | Visualização padrão do pipe | kanban/lista/calendário; cada usuário pode trocar | ⬜ | M9 |
 | Clonar pipe | copia fases, campos, automações, condicionais, templates; não copia cards; regras de clonagem [A §1.4] | ⬜ | M10 |
 | Versões da configuração | snapshot JSON numerado, baixar, restaurar a última | ⬜ | M10 |
@@ -142,17 +142,17 @@ Opções de cada campo:
 | --- | --- | --- | --- |
 | Formulário inicial interno | | ✅ | — |
 | Opções do formulário | título, texto do botão, campo-título | 🟡 (texto do botão e campo-título) | M2 |
-| Formulário público (link, sem login) | rota pública; captcha | ⬜ | M7 |
-| Embutir em site (iframe) | | ⬜ | M7 |
-| Personalização | logo, título, descrição, cor, fundo, texto do botão, múltiplos envios, autopreencher envios anteriores | ⬜ | M7 |
-| Níveis de compartilhamento | público com link / pessoas selecionadas / organização | ⬜ | M7 |
-| Formulário de fase por link (por card) | atualiza o card, não cria | ⬜ | M7 |
-| Tarefa (formulário de fase por e-mail, até 30 pessoas) | página "Tarefas e Solicitações" | ⬜ | M7 |
-| Autenticação por e-mail (link de 30 min) | | ⬜ | M7 |
+| Formulário público (link, sem login) | rota pública; captcha | ✅ (limite por IP + campo isca) | M7 |
+| Embutir em site (iframe) | ✅ | M7 |
+| Personalização | logo, título, descrição, cor, fundo, texto do botão, múltiplos envios, autopreencher envios anteriores | 🟡 (título, descrição, cor, botão, mensagem, outra resposta; sem logo/fundo) | M7 |
+| Níveis de compartilhamento | público com link / pessoas selecionadas / organização | 🟡 (público com link; restrito no M10) | M7 |
+| Formulário de fase por link (por card) | atualiza o card, não cria | ✅ | M7 |
+| Tarefa (formulário de fase por e-mail, até 30 pessoas) | página "Tarefas e Solicitações" | 🟡 (link por e-mail para 1 pessoa por vez) | M7 |
+| Autenticação por e-mail (link de 30 min) | ⬜ (o link secreto é a credencial) | M7 |
 | Formulário inicial de outro pipe dentro de uma fase | cria card filho | ✅ (Criar novo card na conexão) | M4 |
-| Portal: páginas, texto, link, imagem, vídeo, formulários | até 50 subportais com permissão própria | ⬜ | M7 |
+| Portal: páginas, texto, link, imagem, vídeo, formulários | até 50 subportais com permissão própria | 🟡 (lista de formulários) | M7 |
 | Valores padrão fixos/dinâmicos no portal | ex.: nome/e-mail do usuário logado | ⬜ | M7 |
-| Rastreador de solicitações ("meus pedidos") | status, histórico, mensagens solicitante↔equipe | ⬜ | M7 |
+| Rastreador de solicitações ("meus pedidos") | status, histórico, mensagens solicitante↔equipe | ✅ | M7 |
 | Convidados da empresa e externos | só veem formulários liberados | ⬜ | M7 |
 
 ### 2.7 Conexões e databases [A §9, §10, API]
@@ -209,8 +209,8 @@ Opções de cada campo:
 | Funcionalidade | Detalhe | Status | M |
 | --- | --- | --- | --- |
 | Templates de e-mail | variáveis de campos (até 100), padrão do pipe, idioma/fuso | ⬜ | M8 |
-| Enviar e-mail do card (manual) | até 10 destinatários | ⬜ | M8 |
-| SMTP próprio (remetente @vena.app.br) | | ⬜ | M8 |
+| Enviar e-mail do card (manual) | até 10 destinatários | 🟡 (link de fase e resposta ao solicitante) | M8 |
+| SMTP próprio (remetente @vena.app.br) | ✅ (aguarda senha de app na VM) | M8 |
 | Endereço por pipe e por card + caixa de entrada | e-mail recebido cria/atualiza card, anexos viram campos | ⬜ | M8 |
 | Respostas prontas e assinatura | | ⬜ | M8 |
 | Anexo real no e-mail enviado | pedido da comunidade | ⬜ | M8 |
@@ -277,7 +277,7 @@ Ordem pensada para destravar valor cedo e porque cada marco depende do anterior.
 | **M4 ✅ — Databases e conexões** | ★ databases (tabelas, registros, formulário, status); campo de conexão pipe/database; ★ autopreenchimento a partir do registro; pai/filho e suas regras; conteúdo dinâmico | "dados vindos do BD" depende de databases + conexão |
 | **M5 ✅ — Automações** | ★ motor e catálogo completo (mover automático, criar card em outro pipe, atualizar campo, mover pai, rodízio, fórmula, HTTP); recorrentes; logs, alerta de falha, testar regra; campo fórmula | precisa de conexões (M4) para as ações entre pipes |
 | **M6 ✅ — SLA e trabalho do dia** | vencido/atrasado/expirado, dias úteis + feriados, histórico de tempo por fase, timers, "Meu trabalho", notificações in-app | eventos de alerta alimentam automações |
-| **M7 — Formulários externos e portal** | formulário público e de fase, tarefas, portal com páginas, rastreador "meus pedidos", convidados | precisa de condicionais (M3) e permissões básicas |
+| **M7 ✅ — Formulários externos e portal** | formulário público e de fase, tarefas, portal com páginas, rastreador "meus pedidos", convidados | precisa de condicionais (M3) e permissões básicas |
 | **M8 — E-mail** | templates, SMTP próprio, envio manual e por automação, caixa de entrada do pipe/card | exige definir provedor de e-mail (decisão abaixo) |
 | **M9 — Visões e relatórios** | lista, ações em massa, calendário, filtros salvos, relatório de pipe e da empresa, dashboards, linha do tempo com métricas, acesso BI | lê tudo dos marcos anteriores |
 | **M10 — Governança** | papéis por pipe/database, grupos, campo sensível, gestão de membros, auditoria, clonar pipe, versões, pastas, importação, webhooks, API | importante quando mais áreas entrarem |
