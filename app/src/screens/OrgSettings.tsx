@@ -14,6 +14,7 @@ import { BiSettings } from "../components/app/BiSettings";
 import { PeopleSettings } from "../components/app/PeopleSettings";
 import { OrgNameSettings, AuditSettings } from "../components/app/OrgAdmin";
 import { LetterheadsSettings } from "../components/app/PdfLayoutSettings";
+import { BackupStatus } from "../components/app/BackupStatus";
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const fmt = (d: string) => { const [y, m, dd] = d.split("-"); return `${dd}/${m}/${y}`; };
@@ -113,6 +114,8 @@ export function OrgSettings() {
             <LetterheadsSettings />
 
             <BiSettings />
+
+            <BackupStatus />
 
             <AuditSettings />
           </>

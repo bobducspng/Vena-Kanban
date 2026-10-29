@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { z } from "zod";
 import { eq, and, lt, desc, inArray, isNull } from "drizzle-orm";
 import { db } from "../../db/client.js";
@@ -35,6 +37,17 @@ export const orgRouter = router({
       return st?.targetId && known.has(st.targetId) ? [{ from: f.pipeId, to: st.targetId, kind: st.target ?? "pipe", label: f.label }] : [];
     });
     return { pipes: pipeRows, tables, edges };
+  }),
+
+  /** Result of the last nightly backup (deploy/backup.sh writes it). */
+  backupStatus: adminProcedure.query(async () => {
+    const file = join(process.env.BACKUP_DIR ?? "/var/backups/fluxos", "status.json");
+    try {
+      const s = JSON.parse(await readFile(file, "utf8")) as { status: string; at: string; message: string; dbBytes: number; filesCount: number; filesBytes: number; diskFree: string };
+      return { installed: true as const, ...s };
+    } catch {
+      return { installed: false as const };
+    }
   }),
 
   /** Auditoria, newest first; `before` pages back. */
