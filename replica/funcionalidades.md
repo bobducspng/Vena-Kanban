@@ -133,7 +133,7 @@ Opções de cada campo:
 | Cards pai/filho | via conexão; atalhos nos dois lados | ✅ | M4 |
 | Desconectar card/registro | ✅ | M4 |
 | Histórico do card | ✅ | M2 |
-| Linha do tempo com métricas | duração, fases visitadas, % automatizado, trocas de responsável, gargalo | ⬜ | M9 |
+| Linha do tempo com métricas | duração, fases visitadas, % automatizado, trocas de responsável, gargalo | 🟡 (tempo por fase no card) | M9 |
 | Timers (desde criação, na fase, última atualização) | ✅ | M6 |
 | Gerar PDF do card | | ⬜ | M11 |
 
@@ -219,16 +219,16 @@ Opções de cada campo:
 | Funcionalidade | Detalhe | Status | M |
 | --- | --- | --- | --- |
 | Kanban | | ✅ | — |
-| Lista (tabela, colunas escolhidas) | | ⬜ | M9 |
-| Ações em massa na lista | editar, mover, excluir (com confirmação) | ⬜ | M9 |
+| Lista (tabela, colunas escolhidas) | ✅ | M9 |
+| Ações em massa na lista | editar, mover, excluir (com confirmação) | ✅ (mover, atribuir, excluir) | M9 |
 | Calendário (por vencimento) | | ⬜ | M9 |
-| Filtros E/OU (fase, responsável, etiqueta, campos) | | 🟡 (busca simples) | M9 |
-| Filtros salvos | | ⬜ | M9 |
-| Relatório de pipe | colunas, filtros (período/relativo/absoluto), fórmulas soma/média/mín/máx, salvar, exportar xlsx | ⬜ | M9 |
+| Filtros E/OU (fase, responsável, etiqueta, campos) | ✅ | M9 |
+| Filtros salvos | 🟡 (colunas lembradas; filtros não) | M9 |
+| Relatório de pipe | colunas, filtros (período/relativo/absoluto), fórmulas soma/média/mín/máx, salvar, exportar xlsx | 🟡 (lista filtrada + exportar CSV) | M9 |
 | Relatório da empresa (vários pipes) | | ⬜ | M9 |
 | Relatório com campos de cards conectados | pedido da comunidade | ⬜ | M9 |
-| Dashboards | medida × dimensão × período, gráficos (barra, linha, pizza, número, tabela), drill-down | ⬜ | M9 |
-| Acesso para Power BI | usuário MySQL somente leitura / views | ⬜ | M9 |
+| Dashboards | medida × dimensão × período, gráficos (barra, linha, pizza, número, tabela), drill-down | ✅ (dashboard do pipe) | M9 |
+| Acesso para Power BI | usuário MySQL somente leitura / views | ✅ (links JSON com chave secreta) | M9 |
 
 ### 2.12 Permissões, auditoria e organização [A §17–20]
 | Funcionalidade | Detalhe | Status | M |
@@ -279,7 +279,7 @@ Ordem pensada para destravar valor cedo e porque cada marco depende do anterior.
 | **M6 ✅ — SLA e trabalho do dia** | vencido/atrasado/expirado, dias úteis + feriados, histórico de tempo por fase, timers, "Meu trabalho", notificações in-app | eventos de alerta alimentam automações |
 | **M7 ✅ — Formulários externos e portal** | formulário público e de fase, tarefas, portal com páginas, rastreador "meus pedidos", convidados | precisa de condicionais (M3) e permissões básicas |
 | **M8 ✅ — E-mail** | templates, SMTP próprio, envio manual e por automação, caixa de entrada do pipe/card | exige definir provedor de e-mail (decisão abaixo) |
-| **M9 — Visões e relatórios** | lista, ações em massa, calendário, filtros salvos, relatório de pipe e da empresa, dashboards, linha do tempo com métricas, acesso BI | lê tudo dos marcos anteriores |
+| **M9 ✅ — Visões e relatórios** | lista, ações em massa, calendário, filtros salvos, relatório de pipe e da empresa, dashboards, linha do tempo com métricas, acesso BI | lê tudo dos marcos anteriores |
 | **M10 — Governança** | papéis por pipe/database, grupos, campo sensível, gestão de membros, auditoria, clonar pipe, versões, pastas, importação, webhooks, API | importante quando mais áreas entrarem |
 | **M11 — Extras** | IA (NF-e/boleto), PDF, assinatura, Flow e Mapa, interfaces | diferenciais depois do essencial |
 
