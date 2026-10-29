@@ -9,6 +9,7 @@ import { PipeAutomations } from "./screens/PipeAutomations";
 import { AutomationsHome } from "./screens/AutomationsHome";
 import { OrgSettings } from "./screens/OrgSettings";
 import { MyWork } from "./screens/MyWork";
+import { PublicForm } from "./screens/PublicForm";
 import { DesignRoute } from "./screens/DesignRoute";
 import { StubScreen } from "./screens/StubScreen";
 import { RequireAuth } from "./components/app/RequireAuth";
@@ -19,6 +20,7 @@ export default function App() {
       {/* Public */}
       <Route path="/login" element={<Login />} />
       <Route path="/design" element={<DesignRoute />} />
+      <Route path="/f/:slug" element={<PublicForm />} />
 
       {/* Protected — gated by RequireAuth (redirects to /login without a session). */}
       <Route path="/" element={<RequireAuth><OrgHome /></RequireAuth>} />

@@ -11,6 +11,7 @@ import { appRouter } from "./trpc/routers/_app.js";
 import { createContext } from "./trpc/trpc.js";
 import { authRoutes } from "./http/authRoutes.js";
 import { fileRoutes } from "./http/fileRoutes.js";
+import { publicRoutes } from "./http/publicRoutes.js";
 import { startAutomations } from "./automations.js";
 
 const app = express();
@@ -35,6 +36,13 @@ app.use(authRoutes);
 
 app.use("/trpc", createExpressMiddleware({ router: appRouter, createContext }));
 
+// Formulário público (no login) — API, plus its page may be embedded in other sites.
+app.use(publicRoutes);
+app.use((req, res, next) => {
+  if (req.path.startsWith("/f/")) res.removeHeader("X-Frame-Options");
+  next();
+});
+
 // Serve the built SPA from app/dist (single origin behind one ngrok tunnel).
 // From server/dist/index.js, app/dist is ../../app/dist. Only if it was built.
 const spaDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../app/dist");
@@ -43,7 +51,7 @@ if (existsSync(spaDir)) {
   // SPA fallback: any other GET returns index.html (client-side routing).
   app.use((req, res, next) => {
     if (req.method !== "GET") return next();
-    if (req.path.startsWith("/trpc") || req.path.startsWith("/auth") || req.path.startsWith("/files") || req.path === "/health") return next();
+    if (req.path.startsWith("/trpc") || req.path.startsWith("/auth") || req.path.startsWith("/files") || req.path.startsWith("/public") || req.path === "/health") return next();
     res.sendFile(join(spaDir, "index.html"));
   });
   console.log(`Serving SPA from ${spaDir}`);

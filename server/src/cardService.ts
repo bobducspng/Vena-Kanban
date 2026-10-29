@@ -40,10 +40,11 @@ async function announce(e: CardHappening) {
 /** For alerts raised by the SLA sweep. */
 export const announceHappening = announce;
 
-/** Who did it: a person (userId) or an automation (rule name, for the activity log). */
-export interface Actor { userId: string | null; automation?: string; depth: number }
+/** Who did it: a person (userId), an automation (rule name) or an outside channel
+ *  (`via`, e.g. "Formulário público") — for the activity log. */
+export interface Actor { userId: string | null; automation?: string; via?: string; depth: number }
 const eventData = (a: Actor, extra?: Record<string, unknown>) =>
-  a.automation ? { ...(extra ?? {}), automation: a.automation } : extra ?? null;
+  a.automation || a.via ? { ...(extra ?? {}), ...(a.automation ? { automation: a.automation } : {}), ...(a.via ? { via: a.via } : {}) } : extra ?? null;
 
 // --- shaping -------------------------------------------------------------------
 type Extra = {
@@ -141,6 +142,8 @@ const missingError = (missing: string[]) =>
 /** Create a card from start-form values. Returns its id. */
 export async function createCard(input: {
   pipeId: string; phaseId?: string; title: string; values: { fieldId: string; value: unknown }[]; orgId: string; actor: Actor;
+  /** Field types not required here (e.g. the public form cannot fill connections): the team completes them. */
+  skipRequiredTypes?: string[];
 }): Promise<string> {
   const start = (await db.select().from(phases).where(and(eq(phases.pipeId, input.pipeId), eq(phases.isStart, true))).limit(1))[0];
   if (!start) throw new TRPCError({ code: "BAD_REQUEST", message: "Pipe sem fase inicial" });
@@ -162,7 +165,7 @@ export async function createCard(input: {
   }
   const allValues = [...input.values, ...[...filled].map(([fieldId, value]) => ({ fieldId, value }))];
   // Attachments can only be added after the card exists: checked when it leaves the phase.
-  const missing = await missingInPhase(start.id, allValues, ["attachment", "id"]);
+  const missing = await missingInPhase(start.id, allValues, ["attachment", "id", ...(input.skipRequiredTypes ?? [])]);
   if (missing.length) throw missingError(missing);
   // Only start-phase fields can be filled on creation.
   const startFields = await db.select().from(fields).where(and(eq(fields.phaseId, start.id), isNull(fields.archivedAt)));

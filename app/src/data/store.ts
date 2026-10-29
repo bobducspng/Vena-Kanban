@@ -69,6 +69,7 @@ const mapCard = (c: SrvCard): Card => ({
 const mapEvent = (e: SrvEvent): CardEvent => ({
   id: e.id, cardId: e.cardId, type: e.type as CardEvent["type"], fromPhaseId: e.fromPhaseId, toPhaseId: e.toPhaseId, actorId: e.actorId, createdAt: toISO(e.createdAt),
   automation: (e.data as { automation?: string } | null)?.automation,
+  via: (e.data as { via?: string } | null)?.via,
 });
 const mapUser = (u: SrvUser): User => ({ id: u.id, name: u.name ?? u.email, email: u.email, avatarColor: "blue", role: u.role });
 
@@ -252,6 +253,14 @@ export const api = {
       mapRecord(await trpc.database.updateRecordValue.mutate(input)),
     removeRecord: (recordId: string) => trpc.database.removeRecord.mutate({ recordId }),
     recordUsage: (recordId: string): Promise<Backlink[]> => trpc.database.recordUsage.query({ recordId }),
+  },
+
+  publicForm: {
+    get: (pipeId: string) => trpc.publicForm.get.query({ pipeId }),
+    setPublished: (pipeId: string, published: boolean) => trpc.publicForm.setPublished.mutate({ pipeId, published }),
+    update: (input: { pipeId: string; title?: string | null; closed?: boolean; branding?: Record<string, unknown> }) =>
+      trpc.publicForm.update.mutate(input as Parameters<typeof trpc.publicForm.update.mutate>[0]),
+    regenerate: (pipeId: string) => trpc.publicForm.regenerate.mutate({ pipeId }),
   },
 
   notification: {

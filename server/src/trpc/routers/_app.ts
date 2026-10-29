@@ -14,6 +14,7 @@ import { connectionRouter } from "./connection.js";
 import { automationRouter } from "./automation.js";
 import { calendarRouter } from "./calendar.js";
 import { notificationRouter } from "./notification.js";
+import { publicFormRouter } from "./publicForm.js";
 
 export const appRouter = router({
   user: userRouter,
@@ -31,6 +32,7 @@ export const appRouter = router({
   automation: automationRouter,
   calendar: calendarRouter,
   notification: notificationRouter,
+  publicForm: publicFormRouter,
 });
 
 // The front-end imports this type for an end-to-end-typed client.

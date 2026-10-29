@@ -101,6 +101,17 @@ export const cardPhaseHistory = mysqlTable("card_phase_history", {
   becameLate: boolean("became_late").notNull().default(false),
 }, (t) => ({ cardIdx: index("idx_phasehist_card").on(t.cardId, t.enteredAt), phaseIdx: index("idx_phasehist_phase").on(t.phaseId) }));
 
+// Cards opened from outside (formulário público): who asked, for confirmation and
+// "Meus pedidos" (accessToken = their magic link).
+export const requests = mysqlTable("requests", {
+  id: id(),
+  cardId: ref("card_id").notNull(),
+  formId: ref("form_id"),
+  email: varchar("email", { length: 320 }),
+  accessToken: char("access_token", { length: 43 }).notNull(),
+  createdAt: createdAt(),
+}, (t) => ({ cardIdx: index("idx_requests_card").on(t.cardId), emailIdx: index("idx_requests_email").on(t.email), tokenUq: uniqueIndex("uq_requests_token").on(t.accessToken) }));
+
 // In-app notifications (sino): mentions, assignments, alerts, automation failures.
 export const notifications = mysqlTable("notifications", {
   id: id(),

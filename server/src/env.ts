@@ -31,6 +31,14 @@ const schema = z.object({
   // admin. Listas separadas por vírgula; e-mail tem prioridade sobre domínio.
   ALLOWED_EMAIL_DOMAINS: z.string().default(""), // ex.: "suaempresa.com,parceiro.com"
   ALLOWED_EMAILS: z.string().default(""),         // ex.: "voce@gmail.com,socio@gmail.com"
+
+  // Outgoing e-mail (optional: without it nothing is sent, the rest works).
+  // Google Workspace: smtp.gmail.com, 465, the account + an app password.
+  SMTP_HOST: z.string().default(""),
+  SMTP_PORT: z.coerce.number().default(465),
+  SMTP_USER: z.string().default(""),
+  SMTP_PASS: z.string().default(""),
+  SMTP_FROM: z.string().default(""), // e.g. "Fluxos Vena <comunicacao@vena.app.br>"
 });
 
 export const env = schema.parse(process.env);

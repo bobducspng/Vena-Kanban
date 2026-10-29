@@ -280,6 +280,7 @@ export interface CardEvent {
   actorId?: string | null;
   text?: string;
   automation?: string; // name of the automation that did it (no actor)
+  via?: string; // outside channel that did it, e.g. "Formulário público"
   createdAt: string;
 }
 
