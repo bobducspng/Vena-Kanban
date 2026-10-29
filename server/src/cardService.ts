@@ -32,13 +32,15 @@ export interface CardHappening {
   depth: number;
 }
 type Listener = (e: CardHappening) => Promise<void>;
-let listener: Listener | null = null;
-/** The automation engine registers itself here (avoids an import cycle). */
-export function onCardHappening(fn: Listener) { listener = fn; }
+const listeners: Listener[] = [];
+/** The automation engine and the webhooks register here (avoids an import cycle). */
+export function onCardHappening(fn: Listener) { listeners.push(fn); }
 async function announce(e: CardHappening) {
   // depth -1 = quiet (planilha importada sem automações): nothing fires.
-  if (!listener || e.depth < 0) return;
-  try { await asSystem(() => listener!(e)); } catch (err) { console.error("automation listener failed:", err); }
+  if (e.depth < 0) return;
+  for (const fn of listeners) {
+    try { await asSystem(() => fn(e)); } catch (err) { console.error("card listener failed:", err); }
+  }
 }
 /** For alerts raised by the SLA sweep. */
 export const announceHappening = announce;

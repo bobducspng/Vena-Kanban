@@ -169,6 +169,8 @@ type Mapping = (string | null)[]; // per column: field id, TITLE, PHASE or null 
 /** Rows of one batch into cards of a pipe. `firstRow` = spreadsheet row number of rows[0]. */
 export async function importCards(input: {
   pipeId: string; orgId: string; userId: string; mapping: Mapping; rows: Cell[][]; firstRow: number; dryRun: boolean; runAutomations: boolean;
+  /** Shown in the card history (default "Importação de planilha"). */
+  via?: string;
 }): Promise<RowResult[]> {
   const pipe = (await db.select().from(pipes).where(eq(pipes.id, input.pipeId)).limit(1))[0];
   const allFields = await db.select().from(fields).where(and(eq(fields.pipeId, input.pipeId), isNull(fields.archivedAt)));
@@ -215,7 +217,7 @@ export async function importCards(input: {
       if (missing.length) throw new Error(`falta preencher: ${missing.join(", ")}`);
       if (input.dryRun) { out.push({ row: rowNo, ok: true }); continue; }
 
-      const actor = { userId: input.userId, via: "Importação de planilha", depth: input.runAutomations ? 0 : -1 };
+      const actor = { userId: input.userId, via: input.via ?? "Importação de planilha", depth: input.runAutomations ? 0 : -1 };
       const cardId = await createCard({ pipeId: input.pipeId, title, values: startValues, orgId: input.orgId, actor });
       try {
         for (const v of values.filter((x) => x.field.phaseId !== start.id)) {

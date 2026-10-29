@@ -291,6 +291,44 @@ export const driveTargets = mysqlTable("drive_targets", {
   createdAt: createdAt(),
 });
 
+// Integrações (M13): API keys (only the SHA-256 is kept) and outgoing webhooks per pipe.
+export const apiTokens = mysqlTable("api_tokens", {
+  id: id(),
+  orgId: ref("org_id").notNull(),
+  name: varchar("name", { length: 120 }).notNull(),
+  tokenHash: char("token_hash", { length: 64 }).notNull(),
+  prefix: varchar("prefix", { length: 16 }).notNull(), // shown in the list ("vf_ab12…")
+  createdBy: ref("created_by"),
+  createdAt: createdAt(),
+  lastUsedAt: datetime("last_used_at", { fsp: 3 }),
+  revokedAt: datetime("revoked_at", { fsp: 3 }),
+}, (t) => ({ hashUq: uniqueIndex("uq_api_token_hash").on(t.tokenHash), orgIdx: index("idx_api_tokens_org").on(t.orgId) }));
+
+export const webhooks = mysqlTable("webhooks", {
+  id: id(),
+  orgId: ref("org_id").notNull(),
+  pipeId: ref("pipe_id").notNull(),
+  url: varchar("url", { length: 1000 }).notNull(),
+  events: json("events").notNull(), // ["card.created", "card.moved", ...]
+  secret: text("secret").notNull(), // encrypted; signs each delivery (HMAC-SHA256)
+  active: boolean("active").notNull().default(true),
+  createdBy: ref("created_by"),
+  createdAt: createdAt(),
+}, (t) => ({ pipeIdx: index("idx_webhooks_pipe").on(t.pipeId) }));
+
+export const webhookDeliveries = mysqlTable("webhook_deliveries", {
+  id: id(),
+  webhookId: ref("webhook_id").notNull(),
+  event: varchar("event", { length: 40 }).notNull(),
+  cardId: ref("card_id"),
+  status: varchar("status", { length: 16 }).notNull(), // ok | failed
+  httpStatus: int("http_status"),
+  error: varchar("error", { length: 500 }),
+  attempts: int("attempts").notNull().default(1),
+  durationMs: int("duration_ms"),
+  createdAt: createdAt(),
+}, (t) => ({ hookIdx: index("idx_wh_deliveries").on(t.webhookId, t.createdAt) }));
+
 // Auditoria: every configuration change made by an admin (who, what, when, with which data).
 export const auditLog = mysqlTable("audit_log", {
   id: id(),

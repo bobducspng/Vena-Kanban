@@ -21,6 +21,7 @@ import { FieldEditorModal } from "../components/app/FieldEditorModal";
 import { cn } from "../lib/cn";
 import { PipeMembers } from "../components/app/PeopleSettings";
 import { PdfTemplatesSection } from "../components/app/PdfParts";
+import { WebhooksSection } from "../components/app/Integrations";
 import { Avatar } from "../components/ui/Avatar";
 
 const COLOR_LABEL: Record<PhaseColor, string> = {
@@ -149,6 +150,8 @@ export function PipeSettings() {
         <LabelsManager pipeId={pipeId} />
 
         <PipeMembers pipeId={pipeId} />
+
+        <WebhooksSection pipeId={pipeId} />
       </div>
     </AppShell>
   );

@@ -237,7 +237,7 @@ export const isInternalIp = (ip: string) =>
   ip === "::1" || /^f[cd]/i.test(ip) || /^fe80/i.test(ip) || ip.startsWith("::ffff:127.") || ip.startsWith("::ffff:10.");
 
 /** Block calls into the VM or the private network (incl. the cloud metadata service). */
-async function assertPublicUrl(url: string) {
+export async function assertPublicUrl(url: string) {
   const u = new URL(url);
   if (!["http:", "https:"].includes(u.protocol)) throw new Error("só http/https");
   const host = u.hostname.replace(/^\[|\]$/g, "");

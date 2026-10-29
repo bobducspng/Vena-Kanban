@@ -26,6 +26,7 @@ import { signatureRouter } from "./signature.js";
 import { letterheadRouter } from "./letterhead.js";
 import { importerRouter } from "./importer.js";
 import { reportRouter } from "./report.js";
+import { integrationRouter } from "./integration.js";
 
 export const appRouter = router({
   user: userRouter,
@@ -55,6 +56,7 @@ export const appRouter = router({
   letterhead: letterheadRouter,
   importer: importerRouter,
   report: reportRouter,
+  integration: integrationRouter,
 });
 
 // The front-end imports this type for an end-to-end-typed client.

@@ -330,6 +330,20 @@ export const api = {
       (await trpc.email.history.query({ cardId })).map((e) => ({ ...e, status: e.status as CardEmail["status"], format: e.format === "html" ? "html" as const : "text" as const, createdAt: toISO(e.createdAt) })),
   },
 
+  integration: {
+    apiBase: () => trpc.integration.apiBase.query(),
+    tokens: () => trpc.integration.tokens.query(),
+    createToken: (name: string) => trpc.integration.createToken.mutate({ name }),
+    revokeToken: (id: string) => trpc.integration.revokeToken.mutate({ id }),
+    webhooks: (pipeId: string) => trpc.integration.webhooks.query({ pipeId }),
+    createWebhook: (input: { pipeId: string; url: string; events: string[] }) => trpc.integration.createWebhook.mutate(input),
+    updateWebhook: (input: { id: string; url?: string; events?: string[]; active?: boolean }) => trpc.integration.updateWebhook.mutate(input),
+    removeWebhook: (id: string) => trpc.integration.removeWebhook.mutate({ id }),
+    webhookSecret: (id: string) => trpc.integration.webhookSecret.mutate({ id }),
+    testWebhook: (id: string) => trpc.integration.testWebhook.mutate({ id }),
+    deliveries: (id: string) => trpc.integration.deliveries.query({ id }),
+  },
+
   report: {
     list: () => trpc.report.list.query(),
     save: (input: { id?: string; name: string; config: ReportConfig }) => trpc.report.save.mutate(input),

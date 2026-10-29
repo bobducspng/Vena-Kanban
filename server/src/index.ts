@@ -14,6 +14,8 @@ import { fileRoutes } from "./http/fileRoutes.js";
 import { publicRoutes } from "./http/publicRoutes.js";
 import { biRoutes } from "./bi.js";
 import { startAutomations } from "./automations.js";
+import { startWebhooks } from "./webhooks.js";
+import { apiRoutes } from "./http/apiRoutes.js";
 
 const app = express();
 
@@ -38,6 +40,8 @@ app.use(authRoutes);
 app.use("/trpc", createExpressMiddleware({ router: appRouter, createContext }));
 
 // Formulário público (no login) — API, plus its page may be embedded in other sites.
+// API for other systems (Bearer key, Configurações > Integrações).
+app.use(apiRoutes);
 app.use(publicRoutes);
 app.use(biRoutes);
 app.use((req, res, next) => {
@@ -63,6 +67,7 @@ if (existsSync(spaDir)) {
 
 // Automations listen to card events from cardService.
 startAutomations();
+startWebhooks();
 
 app.listen(env.PORT, () => {
   console.log(`Server on :${env.PORT} — public: ${env.PUBLIC_BASE_URL}`);
