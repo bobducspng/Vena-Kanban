@@ -184,7 +184,7 @@ Opções de cada campo:
 | Ação mover card pai | ✅ | M5 |
 | Ação distribuir responsáveis | rodízio ou aleatório | ✅ | M5 |
 | Ação fórmula | `+ - * / % ^`, SUM, AVERAGE, MIN, MAX, ROUND, IF_NULL, datas | ✅ | M5 |
-| Ação enviar template de e-mail / enviar tarefa | | ⬜ | M8 / M7 |
+| Ação enviar template de e-mail / enviar tarefa | ✅ (e-mail); tarefa = link de fase | M8 / M7 |
 | Ação requisição HTTP | método, headers, corpo, autenticação, schema da resposta | ✅ (bloqueia rede interna) | M5 |
 | Ação aplicar regras de SLA | expediente, feriados, fuso → calcula vencimento | 🟡 (SLA em horário útil é nativo do pipe) | M6 |
 | Ação gerar com IA | | ⬜ | M11 |
@@ -208,12 +208,12 @@ Opções de cada campo:
 ### 2.10 E-mail [A §13]
 | Funcionalidade | Detalhe | Status | M |
 | --- | --- | --- | --- |
-| Templates de e-mail | variáveis de campos (até 100), padrão do pipe, idioma/fuso | ⬜ | M8 |
-| Enviar e-mail do card (manual) | até 10 destinatários | 🟡 (link de fase e resposta ao solicitante) | M8 |
+| Templates de e-mail | variáveis de campos (até 100), padrão do pipe, idioma/fuso | ✅ | M8 |
+| Enviar e-mail do card (manual) | até 10 destinatários | ✅ (até 500 destinatários, anexos do card) | M8 |
 | SMTP próprio (remetente @vena.app.br) | ✅ (aguarda senha de app na VM) | M8 |
-| Endereço por pipe e por card + caixa de entrada | e-mail recebido cria/atualiza card, anexos viram campos | ⬜ | M8 |
-| Respostas prontas e assinatura | | ⬜ | M8 |
-| Anexo real no e-mail enviado | pedido da comunidade | ⬜ | M8 |
+| Endereço por pipe e por card + caixa de entrada | e-mail recebido cria/atualiza card, anexos viram campos | ⬜ (adiado: decisão 2026-10-29) | M8 |
+| Respostas prontas e assinatura | 🟡 (templates servem de resposta pronta) | M8 |
+| Anexo real no e-mail enviado | pedido da comunidade | ✅ | M8 |
 
 ### 2.11 Visualizações, relatórios e dashboards [A §14–16]
 | Funcionalidade | Detalhe | Status | M |
@@ -278,7 +278,7 @@ Ordem pensada para destravar valor cedo e porque cada marco depende do anterior.
 | **M5 ✅ — Automações** | ★ motor e catálogo completo (mover automático, criar card em outro pipe, atualizar campo, mover pai, rodízio, fórmula, HTTP); recorrentes; logs, alerta de falha, testar regra; campo fórmula | precisa de conexões (M4) para as ações entre pipes |
 | **M6 ✅ — SLA e trabalho do dia** | vencido/atrasado/expirado, dias úteis + feriados, histórico de tempo por fase, timers, "Meu trabalho", notificações in-app | eventos de alerta alimentam automações |
 | **M7 ✅ — Formulários externos e portal** | formulário público e de fase, tarefas, portal com páginas, rastreador "meus pedidos", convidados | precisa de condicionais (M3) e permissões básicas |
-| **M8 — E-mail** | templates, SMTP próprio, envio manual e por automação, caixa de entrada do pipe/card | exige definir provedor de e-mail (decisão abaixo) |
+| **M8 ✅ — E-mail** | templates, SMTP próprio, envio manual e por automação, caixa de entrada do pipe/card | exige definir provedor de e-mail (decisão abaixo) |
 | **M9 — Visões e relatórios** | lista, ações em massa, calendário, filtros salvos, relatório de pipe e da empresa, dashboards, linha do tempo com métricas, acesso BI | lê tudo dos marcos anteriores |
 | **M10 — Governança** | papéis por pipe/database, grupos, campo sensível, gestão de membros, auditoria, clonar pipe, versões, pastas, importação, webhooks, API | importante quando mais áreas entrarem |
 | **M11 — Extras** | IA (NF-e/boleto), PDF, assinatura, Flow e Mapa, interfaces | diferenciais depois do essencial |
