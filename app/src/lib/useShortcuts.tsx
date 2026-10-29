@@ -7,7 +7,7 @@ export const SHORTCUTS: [string, string][] = [
   ["?", "Mostrar esta lista"],
   ["/", "Ir para a busca da tela (lista do pipe, banco de dados)"],
   ["n", "Novo card (no quadro do pipe)"],
-  ["1 · 2 · 3 · 4", "Num pipe: Quadro · Lista · Dashboard · Flow"],
+  ["1 · 2 · 3 · 4 · 5", "Num pipe: Quadro · Lista · Calendário · Dashboard · Flow"],
   ["g p", "Ir para Pipes"],
   ["g t", "Ir para Meu trabalho"],
   ["g b", "Ir para Bancos de dados"],
@@ -17,7 +17,7 @@ export const SHORTCUTS: [string, string][] = [
   ["Esc", "Fechar janela aberta"],
 ];
 const GO: Record<string, string> = { p: "/", t: "/my-work", b: "/databases", a: "/automations", m: "/map", c: "/settings" };
-const TABS = ["", "/list", "/dashboard", "/flow"];
+const TABS = ["", "/list", "/calendar", "/dashboard", "/flow"];
 /** The board listens for this to open "Novo card". */
 export const NEW_CARD_EVENT = "venaflow:new-card";
 
@@ -47,7 +47,7 @@ export function ShortcutsHelp() {
         return;
       }
       const pipe = /^\/pipes\/([^/]+)/.exec(pathname)?.[1];
-      if (pipe && /^[1-4]$/.test(k)) { navigate(`/pipes/${pipe}${TABS[Number(k) - 1]}`); return; }
+      if (pipe && /^[1-5]$/.test(k)) { navigate(`/pipes/${pipe}${TABS[Number(k) - 1]}`); return; }
       if (k === "n" && pipe && /^\/pipes\/[^/]+\/?$/.test(pathname)) { e.preventDefault(); window.dispatchEvent(new Event(NEW_CARD_EVENT)); }
     };
     window.addEventListener("keydown", onKey);

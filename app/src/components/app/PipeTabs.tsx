@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../data/store";
-import { BarChart3, Columns3, List, Workflow } from "lucide-react";
+import { BarChart3, CalendarDays, Columns3, List, Workflow } from "lucide-react";
 import { cn } from "../../lib/cn";
 
 const SHOW_DASHBOARD = true;
@@ -14,6 +14,7 @@ export function PipeTabs({ pipeId }: { pipeId: string }) {
   const tabs = [
     { to: `/pipes/${pipeId}`, label: "Quadro", icon: Columns3, end: true },
     { to: `/pipes/${pipeId}/list`, label: "Lista", icon: List, end: true },
+    { to: `/pipes/${pipeId}/calendar`, label: "Calendário", icon: CalendarDays, end: true },
     // Dashboard tab arrives with M9b.
     ...(dashboard ? [{ to: `/pipes/${pipeId}/dashboard`, label: "Dashboard", icon: BarChart3, end: true }] : []),
     { to: `/pipes/${pipeId}/flow`, label: "Flow", icon: Workflow, end: true },

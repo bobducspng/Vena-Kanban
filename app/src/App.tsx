@@ -17,6 +17,7 @@ import { DesignRoute } from "./screens/DesignRoute";
 import { StubScreen } from "./screens/StubScreen";
 import { SignPage } from "./screens/SignPage";
 import { PipeFlow } from "./screens/PipeFlow";
+import { PipeCalendar } from "./screens/PipeCalendar";
 import { ProcessMap } from "./screens/ProcessMap";
 import { RequireAuth } from "./components/app/RequireAuth";
 
@@ -40,6 +41,7 @@ export default function App() {
       <Route path="/pipes/:pipeId/list" element={<RequireAuth><PipeList /></RequireAuth>} />
       <Route path="/pipes/:pipeId/dashboard" element={<RequireAuth><PipeDashboard /></RequireAuth>} />
       <Route path="/pipes/:pipeId/flow" element={<RequireAuth><PipeFlow /></RequireAuth>} />
+      <Route path="/pipes/:pipeId/calendar" element={<RequireAuth><PipeCalendar /></RequireAuth>} />
       <Route path="/map" element={<RequireAuth><ProcessMap /></RequireAuth>} />
 
       {/* Planned screens — stubbed in this milestone (see replica/build-log.md). */}
