@@ -10,6 +10,7 @@ import { fieldStates, mustFill, type ConditionDef } from "./conditions.js";
 import { autofillValues, readSettings, finishBlocker } from "./connections.js";
 import { notifyAssigned } from "./notify.js";
 import { asSystem } from "./access.js";
+import { recomputeFormulas } from "./formulaFields.js";
 
 /**
  * Card operations shared by the API (people) and the automation engine.
@@ -168,7 +169,7 @@ export async function createCard(input: {
   }
   const allValues = [...input.values, ...[...filled].map(([fieldId, value]) => ({ fieldId, value }))];
   // Attachments can only be added after the card exists: checked when it leaves the phase.
-  const missing = await missingInPhase(start.id, allValues, ["attachment", "id", ...(input.skipRequiredTypes ?? [])]);
+  const missing = await missingInPhase(start.id, allValues, ["attachment", "id", "formula", ...(input.skipRequiredTypes ?? [])]);
   if (missing.length) throw missingError(missing);
   // Only start-phase fields can be filled on creation.
   const startFields = await db.select().from(fields).where(and(eq(fields.phaseId, start.id), isNull(fields.archivedAt)));
@@ -198,6 +199,7 @@ export async function createCard(input: {
   await writeValues(cardId, filled);
   await syncPhaseAssignees(cardId, null, landing.id);
 
+  await recomputeFormulas(cardId);
   await announce({ kind: "card_created", cardId, pipeId: input.pipeId, phaseId: landing.id, depth: input.actor.depth });
   await announce({ kind: "card_entered_phase", cardId, pipeId: input.pipeId, phaseId: landing.id, depth: input.actor.depth });
   return cardId;
@@ -234,6 +236,7 @@ export async function setFieldValue(input: {
   if (newTitle && newTitle !== card.title) await db.update(cards).set({ title: newTitle }).where(eq(cards.id, card.id));
   await db.insert(cardEvents).values({ id: crypto.randomUUID(), cardId: card.id, type: "field_updated", actorId: input.actor.userId, data: eventData(input.actor, { fieldId: field.id }) });
 
+  await recomputeFormulas(card.id);
   await announce({ kind: "field_updated", cardId: card.id, pipeId: card.pipeId, fieldId: field.id, depth: input.actor.depth });
 }
 

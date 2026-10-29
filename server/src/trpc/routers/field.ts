@@ -5,12 +5,14 @@ import { db } from "../../db/client.js";
 import { fields, phases, cardFields } from "../../db/schema.js";
 import { router, protectedProcedure, adminProcedure, assertPipeInOrg } from "../trpc.js";
 import { connectionSettings, checkTarget, checkFieldMap, readSettings } from "../../connections.js";
+import { checkFormula, formulaSettings, recomputePipe } from "../../formulaFields.js";
+import { FormulaError } from "../../formula.js";
 
 // Types the editor offers (and the card form renders).
 const fieldType = z.enum([
   "short_text", "long_text", "number", "currency", "date", "datetime", "time", "due_date",
   "email", "phone", "document", "select", "radio", "checklist", "checkbox",
-  "assignee_select", "label_select", "attachment", "id", "connection",
+  "assignee_select", "label_select", "attachment", "id", "connection", "formula",
 ]);
 const options = z.array(z.string().trim().min(1).max(255)).max(200);
 // Types where "valor único" makes sense (as in the original).
@@ -22,6 +24,12 @@ const props = {
   isUnique: z.boolean().optional(),
   validationRegex: z.string().max(500).nullable().optional(),
 };
+
+async function checkFormulaOrThrow(pipeId: string, f: { expression: string; format: "number" | "currency" | "date" | "text" }, selfId?: string) {
+  try { await checkFormula(pipeId, f, selfId); } catch (e) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: `Fórmula: ${e instanceof FormulaError ? e.message : "inválida"}` });
+  }
+}
 
 /** Reject a regex that does not compile, and unique on a type that can't be unique. */
 function checkProps(type: string, p: { isUnique?: boolean; validationRegex?: string | null }) {
@@ -90,10 +98,16 @@ export const fieldRouter = router({
       options: options.optional(),
       // "Conexão" only: target (database/pipe) and switches.
       settings: connectionSettings.optional(),
+      // "Fórmula" only: expression and result format.
+      formula: formulaSettings.optional(),
       ...props,
     }))
     .mutation(async ({ ctx, input }) => {
       const phase = await phaseInOrg(input.phaseId, ctx.orgId);
+      if (input.type === "formula") {
+        if (!input.formula) throw new TRPCError({ code: "BAD_REQUEST", message: "Escreva a fórmula." });
+        await checkFormulaOrThrow(phase.pipeId, input.formula);
+      }
       checkOptions(input.type, input.options);
       checkProps(input.type, input);
       if (input.type === "connection") {
@@ -110,8 +124,10 @@ export const fieldRouter = router({
         description: input.description || null, help: input.help || null,
         editableOtherPhases: input.editableOtherPhases ?? true, isUnique: input.isUnique ?? false,
         validationRegex: input.validationRegex || null,
-        settings: input.type === "connection" ? input.settings : null,
+        settings: input.type === "connection" ? input.settings : input.type === "formula" ? input.formula : null,
+        ...(input.type === "formula" ? { required: false } : {}),
       });
+      if (input.type === "formula") void recomputePipe(phase.pipeId).catch((e) => console.error("recompute failed:", e));
       return (await db.select().from(fields).where(eq(fields.id, id)).limit(1))[0];
     }),
 
@@ -124,6 +140,7 @@ export const fieldRouter = router({
       options: options.nullable().optional(),
       // Connection switches; the target itself is fixed after creation.
       settings: connectionSettings.pick({ canSearch: true, canCreate: true, multiple: true, fieldMap: true, requireChild: true, requireChildrenDone: true }).partial().optional(),
+      formula: formulaSettings.optional(),
       ...props,
     }))
     .mutation(async ({ ctx, input }) => {
@@ -134,8 +151,12 @@ export const fieldRouter = router({
         isUnique: patch.isUnique ?? field.isUnique,
         validationRegex: patch.validationRegex === undefined ? field.validationRegex : patch.validationRegex,
       });
-      const { settings: switches, ...rest } = patch;
+      const { settings: switches, formula, ...rest } = patch;
       let settings: unknown;
+      if (formula && field.type === "formula") {
+        await checkFormulaOrThrow(field.pipeId, formula, field.id);
+        settings = formula;
+      }
       if (switches && field.type === "connection") {
         const merged = { ...readSettings(field.settings)!, ...switches };
         if (!merged.canSearch && !merged.canCreate) throw new TRPCError({ code: "BAD_REQUEST", message: "Permita buscar, criar ou os dois." });
@@ -144,6 +165,7 @@ export const fieldRouter = router({
       }
       const set = settings ? { ...rest, settings } : rest;
       if (Object.keys(set).length) await db.update(fields).set(set).where(eq(fields.id, fieldId));
+      if (field.type === "formula") void recomputePipe(field.pipeId).catch((e) => console.error("recompute failed:", e));
       return (await db.select().from(fields).where(eq(fields.id, fieldId)).limit(1))[0];
     }),
 

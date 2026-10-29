@@ -2,7 +2,7 @@
 // signatures as the previous fake store, so no screen changed. Server outputs
 // are mapped to the app's domain types (src/data/types.ts).
 import { trpc, API_URL } from "../lib/trpc";
-import type { Pipe, Phase, FieldDef, Card, CardFieldValue, CardEvent, User, FieldType, PhaseColor, EditableFieldType, Role, Label, Comment, ChecklistItem, Attachment, TrashedCard, DataTable, DbRecord, ConnectionSettings, ConnectedItem, Backlink, AutomationRule, AutomationLog, AutomationTrigger, AutomationAction, BusinessCalendar, CardTimeline, Notification, MyWorkCard, EmailTemplate, CardEmail } from "./types";
+import type { Pipe, Phase, FieldDef, Card, CardFieldValue, CardEvent, User, FieldType, PhaseColor, EditableFieldType, Role, Label, Comment, ChecklistItem, Attachment, TrashedCard, DataTable, DbRecord, ConnectionSettings, ConnectedItem, Backlink, AutomationRule, AutomationLog, AutomationTrigger, AutomationAction, BusinessCalendar, CardTimeline, Notification, MyWorkCard, EmailTemplate, CardEmail, FormulaSettings } from "./types";
 import type { ConditionDef, Rule, FieldAction } from "../lib/conditions";
 
 /** A phase's conditional, as stored (the evaluator's ConditionDef + a name). */
@@ -54,7 +54,8 @@ const mapPipe = (p: SrvPipe): Pipe => ({
 });
 const mapPhase = (p: SrvPhase): Phase => ({ id: p.id, pipeId: p.pipeId, name: p.name, color: p.color ?? "gray", position: p.position, isStart: p.isStart, isEnd: p.isEnd, description: p.description, canCreateCard: p.canCreateCard, allowedTo: p.allowedTo ?? [], assigneeIds: p.assigneeIds ?? [], slaMinutes: p.slaMinutes ?? null });
 const mapField = (f: SrvField): FieldDef => ({ id: f.id, pipeId: f.pipeId, phaseId: f.phaseId, label: f.label, type: f.type as FieldType, required: f.required, options: Array.isArray(f.options) ? (f.options as string[]) : undefined, position: f.position, description: f.description, help: f.help, editableOtherPhases: f.editableOtherPhases, isUnique: f.isUnique, validationRegex: f.validationRegex, archivedAt: toISON(f.archivedAt),
-  settings: f.settings ? {
+  formula: f.type === "formula" ? (f.settings as FormulaSettings | null) : null,
+  settings: f.settings && f.type !== "formula" ? {
     ...(f.settings as ConnectionSettings),
     fieldMap: (f.settings as Partial<ConnectionSettings>).fieldMap ?? [],
     requireChild: (f.settings as Partial<ConnectionSettings>).requireChild ?? false,
@@ -160,10 +161,10 @@ export const api = {
     archive: (fieldId: string, archived: boolean) => trpc.field.archive.mutate({ fieldId, archived }),
     listByPhase: async (phaseId: string): Promise<FieldDef[]> =>
       (await trpc.field.listByPhase.query({ phaseId })).map(mapField),
-    create: async (input: { phaseId: string; label: string; type: EditableFieldType; required: boolean; options?: string[]; settings?: ConnectionSettings } & FieldProps): Promise<FieldDef> =>
+    create: async (input: { phaseId: string; label: string; type: EditableFieldType; required: boolean; options?: string[]; settings?: ConnectionSettings; formula?: FormulaSettings } & FieldProps): Promise<FieldDef> =>
       mapField(await trpc.field.create.mutate(input)),
     // The type is immutable after creation.
-    update: async (input: { fieldId: string; label?: string; required?: boolean; options?: string[] | null; settings?: Partial<Pick<ConnectionSettings, "canSearch" | "canCreate" | "multiple" | "fieldMap" | "requireChild" | "requireChildrenDone">> } & FieldProps): Promise<FieldDef> =>
+    update: async (input: { fieldId: string; label?: string; required?: boolean; options?: string[] | null; settings?: Partial<Pick<ConnectionSettings, "canSearch" | "canCreate" | "multiple" | "fieldMap" | "requireChild" | "requireChildrenDone">>; formula?: FormulaSettings } & FieldProps): Promise<FieldDef> =>
       mapField(await trpc.field.update.mutate(input)),
     reorder: (phaseId: string, fieldIds: string[]) => trpc.field.reorder.mutate({ phaseId, fieldIds }),
     remove: (fieldId: string) => trpc.field.remove.mutate({ fieldId }),

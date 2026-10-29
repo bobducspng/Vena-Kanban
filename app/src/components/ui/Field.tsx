@@ -12,6 +12,16 @@ import { Tag } from "./Tag";
 import { Avatar } from "./Avatar";
 import { Button } from "./Button";
 import { useToast } from "./Toast";
+
+const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+/** A formula result the Brazilian way (null when empty). */
+function showFormula(format: string | undefined, v: unknown): string | null {
+  if (v === null || v === undefined || v === "") return null;
+  if (format === "currency" && typeof v === "number") return brl.format(v);
+  if (format === "number" && typeof v === "number") return v.toLocaleString("pt-BR", { maximumFractionDigits: 6 });
+  if (format === "date" && typeof v === "string") { const [y, m, d] = v.slice(0, 10).split("-"); return `${d}/${m}/${y}`; }
+  return String(v);
+}
 import { ConnectionInput } from "../app/ConnectionInput";
 
 type Value = CardFieldValue["value"];
@@ -146,6 +156,8 @@ export function Field({ def, value, onChange, error, disabled, card }: FieldProp
       ) : def.type === "document" ? (
         <Input {...common} inputMode="numeric" placeholder="000.000.000-00 ou 00.000.000/0000-00" value={(value as string) ?? ""}
           onChange={(e) => onChange(maskDocument(e.target.value))} />
+      ) : def.type === "formula" ? (
+        <p id={id} className="text-sm text-text">{showFormula(def.formula?.format, value) ?? <span className="text-muted">Calculado automaticamente</span>}</p>
       ) : def.type === "id" ? (
         <p id={id} className="text-sm text-text">{card ? `#${card.number}` : <span className="text-muted">Gerado ao criar o card</span>}</p>
       ) : def.type === "attachment" ? (

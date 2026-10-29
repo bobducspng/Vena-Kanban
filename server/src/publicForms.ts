@@ -16,7 +16,7 @@ export const PUBLIC_TYPES = new Set([
   "email", "phone", "document", "select", "radio", "checklist", "checkbox",
 ]);
 /** Types the team completes later (required ones do not block a public submission). */
-export const NOT_PUBLIC_TYPES = ["connection", "assignee_select", "label_select", "attachment", "id"];
+export const NOT_PUBLIC_TYPES = ["connection", "assignee_select", "label_select", "attachment", "id", "formula"];
 
 export const branding = z.object({
   description: z.string().max(4000).default(""),

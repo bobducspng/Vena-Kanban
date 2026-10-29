@@ -19,7 +19,7 @@ type Result = { row: number; ok: boolean; error?: string; number?: number };
 
 const MAX_ROWS = 5000, BATCH = 100;
 const TITLE = "__title", PHASE = "__phase", IGNORE = "__ignore";
-const SKIP_TYPES = new Set(["attachment", "id", "statement"]);
+const SKIP_TYPES = new Set(["attachment", "id", "statement", "formula"]);
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
 const pad = (n: number) => String(n).padStart(2, "0");
 

@@ -8,7 +8,7 @@ export type PipeRole = "admin" | "member" | "my_cards" | "read";
 export type FieldType =
   | "short_text" | "long_text" | "email" | "phone" | "number" | "currency"
   | "date" | "datetime" | "time" | "due_date" | "select" | "radio" | "checklist" | "checkbox"
-  | "assignee_select" | "label_select" | "attachment" | "document" | "id" | "connection" | "statement";
+  | "assignee_select" | "label_select" | "attachment" | "document" | "id" | "connection" | "statement" | "formula";
 
 /** Field types the phase editor offers (server validates the same list). */
 export const EDITABLE_FIELD_TYPES = [
@@ -32,12 +32,16 @@ export const EDITABLE_FIELD_TYPES = [
   { value: "attachment", label: "Anexo" },
   { value: "id", label: "ID do card (somente leitura)" },
   { value: "connection", label: "Conexão (pipe ou database)" },
+  { value: "formula", label: "Fórmula (calculada sozinha)" },
 ] as const;
 export type EditableFieldType = (typeof EDITABLE_FIELD_TYPES)[number]["value"];
 
 /** Column types a database offers (no phase-only types: due date, label, attachment, ID). */
 export const DB_COLUMN_TYPES = EDITABLE_FIELD_TYPES.filter((t) =>
-  !["due_date", "label_select", "attachment", "id", "connection"].includes(t.value));
+  !["due_date", "label_select", "attachment", "id", "connection", "formula"].includes(t.value));
+
+/** "Fórmula" field: expression with {Campo} references and how the result is shown. */
+export interface FormulaSettings { expression: string; format: "number" | "currency" | "date" | "text" }
 
 /** "Conexão" field: what it points to and how items get connected. */
 export interface ConnectionSettings {
@@ -120,6 +124,7 @@ export interface FieldDef {
   validationRegex?: string | null;
   archivedAt?: string | null;
   settings?: ConnectionSettings | null; // connection fields
+  formula?: FormulaSettings | null; // formula fields
 }
 
 /** Field types that accept "valor único" (server checks the same list). */

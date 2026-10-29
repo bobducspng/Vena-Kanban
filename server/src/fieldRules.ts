@@ -31,7 +31,7 @@ const bad = (field: { label: string }, why: string) => new TRPCError({ code: "BA
 const asList = (v: unknown) => (Array.isArray(v) ? v : null);
 
 /** Types whose value is never written through the card form. */
-export const READ_ONLY_TYPES = new Set(["id", "attachment"]);
+export const READ_ONLY_TYPES = new Set(["id", "attachment", "formula"]);
 
 /** What the shape rules need of a field (a phase field or a database column). */
 export type ShapeField = {

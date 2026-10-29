@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../data/store";
-import { EDITABLE_FIELD_TYPES, OPTION_FIELD_TYPES, UNIQUE_FIELD_TYPES, type ConnectionSettings, type EditableFieldType, type FieldDef } from "../../data/types";
+import { EDITABLE_FIELD_TYPES, OPTION_FIELD_TYPES, UNIQUE_FIELD_TYPES, type ConnectionSettings, type EditableFieldType, type FieldDef, type FormulaSettings } from "../../data/types";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Modal } from "../ui/Modal";
@@ -24,6 +24,7 @@ export interface FieldDraft {
   isUnique: boolean;
   validationRegex: string | null;
   settings: ConnectionSettings | null; // connection fields
+  formula: FormulaSettings | null; // formula fields
 }
 
 /** Create or edit one field. The type is chosen on creation and cannot change afterwards. */
@@ -59,6 +60,8 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
     ]
     : types.map((t) => ({ value: t.value, label: t.label }));
   const isConnection = type === "connection";
+  const isFormula = type === "formula";
+  const [formula, setFormula] = useState<FormulaSettings>({ expression: "", format: "number" });
   const { data: tables } = useQuery({ queryKey: ["databases"], queryFn: api.database.list, enabled: isConnection });
   const { data: pipes } = useQuery({ queryKey: ["pipes"], queryFn: api.pipe.list, enabled: isConnection });
   // Autofill sources: the target database's columns, or the target pipe's fields.
@@ -81,6 +84,7 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
     setEditableOtherPhases(existing?.editableOtherPhases ?? true);
     setIsUnique(existing?.isUnique ?? false);
     setRegex(existing?.validationRegex ?? "");
+    setFormula(existing?.formula ?? { expression: "", format: "number" });
     setConn(existing?.settings ?? { target: "table", targetId: "", canSearch: true, canCreate: true, multiple: false, fieldMap: [], requireChild: false, requireChildrenDone: false });
   }, [field]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -97,9 +101,10 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
     isUnique: canBeUnique && isUnique,
     validationRegex: canRegex && regex ? regex : null,
     settings: isConnection ? conn : null,
+    formula: isFormula ? formula : null,
   };
   const save = useMutation({
-    mutationFn: () => persist({ label: label.trim(), type, required, options: hasOptions ? options : null, ...props }, existing),
+    mutationFn: () => persist({ label: label.trim(), type, required: isFormula ? false : required, options: hasOptions ? options : null, ...props }, existing),
     onSuccess: () => { onSaved(); toast(existing ? "Salvo" : `${noun === "campo" ? "Campo criado" : "Coluna criada"}`, "success"); onClose(); },
     onError: (e) => toast(errMsg(e), "error"),
   });
@@ -112,7 +117,7 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-          <Button onClick={() => save.mutate()} loading={save.isPending} disabled={!label.trim() || (hasOptions && options.length === 0) || !!regexError || (isConnection && (!conn.targetId || (!conn.canSearch && !conn.canCreate) || conn.fieldMap.some((m) => !m.from || !m.to)))}>Salvar</Button>
+          <Button onClick={() => save.mutate()} loading={save.isPending} disabled={!label.trim() || (hasOptions && options.length === 0) || !!regexError || (isFormula && !formula.expression.trim()) || (isConnection && (!conn.targetId || (!conn.canSearch && !conn.canCreate) || conn.fieldMap.some((m) => !m.from || !m.to)))}>Salvar</Button>
         </>
       }
     >
@@ -192,6 +197,25 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
             )}
           </fieldset>
         )}
+        {isFormula && (
+          <fieldset className="flex flex-col gap-2 rounded-md border border-border p-3">
+            <legend className="px-1 text-sm font-medium text-text">Fórmula</legend>
+            <Textarea aria-label="Fórmula" rows={3} className="font-mono text-sm" value={formula.expression} placeholder="{Valor unitário} * {Quantidade}"
+              onChange={(e) => setFormula((f) => ({ ...f, expression: e.target.value }))} />
+            <div className="flex flex-wrap gap-1">
+              {pipeFields.filter((f) => f.id !== existing?.id && !["attachment", "connection"].includes(f.type)).map((f) => (
+                <button key={f.id} type="button" className="rounded-pill border border-border px-2 py-0.5 text-xs text-text hover:border-accent"
+                  onClick={() => setFormula((x) => ({ ...x, expression: `${x.expression}{${f.label}}` }))}>{f.label}</button>
+              ))}
+            </div>
+            <div className="w-56"><Select aria-label="Mostrar como" value={formula.format} onValueChange={(v) => setFormula((f) => ({ ...f, format: v as FormulaSettings["format"] }))}
+              options={[{ value: "number", label: "Número" }, { value: "currency", label: "Moeda (R$)" }, { value: "date", label: "Data" }, { value: "text", label: "Texto" }]} /></div>
+            <p className="text-xs text-muted">
+              Clique nos campos para inserir. Operações: + − * / e parênteses; decimais com ponto (1.5). Funções: ROUND(x; 2), MIN, MAX, ABS, IF_NULL({"{Desconto}"}; 0).
+              Datas: {"{Entrega} - {Pedido}"} dá os dias entre elas; {"{Pedido} + 30"} dá uma data. Recalcula sozinha quando o card muda.
+            </p>
+          </fieldset>
+        )}
         {hasOptions && (
           <div className="flex flex-col gap-1.5">
             <label htmlFor="field-options" className="text-sm font-medium text-text">Opções (uma por linha)</label>
@@ -215,10 +239,10 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
         )}
         <fieldset className="flex flex-col gap-2">
           <legend className="sr-only">Regras do campo</legend>
-          <label className="inline-flex items-center gap-2 text-sm text-text">
+          {!isFormula && <label className="inline-flex items-center gap-2 text-sm text-text">
             <input type="checkbox" className="h-4 w-4 accent-accent" checked={required} onChange={(e) => setRequired(e.target.checked)} />
             {phaseOptions ? "Obrigatório (o card não sai desta fase sem ele)" : "Obrigatório"}
-          </label>
+          </label>}
           {phaseOptions && (
           <label className="inline-flex items-center gap-2 text-sm text-text">
             <input type="checkbox" className="h-4 w-4 accent-accent" checked={editableOtherPhases} onChange={(e) => setEditableOtherPhases(e.target.checked)} />

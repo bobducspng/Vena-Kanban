@@ -17,7 +17,7 @@ import { recordTitleOf, validateRecordValue } from "./trpc/routers/database.js";
 export type Cell = string | number | boolean | null;
 export const TITLE = "__title", PHASE = "__phase";
 export interface RowResult { row: number; ok: boolean; error?: string; number?: number }
-export const NOT_IMPORTABLE = new Set(["attachment", "id", "statement"]);
+export const NOT_IMPORTABLE = new Set(["attachment", "id", "statement", "formula"]);
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
 const text = (c: Cell) => (c === null ? "" : String(c).trim());
