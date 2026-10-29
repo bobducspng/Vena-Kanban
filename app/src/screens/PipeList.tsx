@@ -17,6 +17,8 @@ import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
 import { Spinner } from "../components/ui/Spinner";
 import { Tag } from "../components/ui/Tag";
+import { Upload } from "lucide-react";
+import { ImportModal } from "../components/app/ImportModal";
 import { useToast } from "../components/ui/Toast";
 
 type Status = "all" | "open" | "done" | "late" | "expired" | "overdue";
@@ -40,6 +42,7 @@ export function PipeList() {
   const qc = useQueryClient();
   const toast = useToast();
   const { isAdmin } = useMe();
+  const [importing, setImporting] = useState(false);
   const colsKey = `venaflow.listcols.${pipeId}`;
   const [cols, setCols] = useState<string[]>(() => store.get(colsKey, DEFAULT_COLS));
   const [pickCols, setPickCols] = useState(false);
@@ -146,8 +149,10 @@ export function PipeList() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="secondary" onClick={() => setPickCols((o) => !o)}><Columns3 className="h-4 w-4" aria-hidden="true" /> Colunas</Button>
+            {isAdmin && <Button variant="secondary" onClick={() => setImporting(true)}><Upload className="h-4 w-4" aria-hidden="true" /> Importar</Button>}
             <Button variant="secondary" onClick={exportCsv} disabled={!rows.length}><Download className="h-4 w-4" aria-hidden="true" /> Exportar{chosen.length ? ` (${chosen.length})` : ""}</Button>
           </div>
+          {pipe && <ImportModal open={importing} onClose={() => setImporting(false)} title={pipe.name} target={{ kind: "pipe", pipeId, hasTitleField: !!pipe.titleFieldId }} />}
         </div>
 
         {pickCols && (

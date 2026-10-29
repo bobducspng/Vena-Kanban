@@ -16,7 +16,8 @@
     "test:automations": "tsx test/automations.check.ts",
     "test:business": "tsx test/businessTime.check.ts",
     "test:pdf": "tsx test/pdf.check.ts",
-    "test:signature": "tsx test/signature.check.ts"
+    "test:signature": "tsx test/signature.check.ts",
+    "test:importer": "tsx test/importer.check.ts"
   },
   "dependencies": {
     "@trpc/server": "^11.19.0",

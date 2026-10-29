@@ -13,6 +13,8 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
 import { Spinner } from "../components/ui/Spinner";
+import { Upload } from "lucide-react";
+import { ImportModal } from "../components/app/ImportModal";
 import { useToast } from "../components/ui/Toast";
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : "Algo deu errado");
@@ -27,6 +29,7 @@ const TITLE_TYPES = ["short_text", "long_text", "email", "phone", "document", "n
 export function DatabaseView() {
   const { tableId = "" } = useParams();
   const { isAdmin } = useMe();
+  const [importing, setImporting] = useState(false);
   const { data: members } = useQuery({ queryKey: ["users"], queryFn: api.user.list });
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<DbRecord | "new" | null>(null);
@@ -69,7 +72,9 @@ export function DatabaseView() {
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
               <Input data-shortcut="search" aria-label="Buscar registros" placeholder="Buscar" value={query} onChange={(e) => setQuery(e.target.value)} className="w-56 pl-8" />
             </div>
+            {isAdmin && <Button variant="secondary" onClick={() => setImporting(true)}><Upload className="h-4 w-4" aria-hidden="true" /> Importar</Button>}
             <Button variant="secondary" onClick={exportCsv} disabled={!visible.length}><Download className="h-4 w-4" aria-hidden="true" /> Exportar</Button>
+            {table && <ImportModal open={importing} onClose={() => setImporting(false)} title={table.name} target={{ kind: "table", tableId: table.id }} />}
             {isAdmin && <Button variant="secondary" onClick={() => setSettings((s) => !s)}><Settings className="h-4 w-4" aria-hidden="true" /> {settings ? "Fechar configuração" : "Configurar"}</Button>}
             <Button onClick={() => setOpen("new")}><Plus className="h-4 w-4" aria-hidden="true" /> Novo registro</Button>
           </div>

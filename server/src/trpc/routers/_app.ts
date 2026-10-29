@@ -24,6 +24,7 @@ import { orgRouter } from "./org.js";
 import { pdfRouter } from "./pdf.js";
 import { signatureRouter } from "./signature.js";
 import { letterheadRouter } from "./letterhead.js";
+import { importerRouter } from "./importer.js";
 
 export const appRouter = router({
   user: userRouter,
@@ -51,6 +52,7 @@ export const appRouter = router({
   pdf: pdfRouter,
   signature: signatureRouter,
   letterhead: letterheadRouter,
+  importer: importerRouter,
 });
 
 // The front-end imports this type for an end-to-end-typed client.

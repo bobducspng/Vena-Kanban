@@ -327,6 +327,13 @@ export const api = {
       (await trpc.email.history.query({ cardId })).map((e) => ({ ...e, status: e.status as CardEmail["status"], createdAt: toISO(e.createdAt) })),
   },
 
+  importer: {
+    cards: (input: { pipeId: string; runAutomations: boolean; mapping: (string | null)[]; rows: (string | number | boolean | null)[][]; firstRow: number; dryRun: boolean }) =>
+      trpc.importer.cards.mutate(input),
+    records: (input: { tableId: string; mapping: (string | null)[]; rows: (string | number | boolean | null)[][]; firstRow: number; dryRun: boolean }) =>
+      trpc.importer.records.mutate(input),
+  },
+
   pdf: {
     templates: async (pipeId: string) =>
       (await trpc.pdf.templates.query({ pipeId })).map((t) => ({ ...t, layoutMode: t.layoutMode as PdfTemplateInput["layoutMode"] })),

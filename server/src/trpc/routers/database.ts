@@ -58,7 +58,7 @@ function checkColumn(type: string, p: { options?: string[] | null; isUnique?: bo
 }
 
 /** Shape + "valor único" (within the table) for one column value. */
-async function validateRecordValue(field: typeof tableFields.$inferSelect, value: unknown, orgId: string, exceptRecordId?: string) {
+export async function validateRecordValue(field: typeof tableFields.$inferSelect, value: unknown, orgId: string, exceptRecordId?: string) {
   if (isEmpty(value)) return;
   await validateShape(field, value, orgId);
   if (field.isUnique) {
@@ -71,7 +71,7 @@ async function validateRecordValue(field: typeof tableFields.$inferSelect, value
   }
 }
 
-const titleOf = (v: unknown) => (isEmpty(v) ? null : (Array.isArray(v) ? v.join(", ") : String(v)).slice(0, 512));
+export const recordTitleOf = (v: unknown) => (isEmpty(v) ? null : (Array.isArray(v) ? v.join(", ") : String(v)).slice(0, 512));
 
 /** Records with their values, newest first. */
 async function recordsWithValues(where: ReturnType<typeof eq>) {
@@ -125,7 +125,7 @@ export const databaseRouter = router({
         const recs = await db.select({ id: tableRecords.id }).from(tableRecords).where(eq(tableRecords.tableId, t.id));
         for (const r of recs) {
           const v = vals.find((x) => x.recordId === r.id)?.value;
-          await db.update(tableRecords).set({ title: titleOf(v) ?? "(sem nome)" }).where(eq(tableRecords.id, r.id));
+          await db.update(tableRecords).set({ title: recordTitleOf(v) ?? "(sem nome)" }).where(eq(tableRecords.id, r.id));
         }
       }
       return (await db.select().from(dataTables).where(eq(dataTables.id, t.id)).limit(1))[0];
@@ -238,7 +238,7 @@ export const databaseRouter = router({
       }
       const id = crypto.randomUUID();
       await db.transaction(async (tx) => {
-        await tx.insert(tableRecords).values({ id, tableId: t.id, title: titleOf(t.titleFieldId ? byId.get(t.titleFieldId) : null) ?? "(sem nome)", createdBy: ctx.userId });
+        await tx.insert(tableRecords).values({ id, tableId: t.id, title: recordTitleOf(t.titleFieldId ? byId.get(t.titleFieldId) : null) ?? "(sem nome)", createdBy: ctx.userId });
         for (const v of input.values) {
           if (isEmpty(v.value)) continue;
           await tx.insert(tableRecordFields).values({ id: crypto.randomUUID(), recordId: id, fieldId: v.fieldId, value: v.value });
@@ -259,7 +259,7 @@ export const databaseRouter = router({
         .where(and(eq(tableRecordFields.recordId, record.id), eq(tableRecordFields.fieldId, col.id))).limit(1))[0];
       if (existing) await db.update(tableRecordFields).set({ value: input.value }).where(eq(tableRecordFields.id, existing.id));
       else await db.insert(tableRecordFields).values({ id: crypto.randomUUID(), recordId: record.id, fieldId: col.id, value: input.value });
-      if (table.titleFieldId === col.id) await db.update(tableRecords).set({ title: titleOf(input.value) ?? "(sem nome)" }).where(eq(tableRecords.id, record.id));
+      if (table.titleFieldId === col.id) await db.update(tableRecords).set({ title: recordTitleOf(input.value) ?? "(sem nome)" }).where(eq(tableRecords.id, record.id));
       return (await recordsWithValues(eq(tableRecords.id, record.id)))[0];
     }),
 

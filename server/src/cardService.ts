@@ -35,7 +35,8 @@ let listener: Listener | null = null;
 /** The automation engine registers itself here (avoids an import cycle). */
 export function onCardHappening(fn: Listener) { listener = fn; }
 async function announce(e: CardHappening) {
-  if (!listener) return;
+  // depth -1 = quiet (planilha importada sem automações): nothing fires.
+  if (!listener || e.depth < 0) return;
   try { await asSystem(() => listener!(e)); } catch (err) { console.error("automation listener failed:", err); }
 }
 /** For alerts raised by the SLA sweep. */
@@ -43,6 +44,7 @@ export const announceHappening = announce;
 
 /** Who did it: a person (userId), an automation (rule name) or an outside channel
  *  (`via`, e.g. "Formulário público") — for the activity log. */
+/** depth: 0 = a person, n = nth automation in a chain, -1 = quiet (no automations run). */
 export interface Actor { userId: string | null; automation?: string; via?: string; depth: number }
 const eventData = (a: Actor, extra?: Record<string, unknown>) =>
   a.automation || a.via ? { ...(extra ?? {}), ...(a.automation ? { automation: a.automation } : {}), ...(a.via ? { via: a.via } : {}) } : extra ?? null;

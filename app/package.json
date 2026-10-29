@@ -25,13 +25,16 @@
     "@trpc/client": "^11.19.0",
     "clsx": "^2.1.1",
     "lucide-react": "^1.62.0",
+    "papaparse": "^5.7.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.4",
+    "read-excel-file": "^9.3.14",
     "superjson": "^2.2.6"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
+    "@types/papaparse": "^5.5.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
