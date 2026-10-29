@@ -83,7 +83,7 @@ Tipos do Pipefy (23 + fórmula e conteúdo dinâmico):
 | ID (código do card) | ✅ | M2 |
 | Conteúdo dinâmico (texto rico com variáveis de fases anteriores) | ⬜ | M4 |
 | Conexão de pipe / conexão de database | ✅ | M4 |
-| **Fórmula** (nativa, recalcula ao salvar) | ⬜ | M5 |
+| **Fórmula** (nativa, recalcula ao salvar) | ✅ (campo calculado; número/moeda/data/texto) | M5 |
 
 Opções de cada campo:
 | Opção | Detalhe | Status | M |
@@ -163,7 +163,7 @@ Opções de cada campo:
 | Etiquetas e status do registro (ativo/concluído) | ⬜ | M4 |
 | Layout de resumo do registro | o que aparece na conexão | ✅ | M4 |
 | Exportar database (xlsx) | ✅ (CSV para Excel) | M4 |
-| Importar planilha para database/pipe | | ⬜ | M10 |
+| Importar planilha para database/pipe | | ✅ (xlsx/csv, conferir antes, fase de destino, sem automações por padrão) | M10 |
 | Conexão pipe↔pipe e pipe↔database | nome, alvo, função buscar/criar/ambos, único/múltiplo | ✅ | M4 |
 | Campo de conexão em fase/formulário | obrigatório, filtro ativos/concluídos | ✅ | M4 |
 | **Autopreenchimento (field map)** | copiar do registro/pai, valor fixo — "puxar dados do BD" | ✅ (cópia + atualizar do cadastro) | M4 |
@@ -221,11 +221,11 @@ Opções de cada campo:
 | Kanban | | ✅ | — |
 | Lista (tabela, colunas escolhidas) | ✅ | M9 |
 | Ações em massa na lista | editar, mover, excluir (com confirmação) | ✅ (mover, atribuir, excluir) | M9 |
-| Calendário (por vencimento) | | ⬜ | M9 |
+| Calendário (por vencimento) | | ✅ (vencimento, criação ou campo de data) | M9 |
 | Filtros E/OU (fase, responsável, etiqueta, campos) | ✅ | M9 |
 | Filtros salvos | 🟡 (colunas lembradas; filtros não) | M9 |
-| Relatório de pipe | colunas, filtros (período/relativo/absoluto), fórmulas soma/média/mín/máx, salvar, exportar xlsx | 🟡 (lista filtrada + exportar CSV) | M9 |
-| Relatório da empresa (vários pipes) | | ⬜ | M9 |
+| Relatório de pipe | colunas, filtros (período/relativo/absoluto), fórmulas soma/média/mín/máx, salvar, exportar xlsx | ✅ (salvo, filtros, período relativo, agrupar com soma/média/mín/máx, Excel) | M9 |
+| Relatório da empresa (vários pipes) | | ✅ (vários pipes no mesmo relatório) | M9 |
 | Relatório com campos de cards conectados | pedido da comunidade | ⬜ | M9 |
 | Dashboards | medida × dimensão × período, gráficos (barra, linha, pizza, número, tabela), drill-down | ✅ (dashboard do pipe) | M9 |
 | Acesso para Power BI | usuário MySQL somente leitura / views | ✅ (links JSON com chave secreta) | M9 |
@@ -244,7 +244,7 @@ Opções de cada campo:
 | Lixeira (cards, campos, fases) | 🟡 (cards; campos têm arquivar) | M2/M10 |
 | Webhooks de saída | eventos de card/registro | ⬜ | M10 |
 | API com token | | ⬜ | M10 |
-| Importar cards/registros de planilha | | ⬜ | M10 |
+| Importar cards/registros de planilha | | ✅ | M10 |
 
 ### 2.13 Extras [A §22–24, C §3]
 | Funcionalidade | Detalhe | Status | M |

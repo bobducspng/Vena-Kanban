@@ -3,6 +3,7 @@
 // are mapped to the app's domain types (src/data/types.ts).
 import { trpc, API_URL } from "../lib/trpc";
 import type { Pipe, Phase, FieldDef, Card, CardFieldValue, CardEvent, User, FieldType, PhaseColor, EditableFieldType, Role, Label, Comment, ChecklistItem, Attachment, TrashedCard, DataTable, DbRecord, ConnectionSettings, ConnectedItem, Backlink, AutomationRule, AutomationLog, AutomationTrigger, AutomationAction, BusinessCalendar, CardTimeline, Notification, MyWorkCard, EmailTemplate, CardEmail, FormulaSettings } from "./types";
+import type { ReportConfig } from "../lib/reportEngine";
 import type { ConditionDef, Rule, FieldAction } from "../lib/conditions";
 
 /** A phase's conditional, as stored (the evaluator's ConditionDef + a name). */
@@ -326,6 +327,12 @@ export const api = {
     send: (input: { cardId: string; to: string[]; cc: string[]; subject: string; body: string; attachmentIds: string[]; templateId?: string }) => trpc.email.send.mutate(input),
     history: async (cardId: string): Promise<CardEmail[]> =>
       (await trpc.email.history.query({ cardId })).map((e) => ({ ...e, status: e.status as CardEmail["status"], createdAt: toISO(e.createdAt) })),
+  },
+
+  report: {
+    list: () => trpc.report.list.query(),
+    save: (input: { id?: string; name: string; config: ReportConfig }) => trpc.report.save.mutate(input),
+    remove: (id: string) => trpc.report.remove.mutate({ id }),
   },
 
   importer: {

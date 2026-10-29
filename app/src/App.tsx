@@ -18,6 +18,7 @@ import { StubScreen } from "./screens/StubScreen";
 import { SignPage } from "./screens/SignPage";
 import { PipeFlow } from "./screens/PipeFlow";
 import { PipeCalendar } from "./screens/PipeCalendar";
+import { Reports } from "./screens/Reports";
 import { ProcessMap } from "./screens/ProcessMap";
 import { RequireAuth } from "./components/app/RequireAuth";
 
@@ -47,7 +48,7 @@ export default function App() {
       {/* Planned screens — stubbed in this milestone (see replica/build-log.md). */}
       <Route path="/databases" element={<RequireAuth><Databases /></RequireAuth>} />
       <Route path="/databases/:tableId" element={<RequireAuth><DatabaseView /></RequireAuth>} />
-      <Route path="/reports" element={<RequireAuth><StubScreen id="S16" title="Relatórios" planned={["Relatório de pipe (tabela + filtros)", "Relatório da empresa", "Dashboards com gráficos"]} /></RequireAuth>} />
+      <Route path="/reports" element={<RequireAuth><Reports /></RequireAuth>} />
       <Route path="/automations" element={<RequireAuth><AutomationsHome /></RequireAuth>} />
       <Route path="/settings" element={<RequireAuth><OrgSettings /></RequireAuth>} />
       <Route path="/my-work" element={<RequireAuth><MyWork /></RequireAuth>} />
