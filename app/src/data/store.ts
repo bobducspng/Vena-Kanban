@@ -2,7 +2,7 @@
 // signatures as the previous fake store, so no screen changed. Server outputs
 // are mapped to the app's domain types (src/data/types.ts).
 import { trpc, API_URL } from "../lib/trpc";
-import type { Pipe, Phase, FieldDef, Card, CardFieldValue, CardEvent, User, FieldType, PhaseColor, EditableFieldType, Role, Label, Comment, ChecklistItem, Attachment, TrashedCard, DataTable, DbRecord, ConnectionSettings, ConnectedItem, Backlink, AutomationRule, AutomationLog, AutomationTrigger, AutomationAction, BusinessCalendar, CardTimeline, Notification, MyWorkCard } from "./types";
+import type { Pipe, Phase, FieldDef, Card, CardFieldValue, CardEvent, User, FieldType, PhaseColor, EditableFieldType, Role, Label, Comment, ChecklistItem, Attachment, TrashedCard, DataTable, DbRecord, ConnectionSettings, ConnectedItem, Backlink, AutomationRule, AutomationLog, AutomationTrigger, AutomationAction, BusinessCalendar, CardTimeline, Notification, MyWorkCard, EmailTemplate, CardEmail } from "./types";
 import type { ConditionDef, Rule, FieldAction } from "../lib/conditions";
 
 /** A phase's conditional, as stored (the evaluator's ConditionDef + a name). */
@@ -261,6 +261,18 @@ export const api = {
     update: (input: { pipeId: string; title?: string | null; closed?: boolean; branding?: Record<string, unknown> }) =>
       trpc.publicForm.update.mutate(input as Parameters<typeof trpc.publicForm.update.mutate>[0]),
     regenerate: (pipeId: string) => trpc.publicForm.regenerate.mutate({ pipeId }),
+  },
+
+  email: {
+    enabled: (): Promise<boolean> => trpc.email.enabled.query(),
+    templates: (pipeId: string): Promise<EmailTemplate[]> => trpc.email.templates.query({ pipeId }),
+    createTemplate: (input: Omit<EmailTemplate, "id">) => trpc.email.createTemplate.mutate(input),
+    updateTemplate: (input: Omit<EmailTemplate, "pipeId" | "id"> & { templateId: string }) => trpc.email.updateTemplate.mutate(input),
+    removeTemplate: (templateId: string) => trpc.email.removeTemplate.mutate({ templateId }),
+    render: (templateId: string, cardId: string) => trpc.email.render.query({ templateId, cardId }),
+    send: (input: { cardId: string; to: string[]; cc: string[]; subject: string; body: string; attachmentIds: string[]; templateId?: string }) => trpc.email.send.mutate(input),
+    history: async (cardId: string): Promise<CardEmail[]> =>
+      (await trpc.email.history.query({ cardId })).map((e) => ({ ...e, status: e.status as CardEmail["status"], createdAt: toISO(e.createdAt) })),
   },
 
   outside: {

@@ -14,6 +14,7 @@ import type { Card, CardEvent, CardFieldValue, CardTimeline, FieldDef, Phase, Us
 import { AssigneesSection, AttachmentsSection, ChecklistSection, CommentsSection, DueDateSection, LabelsSection } from "./CardSections";
 import { fieldStates } from "../../lib/conditions";
 import { OutsideSection } from "./OutsideSection";
+import { EmailsSection } from "./EmailParts";
 import { withState } from "../../lib/useFieldStates";
 
 /** S06 — card detail in two columns: left = title, actions and phase fields;
@@ -183,6 +184,7 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
           <ChecklistSection cardId={card.id} onChanged={refresh} />
           <AttachmentsSection cardId={card.id} onChanged={refresh} />
           <CommentsSection cardId={card.id} members={members ?? []} onChanged={refresh} />
+          <EmailsSection cardId={card.id} pipeId={pipeId} />
           <OutsideSection cardId={card.id} phaseName={current.name} />
 
           <section aria-label="Histórico" className="flex flex-col gap-2 border-t border-border pt-4">
@@ -315,6 +317,7 @@ function describe(e: CardEvent, phases: Phase[], members: User[]): string {
     case "phase_link_created": return `${who} pediu para alguém de fora preencher a fase`;
     case "request_message": return "Solicitante enviou uma mensagem";
     case "request_reply": return `${who} respondeu ao solicitante`;
+    case "email_sent": return `${who} enviou um e-mail`;
     default: return e.type;
   }
 }

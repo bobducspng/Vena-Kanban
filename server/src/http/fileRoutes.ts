@@ -11,7 +11,7 @@ import { logEvent } from "../trpc/cardAccess.js";
 
 // Attachments live on the VM's disk (decision 2026-10-28), outside the repo's code:
 // <repo>/data/uploads/<cardId>/<attachmentId>. From server/{src,dist}/http that is ../../../data.
-const UPLOAD_DIR = process.env.UPLOAD_DIR ?? resolve(dirname(fileURLToPath(import.meta.url)), "../../../data/uploads");
+export const UPLOAD_DIR = process.env.UPLOAD_DIR ?? resolve(dirname(fileURLToPath(import.meta.url)), "../../../data/uploads");
 const MAX_BYTES = 25 * 1024 * 1024;
 
 /** Session user + their org, or null. Same rules as the tRPC context. */

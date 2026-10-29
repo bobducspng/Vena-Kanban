@@ -16,6 +16,7 @@ import { useToast } from "../components/ui/Toast";
 import { ConditionsSection } from "../components/app/ConditionsEditor";
 import { DurationInput } from "../components/ui/DurationInput";
 import { PublicFormSettings } from "../components/app/PublicFormSettings";
+import { EmailTemplatesSection } from "../components/app/EmailParts";
 import { FieldEditorModal } from "../components/app/FieldEditorModal";
 import { cn } from "../lib/cn";
 import { Avatar } from "../components/ui/Avatar";
@@ -138,6 +139,8 @@ export function PipeSettings() {
         )}
 
         <PublicFormSettings pipeId={pipeId} />
+
+        <EmailTemplatesSection pipeId={pipeId} fields={(fields ?? []).filter((f) => !f.archivedAt)} />
 
         <LabelsManager pipeId={pipeId} />
       </div>

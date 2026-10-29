@@ -135,6 +135,36 @@ export const requestMessages = mysqlTable("request_messages", {
   createdAt: createdAt(),
 }, (t) => ({ reqIdx: index("idx_reqmsg_request").on(t.requestId, t.createdAt) }));
 
+// E-mail templates of a pipe ({Campo} placeholders, see templates.ts).
+export const emailTemplates = mysqlTable("email_templates", {
+  id: id(),
+  pipeId: ref("pipe_id").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  toSpec: varchar("to_spec", { length: 1000 }).notNull().default(""), // "a@b.com, {E-mail}, {Solicitante}"
+  ccSpec: varchar("cc_spec", { length: 1000 }).notNull().default(""),
+  subject: varchar("subject", { length: 500 }).notNull(),
+  body: text("body").notNull(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => ({ pipeIdx: index("idx_emailtpl_pipe").on(t.pipeId) }));
+
+// E-mails sent from a card (manually or by an automation).
+export const cardEmails = mysqlTable("card_emails", {
+  id: id(),
+  cardId: ref("card_id").notNull(),
+  templateId: ref("template_id"),
+  toList: varchar("to_list", { length: 2000 }).notNull(),
+  ccList: varchar("cc_list", { length: 2000 }),
+  subject: varchar("subject", { length: 500 }).notNull(),
+  body: text("body").notNull(),
+  attachmentIds: json("attachment_ids"),
+  sentBy: ref("sent_by"), // null = automation
+  via: varchar("via", { length: 255 }), // automation name
+  status: varchar("status", { length: 16 }).notNull(), // sent | failed
+  error: text("error"),
+  createdAt: createdAt(),
+}, (t) => ({ cardIdx: index("idx_cardemails_card").on(t.cardId, t.createdAt) }));
+
 // In-app notifications (sino): mentions, assignments, alerts, automation failures.
 export const notifications = mysqlTable("notifications", {
   id: id(),

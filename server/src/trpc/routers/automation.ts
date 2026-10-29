@@ -2,7 +2,7 @@ import { z } from "zod";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
-import { automationLogs, automationRules, cards, fields, phases, pipes } from "../../db/schema.js";
+import { automationLogs, automationRules, cards, emailTemplates, fields, phases, pipes } from "../../db/schema.js";
 import { router, adminProcedure, assertPipeInOrg } from "../trpc.js";
 import { action, conditionGroups, runRule, trigger, type Action } from "../../automations.js";
 import { readSettings } from "../../connections.js";
@@ -61,6 +61,10 @@ async function checkRefs(pipeId: string, orgId: string, b: Body) {
     if (a.type === "http" && a.saveToFieldId) {
       const f = field(a.saveToFieldId);
       if (!f || !["short_text", "long_text"].includes(f.type)) throw bad("HTTP: a resposta só pode ir para um campo de texto.");
+    }
+    if (a.type === "send_email") {
+      const t = (await db.select({ pipeId: emailTemplates.pipeId }).from(emailTemplates).where(eq(emailTemplates.id, a.templateId)).limit(1))[0];
+      if (t?.pipeId !== pipeId) throw bad("Enviar e-mail: escolha um template deste pipe.");
     }
     if (a.type === "move_parent") {
       const p = (await db.select({ orgId: pipes.orgId }).from(phases).innerJoin(pipes, eq(pipes.id, phases.pipeId)).where(eq(phases.id, a.phaseId)).limit(1))[0];

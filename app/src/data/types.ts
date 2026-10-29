@@ -301,7 +301,33 @@ export type AutomationAction =
   | { type: "create_connected_card"; connectionFieldId: string; values: { toFieldId: string; fromFieldId?: string; value?: string | number | boolean | null | string[] }[] }
   | { type: "move_parent"; phaseId: string }
   | { type: "formula"; fieldId: string; expression: string }
-  | { type: "http"; method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; url: string; headers: { name: string; value: string }[]; body?: string; saveToFieldId?: string };
+  | { type: "http"; method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; url: string; headers: { name: string; value: string }[]; body?: string; saveToFieldId?: string }
+  | { type: "send_email"; templateId: string; to?: string };
+
+/** E-mail template of a pipe ({Campo} placeholders). */
+export interface EmailTemplate {
+  id: string;
+  pipeId: string;
+  name: string;
+  toSpec: string;
+  ccSpec: string;
+  subject: string;
+  body: string;
+}
+
+/** An e-mail sent from a card. */
+export interface CardEmail {
+  id: string;
+  toList: string;
+  ccList: string | null;
+  subject: string;
+  body: string;
+  sentBy: string | null;
+  via: string | null;
+  status: "sent" | "failed";
+  error: string | null;
+  createdAt: string;
+}
 export interface AutomationRule {
   id: string;
   pipeId: string;

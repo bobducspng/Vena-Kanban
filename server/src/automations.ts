@@ -9,6 +9,8 @@ import { linkedFrom, readSettings } from "./connections.js";
 import { createCard, moveCard, onCardHappening, setFieldValue, type Actor, type CardHappening } from "./cardService.js";
 import { evaluate, FormulaError, type FValue } from "./formula.js";
 import { sweepAlerts } from "./slaService.js";
+import { cardContext } from "./templates.js";
+import { renderTemplate, sendFromCard } from "./emails.js";
 import { notifyAssigned, notifyAutomationFailed, pruneNotifications } from "./notify.js";
 
 /**
@@ -68,6 +70,8 @@ export const action = z.discriminatedUnion("type", [
     body: z.string().max(20_000).optional(),
     saveToFieldId: z.string().optional(), // text field that receives the response (first 2000 chars)
   }),
+  // E-mail from a template of the pipe; `to` overrides the template's recipients.
+  z.object({ type: z.literal("send_email"), templateId: z.string(), to: z.string().max(1000).optional() }),
 ]);
 export type Action = z.infer<typeof action>;
 type Trigger = z.infer<typeof trigger>;
@@ -163,7 +167,7 @@ async function runAction(rule: typeof automationRules.$inferSelect, a: Action, c
       return `fórmula: "${target.label}" = ${String(value)}`;
     }
     case "http": {
-      const fill = await templater(card.pipeId, card.id);
+      const { fill } = await cardContext(card.id);
       const url = fill(a.url, encodeURIComponent);
       await assertPublicUrl(url);
       const res = await fetch(url, {
@@ -177,6 +181,13 @@ async function runAction(rule: typeof automationRules.$inferSelect, a: Action, c
       if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
       if (a.saveToFieldId) await setFieldValue({ card, fieldId: a.saveToFieldId, value: text, orgId, actor, checkEditable: false });
       return `HTTP ${res.status}`;
+    }
+    case "send_email": {
+      const r = await renderTemplate(a.templateId, card.id);
+      const to = a.to?.trim() ? (await cardContext(card.id)).recipients(a.to) : r.to;
+      if (!to.length) throw new Error("nenhum destinatário válido (o campo de e-mail está vazio?)");
+      await sendFromCard({ cardId: card.id, to, cc: r.cc, subject: r.subject, body: r.body, templateId: a.templateId, via: actor.automation });
+      return `e-mail para ${to.join(", ")}`;
     }
   }
 }
@@ -212,21 +223,6 @@ function coerceTo(type: string, v: FValue): unknown {
   throw new FormulaError("campo de destino precisa ser número, moeda, data, Sim/Não ou texto");
 }
 
-/** {Field name} in http url/headers/body → the card's value (escaped by `esc`). */
-async function templater(pipeId: string, cardId: string) {
-  const defs = await db.select({ id: fields.id, label: fields.label }).from(fields).where(eq(fields.pipeId, pipeId));
-  const values = await valuesOf(cardId);
-  const card = (await db.select({ number: cards.number, title: cards.title }).from(cards).where(eq(cards.id, cardId)).limit(1))[0];
-  return (tpl: string, esc: (s: string) => string) =>
-    tpl.replace(/\{([^}]*)\}/g, (_m, raw: string) => {
-      const name = raw.trim().toLowerCase();
-      if (name === "#" || name === "id do card") return esc(String(card?.number ?? ""));
-      if (name === "título" || name === "titulo") return esc(card?.title ?? "");
-      const f = defs.find((d) => d.label.trim().toLowerCase() === name);
-      const v = f ? values[f.id] : undefined;
-      return esc(v === undefined || v === null ? "" : Array.isArray(v) ? v.join(", ") : String(v));
-    });
-}
 
 /** Loopback, private, link-local (169.254 = cloud metadata) and ULA addresses. */
 export const isInternalIp = (ip: string) =>

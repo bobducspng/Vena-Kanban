@@ -16,6 +16,7 @@ import { calendarRouter } from "./calendar.js";
 import { notificationRouter } from "./notification.js";
 import { publicFormRouter } from "./publicForm.js";
 import { outsideRouter } from "./outside.js";
+import { emailRouter } from "./email.js";
 
 export const appRouter = router({
   user: userRouter,
@@ -35,6 +36,7 @@ export const appRouter = router({
   notification: notificationRouter,
   publicForm: publicFormRouter,
   outside: outsideRouter,
+  email: emailRouter,
 });
 
 // The front-end imports this type for an end-to-end-typed client.

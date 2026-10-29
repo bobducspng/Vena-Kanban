@@ -39,6 +39,7 @@ const ACTION_LABEL: Record<AutomationAction["type"], string> = {
   move_parent: "Mover o card pai",
   formula: "Calcular fórmula",
   http: "Chamar outro sistema (HTTP)",
+  send_email: "Enviar e-mail (template)",
 };
 const NOT_WRITABLE = ["connection", "attachment", "id"];
 
@@ -280,6 +281,7 @@ function blank(type: AutomationAction["type"], phases: Phase[]): AutomationActio
     case "move_parent": return { type, phaseId: "" };
     case "formula": return { type, fieldId: "", expression: "" };
     case "http": return { type, method: "POST", url: "https://", headers: [{ name: "Content-Type", value: "application/json" }], body: "" };
+    case "send_email": return { type, templateId: "" };
   }
 }
 
@@ -459,6 +461,8 @@ function ActionEditor({ index, action, phases, fields, onChange, onRemove }: {
         </div>
       )}
 
+      {action.type === "send_email" && <SendEmailEditor action={action} onChange={onChange} pipeId={fields[0]?.pipeId ?? ""} />}
+
       {action.type === "move_parent" && (
         <div className="grid gap-2 sm:grid-cols-2">
           <Select aria-label="Pipe do card pai" value={parentPipe || undefined} placeholder="Pipe do card pai" onValueChange={(v) => { setParentPipe(v); onChange({ ...action, phaseId: "" }); }}
@@ -519,5 +523,17 @@ function TestModal({ rule, onClose }: { rule: AutomationRule | null; onClose: ()
         )}
       </div>
     </Modal>
+  );
+}
+
+function SendEmailEditor({ action, onChange, pipeId }: { action: Extract<AutomationAction, { type: "send_email" }>; onChange: (a: AutomationAction) => void; pipeId: string }) {
+  const { data: templates } = useQuery({ queryKey: ["emailTemplates", pipeId], queryFn: () => api.email.templates(pipeId), enabled: !!pipeId });
+  return (
+    <div className="flex flex-col gap-2">
+      {templates && !templates.length && <p className="text-xs text-muted">Crie antes um template em Configurar &gt; Templates de e-mail.</p>}
+      <Select aria-label="Template" value={action.templateId || undefined} placeholder="Template" onValueChange={(v) => onChange({ ...action, templateId: v })}
+        options={(templates ?? []).map((t) => ({ value: t.id, label: t.name }))} />
+      <Input aria-label="Para (opcional)" placeholder="Para: deixe vazio para usar o do template" value={action.to ?? ""} onChange={(e) => onChange({ ...action, to: e.target.value || undefined })} />
+    </div>
   );
 }
