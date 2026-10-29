@@ -9,7 +9,7 @@ import { businessMinutesBetween } from "../../businessTime.js";
 import { cardInOrg, logEvent } from "../cardAccess.js";
 import { linkedFrom } from "../../connections.js";
 import { hydrate, shaped, writeValues, autofillFor, createCard, setFieldValue, moveCard } from "../../cardService.js";
-import { router, protectedProcedure, assertPipeInOrg } from "../trpc.js";
+import { router, protectedProcedure, adminProcedure, assertPipeInOrg } from "../trpc.js";
 
 // Lists hold checklist options, user ids (responsáveis) or label ids (etiquetas).
 const valueSchema = z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(z.string().max(255)).max(200)]);
@@ -215,4 +215,50 @@ export const cardRouter = router({
       .orderBy(desc(cards.updatedAt))
       .limit(500);
   }),
+
+  /** Ações em massa (admins, as in the original): each card goes through the same
+   *  rules as a single action; the result says which ones did not go and why. */
+  bulk: adminProcedure
+    .input(z.object({
+      pipeId: z.string(),
+      cardIds: z.array(z.string()).min(1).max(1000),
+      action: z.discriminatedUnion("type", [
+        z.object({ type: z.literal("move"), phaseId: z.string() }),
+        z.object({ type: z.literal("assign"), userIds: z.array(z.string()).max(50), mode: z.enum(["replace", "add"]) }),
+        z.object({ type: z.literal("delete") }),
+      ]),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await assertPipeInOrg(input.pipeId, ctx.orgId);
+      const rows = await db.select().from(cards).where(and(eq(cards.pipeId, input.pipeId), inArray(cards.id, input.cardIds), isNull(cards.deletedAt)));
+      const a = input.action;
+      if (a.type === "assign" && a.userIds.length) {
+        const ok = await db.select({ userId: memberships.userId }).from(memberships).where(and(eq(memberships.orgId, ctx.orgId), inArray(memberships.userId, a.userIds)));
+        if (ok.length !== new Set(a.userIds).size) throw new TRPCError({ code: "BAD_REQUEST", message: "Responsável inválido" });
+      }
+      const failed: { number: number; reason: string }[] = [];
+      let done = 0;
+      for (const card of rows) {
+        try {
+          if (a.type === "move") {
+            // Admins in bulk may skip "Mover para", like automations; required fields still apply.
+            await moveCard({ card, toPhaseId: a.phaseId, actor: { userId: ctx.userId, depth: 0 }, checkTransition: false });
+          } else if (a.type === "assign") {
+            const before = new Set((await db.select({ userId: cardAssignees.userId }).from(cardAssignees).where(eq(cardAssignees.cardId, card.id))).map((x) => x.userId));
+            const next = a.mode === "add" ? [...new Set([...before, ...a.userIds])] : [...new Set(a.userIds)];
+            await db.delete(cardAssignees).where(eq(cardAssignees.cardId, card.id));
+            if (next.length) await db.insert(cardAssignees).values(next.map((userId) => ({ cardId: card.id, userId })));
+            await logEvent(card.id, "assignees_changed", ctx.userId, { userIds: next, bulk: true });
+            await notifyAssigned(next.filter((u) => !before.has(u)), card.id, { userId: ctx.userId });
+          } else {
+            await db.update(cards).set({ deletedAt: new Date(), deletedBy: ctx.userId }).where(eq(cards.id, card.id));
+            await logEvent(card.id, "deleted", ctx.userId, { bulk: true });
+          }
+          done++;
+        } catch (err) {
+          failed.push({ number: card.number, reason: err instanceof Error ? err.message : String(err) });
+        }
+      }
+      return { done, failed };
+    }),
 });

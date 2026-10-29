@@ -187,6 +187,8 @@ export const api = {
     setLabels: async (cardId: string, labelIds: string[]): Promise<Card> =>
       mapCard(await trpc.card.setLabels.mutate({ cardId, labelIds })),
     remove: (cardId: string) => trpc.card.remove.mutate({ cardId }),
+    bulk: (input: { pipeId: string; cardIds: string[]; action: { type: "move"; phaseId: string } | { type: "assign"; userIds: string[]; mode: "replace" | "add" } | { type: "delete" } }) =>
+      trpc.card.bulk.mutate(input),
     parents: (cardId: string): Promise<Backlink[]> => trpc.card.parents.query({ cardId }),
     myWork: async (): Promise<MyWorkCard[]> =>
       (await trpc.card.myWork.query()).map((c) => ({

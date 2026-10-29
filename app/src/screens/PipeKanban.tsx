@@ -16,6 +16,7 @@ import { Avatar } from "../components/ui/Avatar";
 import { useToast } from "../components/ui/Toast";
 import { StartFormModal } from "../components/app/StartFormModal";
 import { CardDetailModal } from "../components/app/CardDetailModal";
+import { PipeTabs } from "../components/app/PipeTabs";
 import { TrashModal } from "../components/app/TrashModal";
 import { dueStatus, DUE_CLASS, fmtDate } from "../components/app/CardSections";
 import { formatValue } from "../lib/format";
@@ -91,6 +92,7 @@ export function PipeKanban() {
           <div className="min-w-0">
             <Link to="/" className="text-xs text-muted hover:text-accent">← Pipes</Link>
             <h2 className="truncate text-lg text-text">{pipe?.icon && <span className="mr-1.5" aria-hidden="true">{pipe.icon}</span>}{pipe?.name ?? "…"}</h2>
+            <PipeTabs pipeId={pipeId} />
           </div>
           <div className="flex items-center gap-2">
             <div className="relative hidden sm:block">

@@ -10,6 +10,7 @@ import { AutomationsHome } from "./screens/AutomationsHome";
 import { OrgSettings } from "./screens/OrgSettings";
 import { MyWork } from "./screens/MyWork";
 import { PublicForm } from "./screens/PublicForm";
+import { PipeList } from "./screens/PipeList";
 import { PhaseFormPage, PortalPage, RequestsPage } from "./screens/PublicPages";
 import { DesignRoute } from "./screens/DesignRoute";
 import { StubScreen } from "./screens/StubScreen";
@@ -31,6 +32,7 @@ export default function App() {
       <Route path="/pipes/:pipeId" element={<RequireAuth><PipeKanban /></RequireAuth>} />
       <Route path="/pipes/:pipeId/settings" element={<RequireAuth><PipeSettings /></RequireAuth>} />
       <Route path="/pipes/:pipeId/automations" element={<RequireAuth><PipeAutomations /></RequireAuth>} />
+      <Route path="/pipes/:pipeId/list" element={<RequireAuth><PipeList /></RequireAuth>} />
 
       {/* Planned screens — stubbed in this milestone (see replica/build-log.md). */}
       <Route path="/databases" element={<RequireAuth><Databases /></RequireAuth>} />
