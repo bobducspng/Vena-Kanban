@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutGrid, Database, BarChart3, Zap, Settings, Component, Inbox } from "lucide-react";
+import { LayoutGrid, Database, BarChart3, Zap, Settings, Component, Inbox, Network } from "lucide-react";
 import { cn } from "../../lib/cn";
 
 const nav = [
@@ -8,6 +8,7 @@ const nav = [
   { to: "/databases", label: "Bancos de dados", icon: Database },
   { to: "/reports", label: "Relatórios", icon: BarChart3 },
   { to: "/automations", label: "Automações", icon: Zap },
+  { to: "/map", label: "Mapa de processos", icon: Network },
   { to: "/settings", label: "Configurações", icon: Settings },
   { to: "/design", label: "Design system", icon: Component },
 ];

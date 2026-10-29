@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Settings, Search, Trash2, CheckSquare, MessageSquare, Paperclip, CalendarClock, Zap, Clock, AlarmClock } from "lucide-react";
@@ -19,6 +19,7 @@ import { CardDetailModal } from "../components/app/CardDetailModal";
 import { PipeTabs } from "../components/app/PipeTabs";
 import { TrashModal } from "../components/app/TrashModal";
 import { dueStatus, DUE_CLASS, fmtDate } from "../components/app/CardSections";
+import { NEW_CARD_EVENT } from "../lib/useShortcuts";
 import { formatValue } from "../lib/format";
 
 /** S03 — kanban: phases as columns, cards as tiles. Drag a card to an allowed phase
@@ -35,6 +36,12 @@ export function PipeKanban() {
   const [overId, setOverId] = useState<string | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
   const { isAdmin } = useMe();
+  // "n" (atalho de teclado) opens Novo card, unless the person only reads this pipe.
+  useEffect(() => {
+    const open = () => { if (pipeRef.current && pipeRef.current.myRole !== "read") setStartFor({}); };
+    window.addEventListener(NEW_CARD_EVENT, open);
+    return () => window.removeEventListener(NEW_CARD_EVENT, open);
+  }, []);
   const [params, setParams] = useSearchParams();
   useEffect(() => {
     const c = params.get("card");
@@ -45,6 +52,8 @@ export function PipeKanban() {
   }, [params, setParams]);
 
   const { data: pipe } = useQuery({ queryKey: ["pipe", pipeId], queryFn: () => api.pipe.get(pipeId) });
+  const pipeRef = useRef(pipe);
+  pipeRef.current = pipe;
   const { data: phases, isLoading: lp } = useQuery({ queryKey: ["phases", pipeId], queryFn: () => api.phase.listByPipe(pipeId) });
   const { data: cards, isLoading: lc } = useQuery({ queryKey: ["cards", pipeId], queryFn: () => api.card.listByPipe(pipeId) });
   // Real org members, to resolve assignee avatars (BUG-004).

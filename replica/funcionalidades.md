@@ -38,15 +38,15 @@ Tirados das dores mais citadas na comunidade [C §2, §4]:
 | Subtítulos do card | campos exibidos no card fechado (e no card conectado) | 🟡 (quadro; resumo do conectado via database) | M2 |
 | Texto do botão "criar card" | ex.: "Nova solicitação" | ✅ | M2 |
 | Editar/excluir pipe | excluir exige digitar confirmação | ✅ (excluir = ocultar, restaurável) | M2 |
-| Visibilidade público/privado | privado = só admins e convidados | ⬜ | M10 |
-| Só responsáveis editam cards / só admin exclui | políticas do pipe | ⬜ | M10 |
+| Visibilidade público/privado | privado = só admins e convidados | ✅ (fechado por padrão: só admins e membros do pipe) | M10 |
+| Só responsáveis editam cards / só admin exclui | políticas do pipe | 🟡 (papel "só os próprios cards" e "somente leitura") | M10 |
 | Quem cria card pelo formulário | membros/convidados da empresa/externos | 🟡 (público/fechado) | M7 |
 | Visualização padrão do pipe | kanban/lista/calendário; cada usuário pode trocar | ⬜ | M9 |
-| Clonar pipe | copia fases, campos, automações, condicionais, templates; não copia cards; regras de clonagem [A §1.4] | ⬜ | M10 |
+| Clonar pipe | copia fases, campos, automações, condicionais, templates; não copia cards; regras de clonagem [A §1.4] | ✅ (automações vêm desligadas; inclui modelos de PDF e membros) | M10 |
 | Versões da configuração | snapshot JSON numerado, baixar, restaurar a última | ⬜ | M10 |
-| Aba Flow | fases + campos + automações ligadas a cada fase, setas de movimento | ⬜ | M11 |
-| Mapa de processos | grafo de pipes/databases ligados (conexão, automação, campo) | ⬜ | M11 |
-| Pastas para organizar pipes | pedido aberto na comunidade (~200 votos) | ⬜ | M10 |
+| Aba Flow | fases + campos + automações ligadas a cada fase, setas de movimento | ✅ (fases, campos, Mover para, responsáveis, automações por fase) | M11 |
+| Mapa de processos | grafo de pipes/databases ligados (conexão, automação, campo) | ✅ (campos de conexão pipe↔pipe e pipe↔banco) | M11 |
+| Pastas para organizar pipes | pedido aberto na comunidade (~200 votos) | ✅ | M10 |
 | Favoritar pipe e busca na home | por usuário | ⬜ | M9 |
 
 ### 2.2 Fases [A §2]
@@ -135,7 +135,7 @@ Opções de cada campo:
 | Histórico do card | ✅ | M2 |
 | Linha do tempo com métricas | duração, fases visitadas, % automatizado, trocas de responsável, gargalo | 🟡 (tempo por fase no card) | M9 |
 | Timers (desde criação, na fase, última atualização) | ✅ | M6 |
-| Gerar PDF do card | | ⬜ | M11 |
+| Gerar PDF do card | | ✅ (modelos com {campos}, botão no card, ação de automação) | M11 |
 
 ### 2.6 Formulários e portal [A §6, §7, §8]
 | Funcionalidade | Detalhe | Status | M |
@@ -187,7 +187,7 @@ Opções de cada campo:
 | Ação enviar template de e-mail / enviar tarefa | ✅ (e-mail); tarefa = link de fase | M8 / M7 |
 | Ação requisição HTTP | método, headers, corpo, autenticação, schema da resposta | ✅ (bloqueia rede interna) | M5 |
 | Ação aplicar regras de SLA | expediente, feriados, fuso → calcula vencimento | 🟡 (SLA em horário útil é nativo do pipe) | M6 |
-| Ação gerar com IA | | ⬜ | M11 |
+| Ação gerar com IA | | ⬜ (adiada pelo usuário) | M11 |
 | Gestão | lista com filtros (status/evento/ação), busca, ordenação, ativar/desativar, duplicar (nasce desativada) | ✅ | M5 |
 | **Logs por execução + alerta de falha + testar regra** | melhoria sobre o Pipefy | ✅ | M5 |
 | Automações entre pipes | evento num pipe, ação em outro | ⬜ | M5 |
@@ -234,13 +234,13 @@ Opções de cada campo:
 | Funcionalidade | Detalhe | Status | M |
 | --- | --- | --- | --- |
 | Login Google + allowlist de domínio | | ✅ | — |
-| Papéis da organização (admin/membro) | primeiro usuário vira admin | 🟡 (só admin configura pipes) | M10 |
-| Papéis do pipe | admin, membro, visão restrita (só os meus), somente leitura | ⬜ | M10 |
+| Papéis da organização (admin/membro) | primeiro usuário vira admin | ✅ (1º login vira admin; demais entram como membro) | M10 |
+| Papéis do pipe | admin, membro, visão restrita (só os meus), somente leitura | ✅ (membro, só os próprios cards, somente leitura; admin da org vê tudo) | M10 |
 | Papéis do database | admin, membro, somente leitura | ⬜ | M10 |
 | Grupos de usuários | vale o maior acesso | ⬜ | M10 |
 | Campo sensível por papel | pedido da comunidade | ⬜ | M10 |
-| Gestão de membros (convidar, remover, trocar papel) | | ⬜ | M10 |
-| Atividades do pipe (cards e configuração) | quem/o quê/quando, exportar CSV | ⬜ | M10 |
+| Gestão de membros (convidar, remover, trocar papel) | | ✅ (Configurações > Pessoas; Configurar pipe > Membros; login Google do domínio) | M10 |
+| Atividades do pipe (cards e configuração) | quem/o quê/quando, exportar CSV | 🟡 (auditoria de configuração com CSV; atividade de card no card) | M10 |
 | Lixeira (cards, campos, fases) | 🟡 (cards; campos têm arquivar) | M2/M10 |
 | Webhooks de saída | eventos de card/registro | ⬜ | M10 |
 | API com token | | ⬜ | M10 |
@@ -249,12 +249,12 @@ Opções de cada campo:
 ### 2.13 Extras [A §22–24, C §3]
 | Funcionalidade | Detalhe | Status | M |
 | --- | --- | --- | --- |
-| IA: ler documento (NF-e, boleto) e preencher campos | com validação humana | ⬜ | M11 |
-| IA: "gerar com IA" como ação | usando Claude | ⬜ | M11 |
-| Gerador de PDF | | ⬜ | M11 |
-| Assinatura eletrônica | | ⬜ | M11 |
-| Interfaces (telas montadas sobre dados) | | ⬜ | M11 |
-| Atalhos de teclado | | ⬜ | M11 |
+| IA: ler documento (NF-e, boleto) e preencher campos | com validação humana | ⬜ (adiada pelo usuário) | M11 |
+| IA: "gerar com IA" como ação | usando Claude | ⬜ (adiada pelo usuário) | M11 |
+| Gerador de PDF | | ✅ | M11 |
+| Assinatura eletrônica | | ✅ (própria, simples — Lei 14.063/2020; via assinada com registro) | M11 |
+| Interfaces (telas montadas sobre dados) | | ⬜ (adiada) | M11 |
+| Atalhos de teclado | | ✅ (? mostra a lista) | M11 |
 
 ### 2.14 Fora de escopo (decisão)
 - ➖ Planos, cobrança, contagem de jobs/créditos, painel de consumo — uso interno, sem cobrança.

@@ -271,6 +271,7 @@ export const api = {
     get: () => trpc.org.get.query(),
     update: (name: string) => trpc.org.update.mutate({ name }),
     audit: (before?: Date, limit = 100) => trpc.org.audit.query({ before, limit }),
+    map: () => trpc.org.map.query(),
   },
 
   people: {

@@ -67,7 +67,7 @@ export function DatabaseView() {
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
-              <Input aria-label="Buscar registros" placeholder="Buscar" value={query} onChange={(e) => setQuery(e.target.value)} className="w-56 pl-8" />
+              <Input data-shortcut="search" aria-label="Buscar registros" placeholder="Buscar" value={query} onChange={(e) => setQuery(e.target.value)} className="w-56 pl-8" />
             </div>
             <Button variant="secondary" onClick={exportCsv} disabled={!visible.length}><Download className="h-4 w-4" aria-hidden="true" /> Exportar</Button>
             {isAdmin && <Button variant="secondary" onClick={() => setSettings((s) => !s)}><Settings className="h-4 w-4" aria-hidden="true" /> {settings ? "Fechar configuração" : "Configurar"}</Button>}

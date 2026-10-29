@@ -142,7 +142,7 @@ export function FieldEditorModal({ field, onClose, onSaved, save: persist, types
                 options={(conn.target === "table" ? tables ?? [] : pipes ?? []).map((t) => ({ value: t.id, label: t.name }))} />
             </div>
             {!existing && conn.target === "table" && tables && tables.length === 0 && (
-              <p className="text-xs text-muted">Nenhum database cadastrado ainda. Crie um no menu <strong>Databases</strong> (ex.: Clientes, Fornecedores) e volte aqui.</p>
+              <p className="text-xs text-muted">Nenhum database cadastrado ainda. Crie um no menu <strong>Bancos de dados</strong> (ex.: Clientes, Fornecedores) e volte aqui.</p>
             )}
             {existing && <p className="text-xs text-muted">O destino não muda depois de criado (as conexões já feitas apontam para ele).</p>}
             <label className="inline-flex items-center gap-2 text-sm text-text">

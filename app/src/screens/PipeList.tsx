@@ -161,7 +161,7 @@ export function PipeList() {
         )}
 
         <div className="flex flex-wrap items-center gap-2">
-          <Input aria-label="Buscar" placeholder="Buscar #ID, título ou campo" value={q} onChange={(e) => setQ(e.target.value)} className="w-60" />
+          <Input data-shortcut="search" aria-label="Buscar" placeholder="Buscar #ID, título ou campo" value={q} onChange={(e) => setQ(e.target.value)} className="w-60" />
           <div className="w-44"><Select aria-label="Fase" value={phaseId} onValueChange={setPhaseId} options={[{ value: "__all", label: "Todas as fases" }, ...(phases ?? []).map((p) => ({ value: p.id, label: p.name }))]} /></div>
           <div className="w-48"><Select aria-label="Responsável" value={who} onValueChange={setWho} options={[{ value: "__all", label: "Qualquer responsável" }, { value: "__none", label: "Sem responsável" }, ...(members ?? []).map((m) => ({ value: m.id, label: m.name }))]} /></div>
           {!!labels?.length && <div className="w-44"><Select aria-label="Etiqueta" value={labelId} onValueChange={setLabelId} options={[{ value: "__all", label: "Qualquer etiqueta" }, ...labels.map((l) => ({ value: l.id, label: l.name }))]} /></div>}

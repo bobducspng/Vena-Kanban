@@ -19,7 +19,7 @@ import { Spinner } from "../components/ui/Spinner";
 import { useToast } from "../components/ui/Toast";
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : "Algo deu errado");
-const TRIGGER_LABEL: Record<AutomationTrigger["type"], string> = {
+export const TRIGGER_LABEL: Record<AutomationTrigger["type"], string> = {
   card_created: "Card criado",
   card_entered_phase: "Card entrou na fase",
   card_left_phase: "Card saiu da fase",
@@ -31,7 +31,7 @@ const TRIGGER_LABEL: Record<AutomationTrigger["type"], string> = {
 const ALERT_LABEL = { late: "Atrasado na fase", expired: "Expirado (prazo do pipe)", overdue: "Vencido (data de vencimento)" } as const;
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const FREQ_LABEL = { hourly: "de hora em hora", daily: "todo dia", weekly: "toda semana" } as const;
-const ACTION_LABEL: Record<AutomationAction["type"], string> = {
+export const ACTION_LABEL: Record<AutomationAction["type"], string> = {
   move_card: "Mover card",
   update_field: "Atualizar campo",
   assign: "Definir responsável",
