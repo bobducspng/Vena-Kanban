@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test:email": "tsx test/responsiveEmail.check.ts",
+    "test:config": "tsx test/configSaved.check.ts",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",

@@ -1,5 +1,6 @@
 import * as RToast from "@radix-ui/react-toast";
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { CONFIG_SAVED_EVENT } from "../../lib/trpc";
 import { cn } from "../../lib/cn";
 
 type Variant = "info" | "success" | "error";
@@ -20,12 +21,31 @@ const accent: Record<Variant, string> = {
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);
-  const push = (title: string, variant: Variant = "info") =>
+  const lastPush = useRef(0);
+  const push = (title: string, variant: Variant = "info") => {
+    lastPush.current = Date.now();
     setItems((prev) => [...prev, { id: Date.now() + Math.random(), title, variant }]);
+  };
+
+  // "Configuração salva" after a configuration change, unless the screen already said
+  // something about it (its own message comes right after) or one is still on screen.
+  useEffect(() => {
+    const onSaved = () => {
+      const at = Date.now();
+      setTimeout(() => {
+        if (lastPush.current >= at) return;
+        setItems((prev) => (prev.some((t) => t.title === "Configuração salva")
+          ? prev
+          : [...prev, { id: Date.now() + Math.random(), title: "Configuração salva", variant: "success" }]));
+      }, 400);
+    };
+    window.addEventListener(CONFIG_SAVED_EVENT, onSaved);
+    return () => window.removeEventListener(CONFIG_SAVED_EVENT, onSaved);
+  }, []);
 
   return (
     <ToastCtx.Provider value={push}>
-      <RToast.Provider swipeDirection="right">
+      <RToast.Provider swipeDirection="right" duration={3000}>
         {children}
         {items.map((t) => (
           <RToast.Root
@@ -40,7 +60,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <RToast.Title>{t.title}</RToast.Title>
           </RToast.Root>
         ))}
-        <RToast.Viewport className="fixed bottom-0 right-0 z-[60] flex w-96 max-w-[100vw] flex-col gap-2 p-4" />
+        <RToast.Viewport className="fixed right-0 top-0 z-[60] flex w-96 max-w-[100vw] flex-col gap-2 p-4" />
       </RToast.Provider>
     </ToastCtx.Provider>
   );
