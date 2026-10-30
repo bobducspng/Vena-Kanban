@@ -12,6 +12,7 @@ import { sweepAlerts } from "./slaService.js";
 import { cardContext } from "./templates.js";
 import { renderTemplate, sendFromCard } from "./emails.js";
 import { generateCardPdf } from "./pdf.js";
+import { Converter } from "./importer.js";
 import { notifyAssigned, notifyAutomationFailed, pruneNotifications } from "./notify.js";
 
 /**
@@ -73,6 +74,19 @@ export const action = z.discriminatedUnion("type", [
   }),
   // E-mail from a template of the pipe; `to` overrides the template's recipients.
   z.object({ type: z.literal("send_email"), templateId: z.string(), to: z.string().max(1000).optional() }),
+  // Cards connected by a "Conexão de pipe" field (the children) go to a phase of their pipe.
+  z.object({ type: z.literal("move_connected"), connectionFieldId: z.string(), phaseId: z.string() }),
+  // Write a field of the connected cards: the children (by a connection field of this card)
+  // or the parents (cards of another pipe whose connection holds this card).
+  z.object({
+    type: z.literal("update_connected"),
+    target: z.enum(["children", "parent"]),
+    connectionFieldId: z.string().optional(), // children
+    fieldId: z.string(), // field of the other pipe
+    mode: z.enum(["fixed", "copy"]),
+    value: z.string().max(2000).optional(), // fixed: written the Brazilian way (29/10/2026, 1.234,56, Sim)
+    fromFieldId: z.string().optional(), // copy: field of this card
+  }),
   // PDF from a modelo of the pipe (null = resumo do card), kept as a card attachment.
   z.object({ type: z.literal("generate_pdf"), templateId: z.string().nullable() }),
 ]);
@@ -191,6 +205,45 @@ async function runAction(rule: typeof automationRules.$inferSelect, a: Action, c
       if (!to.length) throw new Error("nenhum destinatário válido (o campo de e-mail está vazio?)");
       await sendFromCard({ cardId: card.id, to, cc: r.cc, subject: r.subject, body: r.body, format: r.format, templateId: a.templateId, via: actor.automation });
       return `e-mail para ${to.join(", ")}`;
+    }
+    case "move_connected": {
+      const conn = (await db.select().from(fields).where(eq(fields.id, a.connectionFieldId)).limit(1))[0];
+      const st = conn ? readSettings(conn.settings) : null;
+      if (!conn || conn.pipeId !== card.pipeId || st?.target !== "pipe") throw new Error("campo de conexão não existe mais");
+      const to = (await db.select().from(phases).where(eq(phases.id, a.phaseId)).limit(1))[0];
+      if (!to || to.pipeId !== st.targetId) throw new Error("fase de destino não é do pipe conectado");
+      const ids = ((await valuesOf(card.id))[conn.id] as string[] | undefined) ?? [];
+      if (!ids.length) throw new Error(`"${conn.label}" está vazio: nenhum card conectado`);
+      let moved = 0;
+      for (const id of ids) {
+        const child = (await db.select().from(cards).where(eq(cards.id, id)).limit(1))[0];
+        if (child && !child.deletedAt && child.currentPhaseId !== to.id) { await moveCard({ card: child, toPhaseId: to.id, actor, checkTransition: false }); moved++; }
+      }
+      return `moveu ${moved} card(s) conectado(s) para ${to.name}`;
+    }
+    case "update_connected": {
+      const target = (await db.select().from(fields).where(eq(fields.id, a.fieldId)).limit(1))[0];
+      if (!target) throw new Error("campo de destino não existe mais");
+      let ids: string[];
+      if (a.target === "children") {
+        const conn = a.connectionFieldId ? (await db.select().from(fields).where(eq(fields.id, a.connectionFieldId)).limit(1))[0] : undefined;
+        const st = conn ? readSettings(conn.settings) : null;
+        if (!conn || conn.pipeId !== card.pipeId || st?.target !== "pipe" || st.targetId !== target.pipeId) throw new Error("campo de conexão não aponta para o pipe do campo de destino");
+        ids = ((await valuesOf(card.id))[conn.id] as string[] | undefined) ?? [];
+      } else {
+        ids = (await linkedFrom(card.id, orgId)).filter((p) => p.pipeId === target.pipeId).map((p) => p.cardId);
+      }
+      if (!ids.length) throw new Error(a.target === "children" ? "nenhum card conectado" : "card sem pai no pipe do campo de destino");
+      let value: unknown;
+      if (a.mode === "copy") value = a.fromFieldId ? (await valuesOf(card.id))[a.fromFieldId] ?? null : null;
+      else {
+        try { value = (await new Converter(orgId).value(target, a.value ?? "")) ?? null; } catch (e) { throw new Error(`valor fixo: ${(e as Error).message}`); }
+      }
+      for (const id of ids) {
+        const other = (await db.select().from(cards).where(eq(cards.id, id)).limit(1))[0];
+        if (other && !other.deletedAt) await setFieldValue({ card: other, fieldId: target.id, value, orgId, actor, checkEditable: false });
+      }
+      return `atualizou "${target.label}" em ${ids.length} card(s) ${a.target === "children" ? "conectado(s)" : "pai"}`;
     }
     case "generate_pdf": {
       const file = await generateCardPdf(card.id, a.templateId, null);

@@ -321,6 +321,8 @@ export type AutomationAction =
   | { type: "assign"; mode: "round_robin" | "random" | "set"; userIds: string[] }
   | { type: "create_connected_card"; connectionFieldId: string; values: { toFieldId: string; fromFieldId?: string; value?: string | number | boolean | null | string[] }[] }
   | { type: "move_parent"; phaseId: string }
+  | { type: "move_connected"; connectionFieldId: string; phaseId: string }
+  | { type: "update_connected"; target: "children" | "parent"; connectionFieldId?: string; fieldId: string; mode: "fixed" | "copy"; value?: string; fromFieldId?: string }
   | { type: "formula"; fieldId: string; expression: string }
   | { type: "http"; method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; url: string; headers: { name: string; value: string }[]; body?: string; saveToFieldId?: string }
   | { type: "send_email"; templateId: string; to?: string }

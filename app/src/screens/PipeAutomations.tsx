@@ -37,6 +37,8 @@ export const ACTION_LABEL: Record<AutomationAction["type"], string> = {
   assign: "Definir responsável",
   create_connected_card: "Criar card conectado (outro pipe)",
   move_parent: "Mover o card pai",
+  move_connected: "Mover os cards conectados (outro pipe)",
+  update_connected: "Atualizar campo dos cards conectados ou do pai (outro pipe)",
   formula: "Calcular fórmula",
   http: "Chamar outro sistema (HTTP)",
   send_email: "Enviar e-mail (template)",
@@ -280,6 +282,8 @@ function blank(type: AutomationAction["type"], phases: Phase[]): AutomationActio
     case "assign": return { type, mode: "round_robin", userIds: [] };
     case "create_connected_card": return { type, connectionFieldId: "", values: [] };
     case "move_parent": return { type, phaseId: "" };
+    case "move_connected": return { type, connectionFieldId: "", phaseId: "" };
+    case "update_connected": return { type, target: "children", fieldId: "", mode: "fixed", value: "" };
     case "formula": return { type, fieldId: "", expression: "" };
     case "http": return { type, method: "POST", url: "https://", headers: [{ name: "Content-Type", value: "application/json" }], body: "" };
     case "send_email": return { type, templateId: "" };
@@ -466,6 +470,10 @@ function ActionEditor({ index, action, phases, fields, onChange, onRemove }: {
       {action.type === "send_email" && <SendEmailEditor action={action} onChange={onChange} pipeId={fields[0]?.pipeId ?? ""} />}
       {action.type === "generate_pdf" && <GeneratePdfEditor action={action} onChange={onChange} pipeId={fields[0]?.pipeId ?? ""} />}
 
+      {(action.type === "move_connected" || action.type === "update_connected") && (
+        <ConnectedEditor action={action} fields={fields} onChange={onChange} />
+      )}
+
       {action.type === "move_parent" && (
         <div className="grid gap-2 sm:grid-cols-2">
           <Select aria-label="Pipe do card pai" value={parentPipe || undefined} placeholder="Pipe do card pai" onValueChange={(v) => { setParentPipe(v); onChange({ ...action, phaseId: "" }); }}
@@ -473,6 +481,66 @@ function ActionEditor({ index, action, phases, fields, onChange, onRemove }: {
           <Select aria-label="Mover o pai para" value={action.phaseId || undefined} placeholder={action.phaseId && !parentPipe ? "(fase escolhida)" : "Fase"} onValueChange={(v) => onChange({ ...action, phaseId: v })}
             options={(parentPhases ?? []).map((p) => ({ value: p.id, label: p.name }))} />
         </div>
+      )}
+    </div>
+  );
+}
+
+/** Mover / atualizar cards de outro pipe ligados a este (filhos pela conexão, ou o pai). */
+function ConnectedEditor({ action, fields, onChange }: {
+  action: Extract<AutomationAction, { type: "move_connected" | "update_connected" }>; fields: FieldDef[]; onChange: (a: AutomationAction) => void;
+}) {
+  const pipeConnections = fields.filter((f) => f.type === "connection" && f.settings?.target === "pipe");
+  const children = action.type === "move_connected" || action.target === "children";
+  const conn = pipeConnections.find((f) => f.id === action.connectionFieldId);
+  const [parentPipe, setParentPipe] = useState("");
+  const { data: pipes } = useQuery({ queryKey: ["pipes"], queryFn: api.pipe.list, enabled: !children });
+  const otherPipe = children ? conn?.settings?.targetId ?? "" : parentPipe;
+  const { data: otherPhases } = useQuery({ queryKey: ["phases", otherPipe], queryFn: () => api.phase.listByPipe(otherPipe), enabled: !!otherPipe && action.type === "move_connected" });
+  const { data: otherFields } = useQuery({ queryKey: ["fields", otherPipe], queryFn: () => api.field.listByPipe(otherPipe), enabled: !!otherPipe && action.type === "update_connected" });
+
+  return (
+    <div className="flex flex-col gap-2">
+      {action.type === "update_connected" && (
+        <div className="flex flex-wrap gap-4 text-sm text-text">
+          {(["children", "parent"] as const).map((t) => (
+            <label key={t} className="inline-flex items-center gap-2">
+              <input type="radio" className="h-4 w-4 accent-accent" checked={action.target === t} onChange={() => onChange({ ...action, target: t, fieldId: "", connectionFieldId: undefined })} />
+              {t === "children" ? "Nos cards conectados a este (filhos)" : "No card pai (de outro pipe)"}
+            </label>
+          ))}
+        </div>
+      )}
+      {children ? (
+        pipeConnections.length ? (
+          <Select aria-label="Campo de conexão" placeholder="Pelo campo de conexão" value={action.connectionFieldId || undefined}
+            onValueChange={(v) => onChange({ ...action, connectionFieldId: v, ...(action.type === "move_connected" ? { phaseId: "" } : { fieldId: "" }) } as AutomationAction)}
+            options={pipeConnections.map((f) => ({ value: f.id, label: f.label }))} />
+        ) : <p className="text-xs text-muted">Este pipe não tem campo de "Conexão de pipe".</p>
+      ) : (
+        <Select aria-label="Pipe do card pai" placeholder="Pipe do card pai" value={parentPipe || undefined} onValueChange={(v) => { setParentPipe(v); onChange({ ...action, fieldId: "" } as AutomationAction); }}
+          options={(pipes ?? []).map((p) => ({ value: p.id, label: p.name }))} />
+      )}
+      {action.type === "move_connected" && otherPipe && (
+        <Select aria-label="Mover para a fase" placeholder="Fase do outro pipe" value={action.phaseId || undefined} onValueChange={(v) => onChange({ ...action, phaseId: v })}
+          options={(otherPhases ?? []).map((p) => ({ value: p.id, label: p.name }))} />
+      )}
+      {action.type === "update_connected" && otherPipe && (
+        <>
+          <Select aria-label="Campo do outro pipe" placeholder={action.fieldId && !otherFields ? "(campo escolhido)" : "Campo a atualizar"} value={action.fieldId || undefined}
+            onValueChange={(v) => onChange({ ...action, fieldId: v })}
+            options={(otherFields ?? []).filter((f) => !NOT_WRITABLE.includes(f.type) && f.type !== "formula").map((f) => ({ value: f.id, label: f.label }))} />
+          <div className="flex flex-wrap gap-2">
+            <div className="w-48"><Select aria-label="Valor" value={action.mode} onValueChange={(v) => onChange({ ...action, mode: v as "fixed" | "copy" })}
+              options={[{ value: "fixed", label: "Valor fixo" }, { value: "copy", label: "Copiar deste card" }]} /></div>
+            {action.mode === "fixed" ? (
+              <div className="min-w-48 flex-1"><Input aria-label="Valor fixo" placeholder="Ex.: Aprovado · 29/10/2026 · 1.500,00 · Sim (vazio limpa)" value={action.value ?? ""} onChange={(e) => onChange({ ...action, value: e.target.value })} /></div>
+            ) : (
+              <div className="min-w-48 flex-1"><Select aria-label="Copiar do campo" placeholder="Campo deste card" value={action.fromFieldId || undefined} onValueChange={(v) => onChange({ ...action, fromFieldId: v })}
+                options={fields.filter((f) => !["attachment", "connection"].includes(f.type)).map((f) => ({ value: f.id, label: f.label }))} /></div>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
