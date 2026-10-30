@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { and, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "./db/client.js";
-import { cardAssignees, pipeGroupMembers, pipeMembers, userGroupMembers } from "./db/schema.js";
+import { cardAssignees, pipeGroupMembers, pipeMembers, tableMembers, userGroupMembers } from "./db/schema.js";
 
 /**
  * Who may see and change what (M10). Pipes are closed by default: org admins see
@@ -52,6 +52,23 @@ export async function pipeRole(pipeId: string, who: Who | null = caller()): Prom
   const role = highest([...direct, ...viaGroups].map((r) => r.role as PipeRole));
   cache?.set(pipeId, role);
   return role;
+}
+
+export type TableRole = "admin" | "member" | "read";
+/**
+ * The caller's access to a banco de dados: admins always; otherwise by the table's
+ * "access" (all_edit = everyone edits · all_read = everyone reads, members edit ·
+ * restricted = only members) and the person's own or group membership.
+ */
+export async function tableRole(table: { id: string; access: string }, who: Who | null = caller()): Promise<TableRole | null> {
+  if (!who || who.orgRole === "admin") return "admin";
+  if (table.access === "all_edit") return "member";
+  const groups = (await db.select({ groupId: userGroupMembers.groupId }).from(userGroupMembers).where(eq(userGroupMembers.userId, who.userId))).map((g) => g.groupId);
+  const rows = await db.select({ kind: tableMembers.kind, subjectId: tableMembers.subjectId, role: tableMembers.role }).from(tableMembers).where(eq(tableMembers.tableId, table.id));
+  const mine = rows.filter((r) => (r.kind === "user" && r.subjectId === who.userId) || (r.kind === "group" && groups.includes(r.subjectId)));
+  if (mine.some((r) => r.role === "member")) return "member";
+  if (mine.length || table.access === "all_read") return "read";
+  return null;
 }
 
 /** Throws NOT_FOUND when the caller cannot open the pipe (no hint that it exists). */

@@ -218,6 +218,13 @@
       "when": 1793355298021,
       "tag": "0030_user_groups",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "5",
+      "when": 1793355530583,
+      "tag": "0031_table_access",
+      "breakpoints": true
     }
   ]
 }

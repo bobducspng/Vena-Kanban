@@ -375,6 +375,15 @@ export const pipeGroupMembers = mysqlTable("pipe_group_members", {
   createdAt: createdAt(),
 }, (t) => ({ pk: primaryKey({ columns: [t.pipeId, t.groupId] }), groupIdx: index("idx_pgm_group").on(t.groupId) }));
 
+// Membros de um banco de dados (people or groups): member (edits) · read.
+export const tableMembers = mysqlTable("table_members", {
+  tableId: ref("table_id").notNull(),
+  kind: varchar("kind", { length: 8 }).notNull(), // user | group
+  subjectId: ref("subject_id").notNull(),
+  role: varchar("role", { length: 16 }).notNull().default("member"),
+  createdAt: createdAt(),
+}, (t) => ({ pk: primaryKey({ columns: [t.tableId, t.kind, t.subjectId] }), subjectIdx: index("idx_tablemembers_subject").on(t.subjectId) }));
+
 // Responsáveis da fase: added to a card while it sits in the phase.
 export const phaseAssignees = mysqlTable("phase_assignees", {
   phaseId: ref("phase_id").notNull(),
@@ -534,6 +543,8 @@ export const dataTables = mysqlTable("data_tables", {
   titleFieldId: ref("title_field_id"),
   // Columns shown next to the title when a record appears in a connection.
   summaryFieldIds: json("summary_field_ids"),
+  // Quem acessa: all_edit (todos editam) · all_read (todos veem, membros editam) · restricted (só membros).
+  access: varchar("access", { length: 16 }).notNull().default("all_edit"),
   deletedAt: datetime("deleted_at", { fsp: 3 }),
   createdAt: createdAt(),
 }, (t) => ({ orgIdx: index("idx_tables_org").on(t.orgId) }));

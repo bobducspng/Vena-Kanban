@@ -86,6 +86,7 @@ export interface DataTable {
   titleFieldId?: string | null;
   summaryFieldIds: string[];
   createdAt: string;
+  myRole?: "admin" | "member" | "read"; // the person's access to it
 }
 
 /** A row of a database. `title` comes from the table's title column. */

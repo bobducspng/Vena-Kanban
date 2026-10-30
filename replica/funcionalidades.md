@@ -127,7 +127,7 @@ Opções de cada campo:
 | Comentários com @menção | menção notifica | ✅ (notificação no M6) | M2 |
 | Anexos | ✅ (disco da VM, 25 MB) | M2 |
 | Checklist do card | ✅ | M2 |
-| Liga/desliga recursos do card por pipe | responsáveis, vencimento, etiquetas, anexos, comentários, checklist | ⬜ | M2 |
+| Liga/desliga recursos do card por pipe | responsáveis, vencimento, etiquetas, anexos, comentários, checklist | ✅ | M2 |
 | Excluir card (com lixeira) | lixeira é novidade 2025–26 | ✅ | M2 |
 | Duplicar card | existe na API (`cardDuplicate`) | ✅ | M2 |
 | Cards pai/filho | via conexão; atalhos nos dois lados | ✅ | M4 |
@@ -190,7 +190,7 @@ Opções de cada campo:
 | Ação gerar com IA | | ⬜ (adiada pelo usuário) | M11 |
 | Gestão | lista com filtros (status/evento/ação), busca, ordenação, ativar/desativar, duplicar (nasce desativada) | ✅ | M5 |
 | **Logs por execução + alerta de falha + testar regra** | melhoria sobre o Pipefy | ✅ | M5 |
-| Automações entre pipes | evento num pipe, ação em outro | ⬜ | M5 |
+| Automações entre pipes | evento num pipe, ação em outro | ✅ (mover conectados, atualizar campo dos conectados ou do pai) | M5 |
 
 ### 2.9 SLA, alertas e notificações [A §12]
 | Funcionalidade | Detalhe | Status | M |
@@ -236,8 +236,8 @@ Opções de cada campo:
 | Login Google + allowlist de domínio | | ✅ | — |
 | Papéis da organização (admin/membro) | primeiro usuário vira admin | ✅ (1º login vira admin; demais entram como membro) | M10 |
 | Papéis do pipe | admin, membro, visão restrita (só os meus), somente leitura | ✅ (membro, só os próprios cards, somente leitura; admin da org vê tudo) | M10 |
-| Papéis do database | admin, membro, somente leitura | ⬜ | M10 |
-| Grupos de usuários | vale o maior acesso | ⬜ | M10 |
+| Papéis do database | admin, membro, somente leitura | ✅ (todos editam / todos veem / só membros; pessoas e grupos) | M10 |
+| Grupos de usuários | vale o maior acesso | ✅ (acesso a pipes e bancos por grupo; vale o maior) | M10 |
 | Campo sensível por papel | pedido da comunidade | ⬜ | M10 |
 | Gestão de membros (convidar, remover, trocar papel) | | ✅ (Configurações > Pessoas; Configurar pipe > Membros; login Google do domínio) | M10 |
 | Atividades do pipe (cards e configuração) | quem/o quê/quando, exportar CSV | 🟡 (auditoria de configuração com CSV; atividade de card no card) | M10 |

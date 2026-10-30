@@ -94,6 +94,7 @@ type SrvTable = { id: string; name: string; description: string | null; icon: st
 const mapTable = (t: SrvTable): DataTable => ({
   id: t.id, name: t.name, description: t.description, icon: t.icon, color: t.color, titleFieldId: t.titleFieldId,
   summaryFieldIds: Array.isArray(t.summaryFieldIds) ? (t.summaryFieldIds as string[]) : [], createdAt: toISO(t.createdAt),
+  myRole: (t as { myRole?: DataTable["myRole"] }).myRole,
 });
 type SrvColumn = { id: string; tableId: string; label: string; type: string; options: unknown; position: number; required: boolean; description: string | null; help: string | null; isUnique: boolean; validationRegex: string | null; archivedAt: Date | string | null };
 /** A database column, shaped as a FieldDef so the same <Field> renders it (phaseId = table id). */
@@ -298,6 +299,12 @@ export const api = {
     logoUrl: (id: string, v: number) => `${API_URL}/files/branding/letterheads/${id}/logo?v=${v}`,
     previewUrl: (q: { letterheadId?: string; templateId?: string }) =>
       `${API_URL}/files/branding/preview?${new URLSearchParams(q as Record<string, string>).toString()}`,
+  },
+
+  tableAccess: {
+    get: (tableId: string) => trpc.database.access.query({ tableId }),
+    set: (tableId: string, access: "all_edit" | "all_read" | "restricted") => trpc.database.setAccess.mutate({ tableId, access }),
+    setMember: (input: { tableId: string; kind: "user" | "group"; subjectId: string; role: "member" | "read" | null }) => trpc.database.setMember.mutate(input),
   },
 
   people: {

@@ -2,7 +2,8 @@ import { z } from "zod";
 import { eq, and, asc, desc, inArray, isNull, isNotNull, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
-import { dataTables, tableFields, tableRecords, tableRecordFields } from "../../db/schema.js";
+import { dataTables, tableFields, tableRecords, tableRecordFields, tableMembers } from "../../db/schema.js";
+import { tableRole } from "../../access.js";
 import { router, protectedProcedure, adminProcedure } from "../trpc.js";
 import { isEmpty, validateShape, uniqueKey } from "../../fieldRules.js";
 import { linkedFrom } from "../../connections.js";
@@ -32,6 +33,14 @@ async function tableInOrg(tableId: string, orgId: string) {
   const t = (await db.select().from(dataTables).where(eq(dataTables.id, tableId)).limit(1))[0];
   if (!t || t.orgId !== orgId || t.deletedAt) throw new TRPCError({ code: "NOT_FOUND", message: "Database não encontrado" });
   return t;
+}
+/** The database screen: the caller must be allowed to see it (or edit it). */
+async function tableFor(tableId: string, orgId: string, write = false) {
+  const t = await tableInOrg(tableId, orgId);
+  const role = await tableRole(t);
+  if (!role) throw new TRPCError({ code: "NOT_FOUND", message: "Database não encontrado" });
+  if (write && role === "read") throw new TRPCError({ code: "FORBIDDEN", message: "Você tem acesso somente leitura neste banco de dados." });
+  return { ...t, myRole: role };
 }
 async function columnInOrg(fieldId: string, orgId: string) {
   const f = (await db.select().from(tableFields).where(eq(tableFields.id, fieldId)).limit(1))[0];
@@ -82,11 +91,35 @@ async function recordsWithValues(where: ReturnType<typeof eq>) {
 }
 
 export const databaseRouter = router({
-  list: protectedProcedure.query(({ ctx }) =>
-    db.select().from(dataTables).where(and(eq(dataTables.orgId, ctx.orgId), isNull(dataTables.deletedAt))).orderBy(asc(dataTables.name))
-  ),
+  // Only the bancos the person may open (Quem acessa), each with their role.
+  list: protectedProcedure.query(async ({ ctx }) => {
+    const all = await db.select().from(dataTables).where(and(eq(dataTables.orgId, ctx.orgId), isNull(dataTables.deletedAt))).orderBy(asc(dataTables.name));
+    const out = [];
+    for (const t of all) { const myRole = await tableRole(t); if (myRole) out.push({ ...t, myRole }); }
+    return out;
+  }),
 
-  get: protectedProcedure.input(z.object({ tableId: z.string() })).query(({ ctx, input }) => tableInOrg(input.tableId, ctx.orgId)),
+  get: protectedProcedure.input(z.object({ tableId: z.string() })).query(({ ctx, input }) => tableFor(input.tableId, ctx.orgId)),
+
+  /** Quem acessa (admins): the table's mode and its members (people and groups). */
+  access: adminProcedure.input(z.object({ tableId: z.string() })).query(async ({ ctx, input }) => {
+    const t = await tableInOrg(input.tableId, ctx.orgId);
+    return { access: t.access, members: await db.select({ kind: tableMembers.kind, subjectId: tableMembers.subjectId, role: tableMembers.role }).from(tableMembers).where(eq(tableMembers.tableId, t.id)) };
+  }),
+  setAccess: adminProcedure.input(z.object({ tableId: z.string(), access: z.enum(["all_edit", "all_read", "restricted"]) })).mutation(async ({ ctx, input }) => {
+    await tableInOrg(input.tableId, ctx.orgId);
+    await db.update(dataTables).set({ access: input.access }).where(eq(dataTables.id, input.tableId));
+    return { ok: true };
+  }),
+  setMember: adminProcedure
+    .input(z.object({ tableId: z.string(), kind: z.enum(["user", "group"]), subjectId: z.string(), role: z.enum(["member", "read"]).nullable() }))
+    .mutation(async ({ ctx, input }) => {
+      await tableInOrg(input.tableId, ctx.orgId);
+      const key = and(eq(tableMembers.tableId, input.tableId), eq(tableMembers.kind, input.kind), eq(tableMembers.subjectId, input.subjectId));
+      if (input.role === null) await db.delete(tableMembers).where(key);
+      else await db.insert(tableMembers).values({ tableId: input.tableId, kind: input.kind, subjectId: input.subjectId, role: input.role }).onDuplicateKeyUpdate({ set: { role: input.role } });
+      return { ok: true };
+    }),
 
   /** New table starts with a required "Nome" column that names the records. */
   create: adminProcedure.input(z.object({ name: z.string().trim().min(1).max(255) })).mutation(async ({ ctx, input }) => {
@@ -214,7 +247,7 @@ export const databaseRouter = router({
 
   // --- Records -------------------------------------------------------------
   records: protectedProcedure.input(z.object({ tableId: z.string() })).query(async ({ ctx, input }) => {
-    await tableInOrg(input.tableId, ctx.orgId);
+    await tableFor(input.tableId, ctx.orgId);
     return recordsWithValues(eq(tableRecords.tableId, input.tableId));
   }),
 
@@ -251,6 +284,7 @@ export const databaseRouter = router({
     .input(z.object({ recordId: z.string(), fieldId: z.string(), value: valueSchema }))
     .mutation(async ({ ctx, input }) => {
       const { record, table } = await recordInOrg(input.recordId, ctx.orgId);
+      await tableFor(record.tableId, ctx.orgId, true);
       const col = (await db.select().from(tableFields).where(eq(tableFields.id, input.fieldId)).limit(1))[0];
       if (!col || col.tableId !== table.id || col.archivedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "Coluna inválida" });
       if (col.required && (isEmpty(input.value) || input.value === false)) throw new TRPCError({ code: "BAD_REQUEST", message: `"${col.label}" é obrigatório.` });
@@ -271,6 +305,7 @@ export const databaseRouter = router({
 
   removeRecord: protectedProcedure.input(z.object({ recordId: z.string() })).mutation(async ({ ctx, input }) => {
     const { record } = await recordInOrg(input.recordId, ctx.orgId);
+    await tableFor(record.tableId, ctx.orgId, true);
     await db.transaction(async (tx) => {
       await tx.delete(tableRecordFields).where(eq(tableRecordFields.recordId, record.id));
       await tx.delete(tableRecords).where(eq(tableRecords.id, record.id));

@@ -76,11 +76,16 @@ export function DatabaseView() {
             <Button variant="secondary" onClick={exportCsv} disabled={!visible.length}><Download className="h-4 w-4" aria-hidden="true" /> Exportar</Button>
             {table && <ImportModal open={importing} onClose={() => setImporting(false)} title={table.name} target={{ kind: "table", tableId: table.id }} />}
             {isAdmin && <Button variant="secondary" onClick={() => setSettings((s) => !s)}><Settings className="h-4 w-4" aria-hidden="true" /> {settings ? "Fechar configuração" : "Configurar"}</Button>}
-            <Button onClick={() => setOpen("new")}><Plus className="h-4 w-4" aria-hidden="true" /> Novo registro</Button>
+            {table?.myRole === "read" ? (
+              <span className="rounded-pill border border-border px-3 py-1 text-xs text-muted">Somente leitura</span>
+            ) : (
+              <Button onClick={() => setOpen("new")}><Plus className="h-4 w-4" aria-hidden="true" /> Novo registro</Button>
+            )}
           </div>
         </div>
 
         {settings && table && isAdmin && <TableSettings table={table} />}
+        {settings && table && isAdmin && <TableAccess tableId={table.id} />}
 
         {isLoading ? (
           <div className="flex items-center gap-2 text-sm text-muted"><Spinner className="h-4 w-4" label="Carregando" /> Carregando…</div>
@@ -234,6 +239,66 @@ function TableSettings({ table }: { table: DataTable }) {
         save={(d, existing) => existing
           ? api.database.updateColumn({ fieldId: existing.id, label: d.label, required: d.required, options: d.options, description: d.description, help: d.help, isUnique: d.isUnique, validationRegex: d.validationRegex })
           : api.database.createColumn({ tableId: table.id, label: d.label, type: d.type, required: d.required, options: d.options, description: d.description, help: d.help, isUnique: d.isUnique, validationRegex: d.validationRegex })} />
+    </section>
+  );
+}
+
+const ACCESS = [
+  { value: "all_edit", label: "Todos da organização veem e editam" },
+  { value: "all_read", label: "Todos veem; só os membros abaixo editam" },
+  { value: "restricted", label: "Só os membros abaixo (os outros nem veem)" },
+];
+const TROLES = [{ value: "member", label: "Membro (edita)" }, { value: "read", label: "Somente leitura" }];
+
+/** Configurar banco > Quem acessa: mode + members (people and groups). Admins always see everything. */
+function TableAccess({ tableId }: { tableId: string }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const { data } = useQuery({ queryKey: ["tableAccess", tableId], queryFn: () => api.tableAccess.get(tableId) });
+  const { data: people } = useQuery({ queryKey: ["people"], queryFn: api.people.list });
+  const { data: groups } = useQuery({ queryKey: ["groups"], queryFn: api.people.groups });
+  const done = () => { qc.invalidateQueries({ queryKey: ["tableAccess", tableId] }); qc.invalidateQueries({ queryKey: ["databases"] }); };
+  const onError = (e: unknown) => toast(e instanceof Error ? e.message : String(e), "error");
+  const setAccess = useMutation({ mutationFn: (a: "all_edit" | "all_read" | "restricted") => api.tableAccess.set(tableId, a), onSuccess: done, onError });
+  const setMember = useMutation({ mutationFn: api.tableAccess.setMember, onSuccess: done, onError });
+  if (!data) return null;
+  const members = data.members;
+  const nameOf = (m: { kind: string; subjectId: string }) => m.kind === "group"
+    ? `Grupo: ${groups?.find((g) => g.id === m.subjectId)?.name ?? "?"}`
+    : people?.find((p) => p.id === m.subjectId)?.name ?? people?.find((p) => p.id === m.subjectId)?.email ?? "?";
+  const has = (kind: string, id: string) => members.some((m) => m.kind === kind && m.subjectId === id);
+  const candidates = [
+    ...(groups ?? []).filter((g) => !has("group", g.id)).map((g) => ({ value: `group:${g.id}`, label: `Grupo: ${g.name}` })),
+    ...(people ?? []).filter((p) => p.role !== "admin" && !has("user", p.id)).map((p) => ({ value: `user:${p.id}`, label: p.name ?? p.email })),
+  ];
+
+  return (
+    <section aria-label="Quem acessa" className="flex flex-col gap-3 rounded-lg border border-border p-4">
+      <div>
+        <h3 className="text-sm font-semibold text-text">Quem acessa este banco de dados</h3>
+        <p className="text-xs text-muted">Vale para a tela Bancos de dados. Administradores sempre veem tudo. Quem trabalha num pipe com campo de conexão para este banco continua podendo buscar e conectar registros pelo card.</p>
+      </div>
+      <div className="max-w-md"><Select aria-label="Quem acessa" value={data.access} options={ACCESS} onValueChange={(v) => setAccess.mutate(v as "all_edit" | "all_read" | "restricted")} /></div>
+      {data.access !== "all_edit" && (
+        <>
+          {!!members.length && (
+            <ul className="flex flex-col divide-y divide-border rounded-md border border-border">
+              {members.map((m) => (
+                <li key={`${m.kind}:${m.subjectId}`} className="flex flex-wrap items-center gap-3 px-3 py-2 text-sm">
+                  <span className="min-w-40 flex-1 text-text">{nameOf(m)}</span>
+                  <div className="w-48"><Select aria-label={`Acesso de ${nameOf(m)}`} value={m.role} options={TROLES}
+                    onValueChange={(v) => setMember.mutate({ tableId, kind: m.kind as "user" | "group", subjectId: m.subjectId, role: v as "member" | "read" })} /></div>
+                  <button aria-label={`Tirar ${nameOf(m)}`} onClick={() => setMember.mutate({ tableId, kind: m.kind as "user" | "group", subjectId: m.subjectId, role: null })} className="rounded p-1 text-muted hover:text-danger"><Trash2 className="h-4 w-4" /></button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {candidates.length > 0 && (
+            <div className="max-w-sm"><Select aria-label="Adicionar pessoa ou grupo" placeholder="Adicionar pessoa ou grupo…" value="" options={candidates}
+              onValueChange={(v) => { const [kind, id] = v.split(":"); setMember.mutate({ tableId, kind: kind as "user" | "group", subjectId: id, role: "member" }); }} /></div>
+          )}
+        </>
+      )}
     </section>
   );
 }
