@@ -25,6 +25,7 @@ export function NotificationBell() {
   const emailPref = useMutation({ mutationFn: api.notification.setEmail, onSuccess: () => qc.invalidateQueries({ queryKey: ["me"] }) });
   const read = useMutation({
     mutationFn: (ids?: string[]) => api.notification.markRead(ids),
+    meta: { silent: true },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
   });
 

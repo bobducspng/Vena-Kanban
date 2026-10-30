@@ -5,6 +5,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Avatar } from "../ui/Avatar";
 import { api } from "../../data/store";
 import { NotificationBell } from "./NotificationBell";
+import { SaveIndicator } from "./SaveIndicator";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000";
 
@@ -28,6 +29,7 @@ export function Header({ title }: { title?: string }) {
     <header className="flex h-header shrink-0 items-center justify-between gap-4 border-b border-border bg-bg px-4">
       <h1 className="truncate text-base font-semibold text-text">{title ?? "Venaflow"}</h1>
       <div className="flex items-center gap-3">
+        <SaveIndicator />
         <label className="relative hidden sm:block">
           <span className="sr-only">Buscar</span>
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
