@@ -16,6 +16,7 @@ import { fieldStates } from "../../lib/conditions";
 import { OutsideSection } from "./OutsideSection";
 import { EmailsSection } from "./EmailParts";
 import { SignaturesSection } from "./SignatureParts";
+import type { CardFeature } from "../../data/types";
 import { withState } from "../../lib/useFieldStates";
 
 /** S06 — card detail in two columns: left = title, actions and phase fields;
@@ -31,6 +32,9 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
     enabled: !!cardId,
   });
   const { data: phases } = useQuery({ queryKey: ["phases", pipeId], queryFn: () => api.phase.listByPipe(pipeId) });
+  const { data: pipeInfo } = useQuery({ queryKey: ["pipe", pipeId], queryFn: () => api.pipe.get(pipeId) });
+  // Sections this pipe turned off (Configurar pipe > Recursos do card).
+  const on = (f: CardFeature) => !(pipeInfo?.hiddenCardFeatures ?? []).includes(f);
   const { data: fields } = useQuery({ queryKey: ["fields", pipeId], queryFn: () => api.field.listByPipe(pipeId) });
   const { data: members } = useQuery({ queryKey: ["users"], queryFn: api.user.list });
   const { data: conditions } = useQuery({ queryKey: ["conditions", pipeId], queryFn: () => api.condition.listByPipe(pipeId) });
@@ -179,15 +183,15 @@ export function CardDetailModal({ cardId, pipeId, open, onOpenChange }: { cardId
 
           <AlertsSection card={card} timeline={timeline} />
 
-          <AssigneesSection card={card} members={members ?? []} onChanged={refresh} />
-          <LabelsSection card={card} pipeId={pipeId} onChanged={refresh} />
-          <DueDateSection card={card} onChanged={refresh} />
-          <ChecklistSection cardId={card.id} onChanged={refresh} />
-          <AttachmentsSection cardId={card.id} pipeId={card.pipeId} onChanged={refresh} />
-          <CommentsSection cardId={card.id} members={members ?? []} onChanged={refresh} />
-          <EmailsSection cardId={card.id} pipeId={pipeId} />
-          <SignaturesSection cardId={card.id} />
-          <OutsideSection cardId={card.id} phaseName={current.name} />
+          {on("assignees") && <AssigneesSection card={card} members={members ?? []} onChanged={refresh} />}
+          {on("labels") && <LabelsSection card={card} pipeId={pipeId} onChanged={refresh} />}
+          {on("dueDate") && <DueDateSection card={card} onChanged={refresh} />}
+          {on("checklist") && <ChecklistSection cardId={card.id} onChanged={refresh} />}
+          {on("attachments") && <AttachmentsSection cardId={card.id} pipeId={card.pipeId} onChanged={refresh} />}
+          {on("comments") && <CommentsSection cardId={card.id} members={members ?? []} onChanged={refresh} />}
+          {on("emails") && <EmailsSection cardId={card.id} pipeId={pipeId} />}
+          {on("signatures") && <SignaturesSection cardId={card.id} />}
+          {on("outside") && <OutsideSection cardId={card.id} phaseName={current.name} />}
 
           <section aria-label="Histórico" className="flex flex-col gap-2 border-t border-border pt-4">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Histórico</h3>

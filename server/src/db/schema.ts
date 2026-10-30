@@ -77,6 +77,8 @@ export const pipes = mysqlTable("pipes", {
   letterheadId: ref("letterhead_id"),
   // Pasta na tela inicial (null = sem pasta).
   folder: varchar("folder", { length: 100 }),
+  // Recursos do card desligados neste pipe (ex.: ["checklist", "signatures"]); vazio = todos ligados.
+  hiddenCardFeatures: json("hidden_card_features"),
   deletedAt: datetime("deleted_at", { fsp: 3 }),
   createdBy: ref("created_by"),
   createdAt: createdAt(),

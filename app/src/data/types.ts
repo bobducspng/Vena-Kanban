@@ -149,6 +149,14 @@ export interface Phase {
   wipLimit: number | null; // limite de cards (aviso no quadro)
 }
 
+/** Sections of the card a pipe can turn off. */
+export const CARD_FEATURES = [
+  { key: "assignees", label: "Responsáveis" }, { key: "labels", label: "Etiquetas" }, { key: "dueDate", label: "Vencimento" },
+  { key: "checklist", label: "Checklist" }, { key: "attachments", label: "Anexos" }, { key: "comments", label: "Comentários" },
+  { key: "emails", label: "E-mails" }, { key: "signatures", label: "Assinaturas" }, { key: "outside", label: "Pessoas de fora (link de fase)" },
+] as const;
+export type CardFeature = (typeof CARD_FEATURES)[number]["key"];
+
 export interface Pipe {
   id: string;
   name: string;
@@ -165,6 +173,7 @@ export interface Pipe {
   businessHoursOnly?: boolean; // count SLAs in business time (org calendar)
   myRole?: PipeRole | null; // only from pipe.get
   folder?: string | null; // pasta na tela inicial
+  hiddenCardFeatures?: CardFeature[]; // recursos do card desligados neste pipe
   letterheadId?: string | null; // papel timbrado (frente) dos PDFs; null = padrão da empresa
 }
 

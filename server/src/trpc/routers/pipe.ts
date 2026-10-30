@@ -72,6 +72,7 @@ export const pipeRouter = router({
       expirationMinutes: z.number().int().min(1).max(525_600 * 3).nullable().optional(),
       businessHoursOnly: z.boolean().optional(),
       folder: z.string().trim().max(100).nullable().optional(),
+      hiddenCardFeatures: z.array(z.enum(["assignees", "labels", "dueDate", "checklist", "attachments", "comments", "emails", "signatures", "outside"])).optional(),
       letterheadId: z.string().nullable().optional(), // papel timbrado (null = padrão da empresa)
     }))
     .mutation(async ({ ctx, input }) => {

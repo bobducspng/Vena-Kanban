@@ -1,0 +1,1 @@
+ALTER TABLE `pipes` ADD `hidden_card_features` json;

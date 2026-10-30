@@ -22,6 +22,7 @@ import { cn } from "../lib/cn";
 import { PipeMembers } from "../components/app/PeopleSettings";
 import { PdfTemplatesSection } from "../components/app/PdfParts";
 import { WebhooksSection } from "../components/app/Integrations";
+import { CARD_FEATURES } from "../data/types";
 import { Avatar } from "../components/ui/Avatar";
 
 const COLOR_LABEL: Record<PhaseColor, string> = {
@@ -283,6 +284,21 @@ function PipeSection({ pipe, phases, fields }: { pipe: Pipe; phases: Phase[]; fi
           <span>Contar prazos só em horário útil <span className="block text-xs text-muted">Usa o expediente e os feriados de Configurações. Vale para o SLA das fases e o prazo total.</span></span>
         </label>
       </div>
+      <fieldset className="flex flex-col gap-1.5">
+        <legend className="text-sm font-medium text-text">Recursos do card <span className="text-muted">(desmarque o que este pipe não usa: some do card)</span></legend>
+        <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+          {CARD_FEATURES.map((f) => {
+            const hidden = pipe.hiddenCardFeatures ?? [];
+            return (
+              <label key={f.key} className="inline-flex items-center gap-2 text-sm text-text">
+                <input type="checkbox" className="h-4 w-4 accent-accent" checked={!hidden.includes(f.key)}
+                  onChange={(e) => update.mutate({ pipeId: pipe.id, hiddenCardFeatures: e.target.checked ? hidden.filter((x) => x !== f.key) : [...hidden, f.key] })} />
+                {f.label}
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
       <fieldset className="flex flex-col gap-1.5">
         <legend className="text-sm font-medium text-text">Subtítulos no quadro <span className="text-muted">(até 5 campos exibidos no card fechado)</span></legend>
         <div className="flex flex-wrap gap-x-4 gap-y-1.5">
