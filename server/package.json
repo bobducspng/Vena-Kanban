@@ -17,7 +17,8 @@
     "test:business": "tsx test/businessTime.check.ts",
     "test:pdf": "tsx test/pdf.check.ts",
     "test:signature": "tsx test/signature.check.ts",
-    "test:importer": "tsx test/importer.check.ts"
+    "test:importer": "tsx test/importer.check.ts",
+    "test:inbox": "tsx test/inbox.check.ts"
   },
   "dependencies": {
     "@trpc/server": "^11.19.0",
@@ -28,8 +29,10 @@
     "express-rate-limit": "^8.7.1",
     "google-auth-library": "^11.3.1",
     "helmet": "^8.3.0",
+    "imapflow": "^2.10.0",
+    "mailparser": "^3.14.1",
     "mysql2": "^3.24.6",
-    "nodemailer": "^7.0.13",
+    "nodemailer": "^10.3.1",
     "pdf-lib": "^1.17.1",
     "pdfkit": "^0.20.2",
     "superjson": "^2.2.6",
@@ -39,6 +42,7 @@
     "@types/cookie": "^0.6.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/mailparser": "^3.9.0",
     "@types/node": "^26.6.5",
     "@types/nodemailer": "^8.0.2",
     "@types/pdfkit": "^0.17.7",

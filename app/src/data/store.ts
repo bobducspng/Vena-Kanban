@@ -38,7 +38,7 @@ const toISO = (d: Date | string | null | undefined): string =>
 const toISON = (d: Date | string | null | undefined): string | null =>
   d == null ? null : (d instanceof Date ? d.toISOString() : d);
 
-type SrvPipe = { id: string; name: string; description: string | null; createdAt: Date | string; icon?: string | null; color?: string | null; noun?: string | null; createButtonLabel?: string | null; titleFieldId?: string | null; subtitleFieldIds?: unknown; deletedAt?: Date | string | null; expirationMinutes?: number | null; businessHoursOnly?: boolean; myRole?: string | null; folder?: string | null; letterheadId?: string | null; hiddenCardFeatures?: unknown };
+type SrvPipe = { id: string; name: string; description: string | null; createdAt: Date | string; icon?: string | null; color?: string | null; noun?: string | null; createButtonLabel?: string | null; titleFieldId?: string | null; subtitleFieldIds?: unknown; deletedAt?: Date | string | null; expirationMinutes?: number | null; businessHoursOnly?: boolean; myRole?: string | null; folder?: string | null; letterheadId?: string | null; hiddenCardFeatures?: unknown; inboxEnabled?: boolean; inboxFromFieldId?: string | null; inboxBodyFieldId?: string | null; inboxAllowedDomains?: string | null };
 type SrvPhase = { id: string; pipeId: string; name: string; color: string | null; position: number; isStart: boolean; isEnd: boolean; description: string | null; canCreateCard: boolean; allowedTo?: string[]; assigneeIds?: string[]; slaMinutes?: number | null; wipLimit?: number | null };
 type SrvField = { id: string; pipeId: string; phaseId: string; label: string; type: string; required: boolean; options: unknown; position: number; description: string | null; help: string | null; editableOtherPhases: boolean; isUnique: boolean; validationRegex: string | null; archivedAt: Date | string | null; settings?: unknown };
 type SrvCard = { id: string; number: number; pipeId: string; currentPhaseId: string; title: string; dueDate: Date | string | null; done: boolean; version: number; createdAt: Date | string; values: { fieldId: string; value: unknown }[]; assigneeIds: string[]; labelIds: string[]; checklistDone: number; checklistTotal: number; commentCount: number; attachmentCount: number;
@@ -53,6 +53,7 @@ const mapPipe = (p: SrvPipe): Pipe => ({
   expirationMinutes: p.expirationMinutes ?? null, businessHoursOnly: !!p.businessHoursOnly,
   myRole: (p.myRole as Pipe["myRole"]) ?? null, folder: p.folder ?? null, letterheadId: p.letterheadId ?? null,
   hiddenCardFeatures: Array.isArray(p.hiddenCardFeatures) ? (p.hiddenCardFeatures as Pipe["hiddenCardFeatures"]) : [],
+  inboxEnabled: !!p.inboxEnabled, inboxFromFieldId: p.inboxFromFieldId ?? null, inboxBodyFieldId: p.inboxBodyFieldId ?? null, inboxAllowedDomains: p.inboxAllowedDomains ?? null,
 });
 const mapPhase = (p: SrvPhase): Phase => ({ id: p.id, pipeId: p.pipeId, name: p.name, color: p.color ?? "gray", position: p.position, isStart: p.isStart, isEnd: p.isEnd, description: p.description, canCreateCard: p.canCreateCard, allowedTo: p.allowedTo ?? [], assigneeIds: p.assigneeIds ?? [], slaMinutes: p.slaMinutes ?? null, wipLimit: p.wipLimit ?? null });
 const mapField = (f: SrvField): FieldDef => ({ id: f.id, pipeId: f.pipeId, phaseId: f.phaseId, label: f.label, type: f.type as FieldType, required: f.required, options: Array.isArray(f.options) ? (f.options as string[]) : undefined, position: f.position, description: f.description, help: f.help, editableOtherPhases: f.editableOtherPhases, isUnique: f.isUnique, validationRegex: f.validationRegex, archivedAt: toISON(f.archivedAt),
@@ -136,9 +137,10 @@ export const api = {
     update: async (input: {
       pipeId: string; name?: string; description?: string | null; icon?: string | null; color?: PhaseColor | null;
       noun?: string | null; createButtonLabel?: string | null; titleFieldId?: string | null; subtitleFieldIds?: string[];
-      expirationMinutes?: number | null; businessHoursOnly?: boolean; folder?: string | null; letterheadId?: string | null; hiddenCardFeatures?: NonNullable<Pipe["hiddenCardFeatures"]>;
+      expirationMinutes?: number | null; businessHoursOnly?: boolean; folder?: string | null; letterheadId?: string | null; hiddenCardFeatures?: NonNullable<Pipe["hiddenCardFeatures"]>; inboxEnabled?: boolean; inboxFromFieldId?: string | null; inboxBodyFieldId?: string | null; inboxAllowedDomains?: string | null;
     }): Promise<Pipe> => mapPipe(await trpc.pipe.update.mutate(input)),
     clone: (pipeId: string, name: string) => trpc.pipe.clone.mutate({ pipeId, name }),
+    inboxAddress: (pipeId: string) => trpc.pipe.inboxAddress.mutate({ pipeId }),
     remove: (pipeId: string) => trpc.pipe.remove.mutate({ pipeId }),
     listDeleted: async (): Promise<Pipe[]> => (await trpc.pipe.listDeleted.query()).map(mapPipe),
     restore: (pipeId: string) => trpc.pipe.restore.mutate({ pipeId }),
@@ -281,6 +283,8 @@ export const api = {
     map: () => trpc.org.map.query(),
     backupStatus: () => trpc.org.backupStatus.query(),
     driveStatus: () => trpc.org.driveStatus.query(),
+    inboxStatus: () => trpc.org.inboxStatus.query(),
+    inboxSetEnabled: (on: boolean) => trpc.org.inboxSetEnabled.mutate({ on }),
     driveDisconnect: () => trpc.org.driveDisconnect.mutate(),
     driveScript: () => trpc.org.driveScript.mutate(),
     driveConnect: (url: string) => trpc.org.driveConnect.mutate({ url }),
@@ -338,9 +342,10 @@ export const api = {
     updateTemplate: (input: Omit<EmailTemplate, "pipeId" | "id"> & { templateId: string }) => trpc.email.updateTemplate.mutate(input),
     removeTemplate: (templateId: string) => trpc.email.removeTemplate.mutate({ templateId }),
     render: (templateId: string, cardId: string) => trpc.email.render.query({ templateId, cardId }),
+    cardAddress: (cardId: string) => trpc.email.cardAddress.query({ cardId }),
     send: (input: { cardId: string; to: string[]; cc: string[]; subject: string; body: string; format: "text" | "html"; attachmentIds: string[]; templateId?: string }) => trpc.email.send.mutate(input),
     history: async (cardId: string): Promise<CardEmail[]> =>
-      (await trpc.email.history.query({ cardId })).map((e) => ({ ...e, status: e.status as CardEmail["status"], format: e.format === "html" ? "html" as const : "text" as const, createdAt: toISO(e.createdAt) })),
+      (await trpc.email.history.query({ cardId })).map((e) => ({ ...e, status: e.status as CardEmail["status"], format: e.format === "html" ? "html" as const : "text" as const, direction: e.direction === "in" ? "in" as const : "out" as const, createdAt: toISO(e.createdAt) })),
   },
 
   integration: {

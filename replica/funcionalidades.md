@@ -211,7 +211,7 @@ Opções de cada campo:
 | Templates de e-mail | variáveis de campos (até 100), padrão do pipe, idioma/fuso | ✅ | M8 |
 | Enviar e-mail do card (manual) | até 10 destinatários | ✅ (até 500 destinatários, anexos do card) | M8 |
 | SMTP próprio (remetente @vena.app.br) | ✅ (aguarda senha de app na VM) | M8 |
-| Endereço por pipe e por card + caixa de entrada | e-mail recebido cria/atualiza card, anexos viram campos | ⬜ (adiado: decisão 2026-10-29) | M8 |
+| Endereço por pipe e por card + caixa de entrada | e-mail recebido cria/atualiza card, anexos viram campos | ✅ (IMAP da conta de envio; +p- cria card, +c- e respostas voltam ao card; anexos) | M8 |
 | Respostas prontas e assinatura | 🟡 (templates servem de resposta pronta) | M8 |
 | Anexo real no e-mail enviado | pedido da comunidade | ✅ | M8 |
 

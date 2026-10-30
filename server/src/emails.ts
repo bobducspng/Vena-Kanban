@@ -5,6 +5,7 @@ import { attachments, cardEmails, cardEvents, emailTemplates } from "./db/schema
 import { sendCardMail } from "./mailer.js";
 import { cardContext } from "./templates.js";
 import { UPLOAD_DIR } from "./uploads.js";
+import { cardAddress, ensureCardToken, inboxOnForCard } from "./inbox.js";
 
 const MAX_ATTACH_BYTES = 20 * 1024 * 1024; // Gmail's limit is 25 MB including encoding
 
@@ -40,13 +41,15 @@ export async function sendFromCard(m: {
     id: crypto.randomUUID(), cardId: m.cardId, templateId: m.templateId ?? null, toList: m.to.join(", "), ccList: m.cc?.join(", ") || null,
     subject: m.subject, body: m.body, format: m.format ?? "text", attachmentIds: files.map((f) => f.id), sentBy: m.sentBy ?? null, via: m.via ?? null,
   };
+  // Caixa de entrada ligada: replies come back to the card (its own "+c-" address).
+  const replyTo = (await inboxOnForCard(m.cardId)) ? cardAddress(await ensureCardToken(m.cardId)) : m.replyTo;
   try {
-    await sendCardMail({
-      to: m.to, cc: m.cc, subject: m.subject, replyTo: m.replyTo,
+    const sent = await sendCardMail({
+      to: m.to, cc: m.cc, subject: m.subject, replyTo,
       ...(m.format === "html" ? { html: m.body, body: htmlToText(m.body) } : { body: m.body }),
       attachments: files.map((f) => ({ filename: f.filename, path: join(UPLOAD_DIR, m.cardId, f.id), contentType: f.mimeType ?? undefined })),
     });
-    await db.insert(cardEmails).values({ ...row, status: "sent" });
+    await db.insert(cardEmails).values({ ...row, status: "sent", messageId: sent.messageId?.slice(0, 255) ?? null });
     await db.insert(cardEvents).values({ id: crypto.randomUUID(), cardId: m.cardId, type: "email_sent", actorId: m.sentBy ?? null, data: { to: row.toList, subject: m.subject, ...(m.via ? { automation: m.via } : {}) } });
   } catch (err) {
     const why = err instanceof Error ? err.message : String(err);

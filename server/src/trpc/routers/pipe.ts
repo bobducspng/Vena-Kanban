@@ -1,3 +1,4 @@
+import { ensurePipeToken, pipeAddress } from "../../inbox.js";
 import { z } from "zod";
 import { eq, and, inArray, isNull, isNotNull, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
@@ -5,7 +6,7 @@ import { db } from "../../db/client.js";
 import { pipes, phases, fields, phaseTransitions } from "../../db/schema.js";
 import { pipeRole, pipesOfUser } from "../../access.js";
 import { clonePipe } from "../../clonePipe.js";
-import { router, protectedProcedure, adminProcedure } from "../trpc.js";
+import { router, protectedProcedure, adminProcedure, assertPipeInOrg } from "../trpc.js";
 
 export const pipeRouter = router({
   // Closed by default (M10): admins see every pipe, everyone else the ones they were added to.
@@ -72,6 +73,10 @@ export const pipeRouter = router({
       expirationMinutes: z.number().int().min(1).max(525_600 * 3).nullable().optional(),
       businessHoursOnly: z.boolean().optional(),
       folder: z.string().trim().max(100).nullable().optional(),
+      inboxEnabled: z.boolean().optional(),
+      inboxFromFieldId: z.string().nullable().optional(),
+      inboxBodyFieldId: z.string().nullable().optional(),
+      inboxAllowedDomains: z.string().trim().max(500).nullable().optional(),
       hiddenCardFeatures: z.array(z.enum(["assignees", "labels", "dueDate", "checklist", "attachments", "comments", "emails", "signatures", "outside"])).optional(),
       letterheadId: z.string().nullable().optional(), // papel timbrado (null = padrão da empresa)
     }))
@@ -96,6 +101,12 @@ export const pipeRouter = router({
       if (Object.keys(patch).length) await db.update(pipes).set(patch).where(eq(pipes.id, pipeId));
       return (await db.select().from(pipes).where(eq(pipes.id, pipeId)).limit(1))[0];
     }),
+
+  /** Caixa de entrada do pipe: its address (created on first use). */
+  inboxAddress: adminProcedure.input(z.object({ pipeId: z.string() })).mutation(async ({ ctx, input }) => {
+    await assertPipeInOrg(input.pipeId, ctx.orgId);
+    return { address: pipeAddress(await ensurePipeToken(input.pipeId)) };
+  }),
 
   /** Copy of the configuration (no cards); automations come over turned off. */
   clone: adminProcedure.input(z.object({ pipeId: z.string(), name: z.string().trim().min(1).max(255) })).mutation(({ ctx, input }) =>

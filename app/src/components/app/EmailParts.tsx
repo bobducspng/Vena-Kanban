@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Mail, Pencil, Plus, Send, Smartphone, Trash2 } from "lucide-react";
+import { Copy, Mail, Pencil, Plus, Send, Smartphone, Trash2 } from "lucide-react";
 import { describeReport, makeResponsive } from "../../lib/responsiveEmail";
 import { api } from "../../data/store";
 import type { EmailTemplate, FieldDef } from "../../data/types";
@@ -146,20 +146,29 @@ export function EmailsSection({ cardId, pipeId }: { cardId: string; pipeId: stri
   const [open, setOpen] = useState(false);
   const { data: history } = useQuery({ queryKey: ["cardEmails", cardId], queryFn: () => api.email.history(cardId) });
   const { data: enabled } = useQuery({ queryKey: ["emailEnabled"], queryFn: api.email.enabled });
+  const { data: own } = useQuery({ queryKey: ["cardAddress", cardId], queryFn: () => api.email.cardAddress(cardId), enabled: !!enabled });
+  const toast = useToast();
   return (
     <section aria-label="E-mails" className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">E-mails</h3>
         {enabled && <button className="text-xs text-accent" onClick={() => setOpen(true)}>Enviar e-mail</button>}
       </div>
-      {!history?.length ? <p className="text-xs text-muted">{enabled ? "Nenhum e-mail enviado." : "Envio de e-mail não configurado."}</p> : (
+      {own?.address && (
+        <p className="flex flex-wrap items-center gap-1 text-xs text-muted">
+          E-mails para <code className="text-text">{own.address}</code> entram neste card
+          <button aria-label="Copiar endereço do card" className="rounded p-0.5 hover:text-text" onClick={() => { void navigator.clipboard.writeText(own.address); toast("Endereço copiado", "success"); }}><Copy className="h-3 w-3" /></button>
+        </p>
+      )}
+      {!history?.length ? <p className="text-xs text-muted">{enabled ? "Nenhum e-mail ainda." : "Envio de e-mail não configurado."}</p> : (
         <ul className="flex max-h-56 flex-col gap-1.5 overflow-y-auto">
           {history.map((e) => (
             <li key={e.id} className="rounded border border-border p-2 text-xs">
               <details>
                 <summary className="cursor-pointer">
+                  {e.direction === "in" && <span className="mr-1 rounded bg-surface px-1 text-[10px] font-semibold uppercase text-accent">recebido</span>}
                   <span className={e.status === "failed" ? "text-danger" : "text-text"}>{e.subject}</span>
-                  <span className="block text-muted">para {e.toList} · {new Date(e.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}{e.via ? ` · automação "${e.via}"` : ""}{e.status === "failed" ? ` · falhou: ${e.error}` : ""}</span>
+                  <span className="block text-muted">{e.direction === "in" ? `de ${e.fromAddress}` : `para ${e.toList}`} · {new Date(e.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}{e.via ? ` · automação "${e.via}"` : ""}{e.status === "failed" ? ` · falhou: ${e.error}` : ""}</span>
                 </summary>
                 {e.format === "html" ? <div className="mt-1"><HtmlPreview html={e.body} compact /></div> : <p className="mt-1 whitespace-pre-wrap text-muted">{e.body}</p>}
               </details>

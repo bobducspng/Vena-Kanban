@@ -1,3 +1,4 @@
+import { cardAddress, ensureCardToken, inboxOnForCard } from "../../inbox.js";
 import { z } from "zod";
 import { asc, desc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
@@ -78,6 +79,12 @@ export const emailRouter = router({
       }
       return { ok: true };
     }),
+
+  /** The card's own address (when the caixa de entrada is on): e-mails to it join the card. */
+  cardAddress: protectedProcedure.input(z.object({ cardId: z.string() })).query(async ({ ctx, input }) => {
+    await cardInOrg(input.cardId, ctx.orgId);
+    return (await inboxOnForCard(input.cardId)) ? { address: cardAddress(await ensureCardToken(input.cardId)) } : null;
+  }),
 
   history: protectedProcedure.input(z.object({ cardId: z.string() })).query(async ({ ctx, input }) => {
     await cardInOrg(input.cardId, ctx.orgId);

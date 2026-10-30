@@ -42,7 +42,9 @@ export async function clonePipe(sourceId: string, orgId: string, name: string, u
   const newId = id(sourceId);
   await db.transaction(async (tx) => {
     const { id: _i, createdAt: _c, updatedAt: _u, deletedAt: _d, ...rest } = src;
-    await tx.insert(pipes).values({ ...rest, id: newId, name, createdBy: userId, titleFieldId: idN(src.titleFieldId), subtitleFieldIds: json(src.subtitleFieldIds) });
+    await tx.insert(pipes).values({ ...rest, id: newId, name, createdBy: userId, titleFieldId: idN(src.titleFieldId), subtitleFieldIds: json(src.subtitleFieldIds),
+      // The copy gets its own e-mail address (created when turned on), pointing at its own fields.
+      inboxToken: null, inboxEnabled: false, inboxFromFieldId: idN(src.inboxFromFieldId), inboxBodyFieldId: idN(src.inboxBodyFieldId) });
     for (const { createdAt: _, ...p } of srcPhases) await tx.insert(phases).values({ ...p, id: id(p.id), pipeId: newId });
     for (const { createdAt: _, ...f } of srcFields) await tx.insert(fields).values({ ...f, id: id(f.id), pipeId: newId, phaseId: id(f.phaseId), options: json(f.options), settings: json(f.settings) });
     for (const l of srcLabels) await tx.insert(labels).values({ ...l, id: id(l.id), pipeId: newId });

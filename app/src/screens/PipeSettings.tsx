@@ -23,6 +23,7 @@ import { PipeMembers } from "../components/app/PeopleSettings";
 import { PdfTemplatesSection } from "../components/app/PdfParts";
 import { WebhooksSection } from "../components/app/Integrations";
 import { CARD_FEATURES } from "../data/types";
+import { PipeInboxSection } from "../components/app/InboxSettings";
 import { Avatar } from "../components/ui/Avatar";
 
 const COLOR_LABEL: Record<PhaseColor, string> = {
@@ -159,6 +160,8 @@ export function PipeSettings() {
         <LabelsManager pipeId={pipeId} />
 
         <PipeMembers pipeId={pipeId} />
+
+        {pipe && fields && <PipeInboxSection pipe={pipe} fields={fields} />}
 
         <WebhooksSection pipeId={pipeId} />
       </div>

@@ -175,6 +175,10 @@ export interface Pipe {
   myRole?: PipeRole | null; // only from pipe.get
   folder?: string | null; // pasta na tela inicial
   hiddenCardFeatures?: CardFeature[]; // recursos do card desligados neste pipe
+  inboxEnabled?: boolean; // e-mail para o endereço do pipe cria card
+  inboxFromFieldId?: string | null;
+  inboxBodyFieldId?: string | null;
+  inboxAllowedDomains?: string | null;
   letterheadId?: string | null; // papel timbrado (frente) dos PDFs; null = padrão da empresa
 }
 
@@ -349,6 +353,8 @@ export interface CardEmail {
   subject: string;
   body: string;
   format?: "text" | "html";
+  direction?: "out" | "in"; // in = recebido pela caixa de entrada
+  fromAddress?: string | null;
   sentBy: string | null;
   via: string | null;
   status: "sent" | "failed";

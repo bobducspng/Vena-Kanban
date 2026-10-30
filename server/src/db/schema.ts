@@ -79,6 +79,12 @@ export const pipes = mysqlTable("pipes", {
   folder: varchar("folder", { length: 100 }),
   // Recursos do card desligados neste pipe (ex.: ["checklist", "signatures"]); vazio = todos ligados.
   hiddenCardFeatures: json("hidden_card_features"),
+  // Caixa de entrada: e-mail to <conta>+p-<token>@ creates a card here.
+  inboxToken: varchar("inbox_token", { length: 16 }),
+  inboxEnabled: boolean("inbox_enabled").notNull().default(false),
+  inboxFromFieldId: ref("inbox_from_field_id"), // receives the sender's e-mail
+  inboxBodyFieldId: ref("inbox_body_field_id"), // receives the text of the e-mail
+  inboxAllowedDomains: varchar("inbox_allowed_domains", { length: 500 }), // "vena.app.br, cliente.com" (empty = anyone)
   deletedAt: datetime("deleted_at", { fsp: 3 }),
   createdBy: ref("created_by"),
   createdAt: createdAt(),
@@ -229,6 +235,9 @@ export const cardEmails = mysqlTable("card_emails", {
   toList: varchar("to_list", { length: 2000 }).notNull(),
   ccList: varchar("cc_list", { length: 2000 }),
   subject: varchar("subject", { length: 500 }).notNull(),
+  direction: varchar("direction", { length: 8 }).notNull().default("out"), // out (sent) | in (received)
+  fromAddress: varchar("from_address", { length: 320 }), // received: who wrote
+  messageId: varchar("message_id", { length: 255 }), // to match replies (In-Reply-To)
   format: varchar("format", { length: 8 }).notNull().default("text"), // text | html
   body: mediumtext("body").notNull(),
   attachmentIds: json("attachment_ids"),
@@ -237,7 +246,18 @@ export const cardEmails = mysqlTable("card_emails", {
   status: varchar("status", { length: 16 }).notNull(), // sent | failed
   error: text("error"),
   createdAt: createdAt(),
-}, (t) => ({ cardIdx: index("idx_cardemails_card").on(t.cardId, t.createdAt) }));
+}, (t) => ({ cardIdx: index("idx_cardemails_card").on(t.cardId, t.createdAt), msgIdx: index("idx_cardemails_msgid").on(t.messageId) }));
+
+// Caixa de entrada (IMAP of the sending account): where reading stopped.
+export const inboxState = mysqlTable("inbox_state", {
+  orgId: ref("org_id").primaryKey(),
+  enabled: boolean("enabled").notNull().default(false),
+  uidValidity: bigint("uid_validity", { mode: "number" }),
+  lastUid: bigint("last_uid", { mode: "number" }),
+  lastCheckAt: datetime("last_check_at", { fsp: 3 }),
+  lastError: text("last_error"),
+  processed: int("processed").notNull().default(0),
+});
 
 // Read-only data feed for Power BI (Web connector): one secret token per org.
 export const biFeeds = mysqlTable("bi_feeds", {
@@ -452,6 +472,8 @@ export const cards = mysqlTable("cards", {
   expiredAt: datetime("expired_at", { fsp: 3 }),
   overdueAt: datetime("overdue_at", { fsp: 3 }),
   // Lixeira: soft delete. Deleted cards leave the board but can be restored.
+  // Caixa de entrada: replies to <conta>+c-<token>@ land in this card.
+  inboxToken: varchar("inbox_token", { length: 16 }),
   deletedAt: datetime("deleted_at", { fsp: 3 }),
   deletedBy: ref("deleted_by"),
   createdAt: createdAt(),

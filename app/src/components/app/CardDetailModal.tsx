@@ -324,6 +324,7 @@ function describe(e: CardEvent, phases: Phase[], members: User[]): string {
     case "request_message": return "Solicitante enviou uma mensagem";
     case "request_reply": return `${who} respondeu ao solicitante`;
     case "email_sent": return `${who} enviou um e-mail`;
+    case "email_received": return "E-mail recebido no card";
     case "signature_requested": return `${who} pediu assinatura de um documento`;
     case "signature_signed": return "Um signatário assinou o documento";
     case "signature_completed": return "Documento assinado por todos (via assinada anexada)";

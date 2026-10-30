@@ -225,6 +225,13 @@
       "when": 1793355530583,
       "tag": "0031_table_access",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "5",
+      "when": 1793359235193,
+      "tag": "0032_inbox",
+      "breakpoints": true
     }
   ]
 }

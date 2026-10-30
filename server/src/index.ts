@@ -15,6 +15,7 @@ import { publicRoutes } from "./http/publicRoutes.js";
 import { biRoutes } from "./bi.js";
 import { startAutomations } from "./automations.js";
 import { startWebhooks } from "./webhooks.js";
+import { startInbox } from "./inbox.js";
 import { apiRoutes } from "./http/apiRoutes.js";
 
 const app = express();
@@ -68,6 +69,7 @@ if (existsSync(spaDir)) {
 // Automations listen to card events from cardService.
 startAutomations();
 startWebhooks();
+startInbox();
 
 app.listen(env.PORT, () => {
   console.log(`Server on :${env.PORT} — public: ${env.PUBLIC_BASE_URL}`);

@@ -15,6 +15,7 @@ import { GroupsSettings, PeopleSettings } from "../components/app/PeopleSettings
 import { OrgNameSettings, AuditSettings } from "../components/app/OrgAdmin";
 import { LetterheadsSettings } from "../components/app/PdfLayoutSettings";
 import { ApiSettings } from "../components/app/Integrations";
+import { InboxSettings } from "../components/app/InboxSettings";
 import { BackupStatus } from "../components/app/BackupStatus";
 
 const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -115,6 +116,8 @@ export function OrgSettings() {
             <GroupsSettings />
 
             <LetterheadsSettings />
+
+            <InboxSettings />
 
             <ApiSettings />
 

@@ -1,3 +1,4 @@
+import { disableInbox, enableInbox, inboxStatus } from "../../inbox.js";
 import { TRPCError } from "@trpc/server";
 import { ScriptDrive, isScriptUrl, newSecret, scriptCode, seal, targetOf, unseal } from "../../driveBackup.js";
 import { readFile } from "node:fs/promises";
@@ -90,6 +91,17 @@ export const orgRouter = router({
   }),
   driveDisconnect: adminProcedure.mutation(async ({ ctx }) => {
     await db.delete(driveTargets).where(eq(driveTargets.orgId, ctx.orgId));
+    return { ok: true };
+  }),
+
+  /** Caixa de entrada: state of the IMAP reading. */
+  inboxStatus: adminProcedure.query(({ ctx }) => inboxStatus(ctx.orgId)),
+  inboxSetEnabled: adminProcedure.input(z.object({ on: z.boolean() })).mutation(async ({ ctx, input }) => {
+    if (!input.on) { await disableInbox(ctx.orgId); return { ok: true }; }
+    try { await enableInbox(ctx.orgId); } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      throw new TRPCError({ code: "BAD_REQUEST", message: /auth|credential|login/i.test(msg) ? "O Google recusou o login por IMAP. Confira se o IMAP está ativo na conta e se a senha de app é a mesma do envio." : `Não foi possível ler a caixa: ${msg}` });
+    }
     return { ok: true };
   }),
 

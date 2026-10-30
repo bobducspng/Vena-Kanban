@@ -38,10 +38,11 @@ export async function sendCardMail(m: {
     throw new Error(`o Google aceita no máximo ${MAX_RECIPIENTS} destinatários por e-mail (Para + Cópia)`);
   }
   const html = m.html ?? `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:#15181d;white-space:pre-wrap">${escape(m.body)}</div>`;
-  await transport.sendMail({
+  const info = await transport.sendMail({
     from: FROM, to: m.to, cc: m.cc?.length ? m.cc : undefined, replyTo: m.replyTo,
     subject: m.subject, text: m.body, html, attachments: m.attachments,
   });
+  return { messageId: (info as { messageId?: string }).messageId ?? null };
 }
 
 /** Plain, readable mail: a heading, paragraphs and an optional button link. Never throws. */
