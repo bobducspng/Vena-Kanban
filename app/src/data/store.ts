@@ -306,6 +306,11 @@ export const api = {
     remove: (userId: string) => trpc.people.remove.mutate({ userId }),
     pipeMembers: (pipeId: string) => trpc.people.pipeMembers.query({ pipeId }),
     setPipeRole: (pipeId: string, userId: string, role: "member" | "my_cards" | "read" | null) => trpc.people.setPipeRole.mutate({ pipeId, userId, role }),
+    groups: () => trpc.people.groups.query(),
+    saveGroup: (input: { id?: string; name: string; userIds: string[] }) => trpc.people.saveGroup.mutate(input),
+    removeGroup: (id: string) => trpc.people.removeGroup.mutate({ id }),
+    pipeGroups: (pipeId: string) => trpc.people.pipeGroups.query({ pipeId }),
+    setPipeGroupRole: (pipeId: string, groupId: string, role: "member" | "my_cards" | "read" | null) => trpc.people.setPipeGroupRole.mutate({ pipeId, groupId, role }),
   },
 
   bi: {

@@ -11,7 +11,7 @@ import { Input } from "../components/ui/Input";
 import { Spinner } from "../components/ui/Spinner";
 import { useToast } from "../components/ui/Toast";
 import { BiSettings } from "../components/app/BiSettings";
-import { PeopleSettings } from "../components/app/PeopleSettings";
+import { GroupsSettings, PeopleSettings } from "../components/app/PeopleSettings";
 import { OrgNameSettings, AuditSettings } from "../components/app/OrgAdmin";
 import { LetterheadsSettings } from "../components/app/PdfLayoutSettings";
 import { ApiSettings } from "../components/app/Integrations";
@@ -111,6 +111,8 @@ export function OrgSettings() {
             </div>
 
             <PeopleSettings />
+
+            <GroupsSettings />
 
             <LetterheadsSettings />
 

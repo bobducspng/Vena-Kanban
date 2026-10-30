@@ -5,7 +5,8 @@ import { join } from "node:path";
 import { z } from "zod";
 import { eq, and, lt, desc, inArray, isNull } from "drizzle-orm";
 import { db } from "../../db/client.js";
-import { organizations, auditLog, users, pipes, dataTables, fields, pipeMembers, driveTargets } from "../../db/schema.js";
+import { organizations, auditLog, users, pipes, dataTables, fields, driveTargets } from "../../db/schema.js";
+import { pipesOfUser } from "../../access.js";
 import { router, protectedProcedure, adminProcedure } from "../trpc.js";
 
 export const orgRouter = router({
@@ -24,7 +25,7 @@ export const orgRouter = router({
     let pipeRows = await db.select({ id: pipes.id, name: pipes.name, icon: pipes.icon, color: pipes.color, folder: pipes.folder })
       .from(pipes).where(and(eq(pipes.orgId, ctx.orgId), isNull(pipes.deletedAt)));
     if (ctx.role !== "admin") {
-      const mine = new Set((await db.select({ pipeId: pipeMembers.pipeId }).from(pipeMembers).where(eq(pipeMembers.userId, ctx.userId))).map((m) => m.pipeId));
+      const mine = await pipesOfUser(ctx.userId);
       pipeRows = pipeRows.filter((p) => mine.has(p.id));
     }
     const tables = await db.select({ id: dataTables.id, name: dataTables.name, icon: dataTables.icon })

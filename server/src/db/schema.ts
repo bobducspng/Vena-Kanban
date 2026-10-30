@@ -354,6 +354,27 @@ export const pipeMembers = mysqlTable("pipe_members", {
   createdAt: createdAt(),
 }, (t) => ({ pk: primaryKey({ columns: [t.pipeId, t.userId] }), userIdx: index("idx_pipemembers_user").on(t.userId) }));
 
+// Grupos de usuários (M13): a pipe can be opened by a whole group; the person gets the
+// highest of their own role and their groups' roles.
+export const userGroups = mysqlTable("user_groups", {
+  id: id(),
+  orgId: ref("org_id").notNull(),
+  name: varchar("name", { length: 120 }).notNull(),
+  createdAt: createdAt(),
+}, (t) => ({ orgIdx: index("idx_user_groups_org").on(t.orgId) }));
+
+export const userGroupMembers = mysqlTable("user_group_members", {
+  groupId: ref("group_id").notNull(),
+  userId: ref("user_id").notNull(),
+}, (t) => ({ pk: primaryKey({ columns: [t.groupId, t.userId] }), userIdx: index("idx_ugm_user").on(t.userId) }));
+
+export const pipeGroupMembers = mysqlTable("pipe_group_members", {
+  pipeId: ref("pipe_id").notNull(),
+  groupId: ref("group_id").notNull(),
+  role: varchar("role", { length: 16 }).notNull().default("member"),
+  createdAt: createdAt(),
+}, (t) => ({ pk: primaryKey({ columns: [t.pipeId, t.groupId] }), groupIdx: index("idx_pgm_group").on(t.groupId) }));
+
 // Responsáveis da fase: added to a card while it sits in the phase.
 export const phaseAssignees = mysqlTable("phase_assignees", {
   phaseId: ref("phase_id").notNull(),

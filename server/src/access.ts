@@ -2,7 +2,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { and, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "./db/client.js";
-import { cardAssignees, pipeMembers } from "./db/schema.js";
+import { cardAssignees, pipeGroupMembers, pipeMembers, userGroupMembers } from "./db/schema.js";
 
 /**
  * Who may see and change what (M10). Pipes are closed by default: org admins see
@@ -26,15 +26,30 @@ export const caller = () => als.getStore() ?? null;
 /** Run outside any caller: automations act for the pipe, not for whoever triggered them. */
 export const asSystem = <T>(fn: () => T) => als.exit(fn);
 
+const RANK: Record<string, number> = { read: 1, my_cards: 2, member: 3 };
+/** Of several roles (own + groups), the one that gives the most access. */
+const highest = (roles: PipeRole[]): PipeRole | null => roles.reduce<PipeRole | null>((best, r) => ((RANK[r] ?? 0) > (best ? RANK[best] ?? 0 : 0) ? r : best), null);
+
+/** Pipes a (non-admin) person can open: their own memberships and their groups'. */
+export async function pipesOfUser(userId: string): Promise<Set<string>> {
+  const direct = await db.select({ pipeId: pipeMembers.pipeId }).from(pipeMembers).where(eq(pipeMembers.userId, userId));
+  const viaGroups = await db.select({ pipeId: pipeGroupMembers.pipeId }).from(pipeGroupMembers)
+    .innerJoin(userGroupMembers, eq(userGroupMembers.groupId, pipeGroupMembers.groupId)).where(eq(userGroupMembers.userId, userId));
+  return new Set([...direct, ...viaGroups].map((r) => r.pipeId));
+}
+
 /** The caller's role in a pipe (cached per request); null = no access. */
 export async function pipeRole(pipeId: string, who: Who | null = caller()): Promise<PipeRole | null> {
   if (!who) return "admin"; // system work
   if (who.orgRole === "admin") return "admin";
   const cache = (who as Partial<Caller>).roles;
   if (cache?.has(pipeId)) return cache.get(pipeId)!;
-  const row = (await db.select({ role: pipeMembers.role }).from(pipeMembers)
-    .where(and(eq(pipeMembers.pipeId, pipeId), eq(pipeMembers.userId, who.userId))).limit(1))[0];
-  const role = (row?.role as PipeRole | undefined) ?? null;
+  const direct = await db.select({ role: pipeMembers.role }).from(pipeMembers)
+    .where(and(eq(pipeMembers.pipeId, pipeId), eq(pipeMembers.userId, who.userId)));
+  const viaGroups = await db.select({ role: pipeGroupMembers.role }).from(pipeGroupMembers)
+    .innerJoin(userGroupMembers, eq(userGroupMembers.groupId, pipeGroupMembers.groupId))
+    .where(and(eq(pipeGroupMembers.pipeId, pipeId), eq(userGroupMembers.userId, who.userId)));
+  const role = highest([...direct, ...viaGroups].map((r) => r.role as PipeRole));
   cache?.set(pipeId, role);
   return role;
 }

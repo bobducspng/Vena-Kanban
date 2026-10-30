@@ -2,8 +2,8 @@ import { z } from "zod";
 import { eq, and, inArray, isNull, isNotNull, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
-import { pipes, phases, fields, phaseTransitions, pipeMembers } from "../../db/schema.js";
-import { pipeRole } from "../../access.js";
+import { pipes, phases, fields, phaseTransitions } from "../../db/schema.js";
+import { pipeRole, pipesOfUser } from "../../access.js";
 import { clonePipe } from "../../clonePipe.js";
 import { router, protectedProcedure, adminProcedure } from "../trpc.js";
 
@@ -12,7 +12,7 @@ export const pipeRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     const all = await db.select().from(pipes).where(and(eq(pipes.orgId, ctx.orgId), isNull(pipes.deletedAt)));
     if (ctx.role === "admin") return all;
-    const mine = new Set((await db.select({ pipeId: pipeMembers.pipeId }).from(pipeMembers).where(eq(pipeMembers.userId, ctx.userId))).map((m) => m.pipeId));
+    const mine = await pipesOfUser(ctx.userId);
     return all.filter((p) => mine.has(p.id));
   }),
 

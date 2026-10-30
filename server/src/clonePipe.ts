@@ -2,7 +2,7 @@ import { eq, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "./db/client.js";
 import {
-  pipes, phases, phaseTransitions, phaseAssignees, fields, labels, fieldConditions, automationRules, emailTemplates, pipeMembers, pdfTemplates,
+  pipes, phases, phaseTransitions, phaseAssignees, fields, labels, fieldConditions, automationRules, emailTemplates, pipeMembers, pdfTemplates, pipeGroupMembers,
 } from "./db/schema.js";
 
 /**
@@ -60,6 +60,8 @@ export async function clonePipe(sourceId: string, orgId: string, name: string, u
     for (const { createdAt: _c3, updatedAt: _u3, ...t } of srcTpls) await tx.insert(emailTemplates).values({ ...t, id: id(t.id), pipeId: newId });
     for (const { createdAt: _c4, updatedAt: _u4, ...t } of srcPdfs) await tx.insert(pdfTemplates).values({ ...t, id: id(t.id), pipeId: newId, layoutFieldId: idN(t.layoutFieldId) });
     if (srcMembers.length) await tx.insert(pipeMembers).values(srcMembers.map((m) => ({ pipeId: newId, userId: m.userId, role: m.role })));
+    const srcGroups = await tx.select().from(pipeGroupMembers).where(eq(pipeGroupMembers.pipeId, sourceId));
+    if (srcGroups.length) await tx.insert(pipeGroupMembers).values(srcGroups.map((g) => ({ pipeId: newId, groupId: g.groupId, role: g.role })));
   });
   return { pipeId: newId, automations: srcRules.length };
 }

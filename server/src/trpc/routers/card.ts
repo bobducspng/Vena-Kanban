@@ -2,12 +2,12 @@ import { z } from "zod";
 import { eq, and, inArray, isNull, isNotNull, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { db } from "../../db/client.js";
-import { cards, cardFields, cardAssignees, cardLabels, fields, labels, memberships, checklistItems, cardPhaseHistory, phases, pipes, pipeMembers } from "../../db/schema.js";
+import { cards, cardFields, cardAssignees, cardLabels, fields, labels, memberships, checklistItems, cardPhaseHistory, phases, pipes } from "../../db/schema.js";
 import { calendarOf, deadlinesOf } from "../../slaService.js";
 import { notifyAssigned } from "../../notify.js";
 import { businessMinutesBetween } from "../../businessTime.js";
 import { cardInOrg, cardForWrite, logEvent } from "../cardAccess.js";
-import { assertPipeWrite, caller, canSeeCard, pipeRole } from "../../access.js";
+import { assertPipeWrite, caller, canSeeCard, pipeRole, pipesOfUser } from "../../access.js";
 import { linkedFrom } from "../../connections.js";
 import { hydrate, shaped, writeValues, autofillFor, createCard, setFieldValue, moveCard } from "../../cardService.js";
 import { router, protectedProcedure, adminProcedure, assertPipeInOrg } from "../trpc.js";
@@ -228,7 +228,7 @@ export const cardRouter = router({
       .limit(500);
     if (ctx.role === "admin") return rows;
     // Only pipes the person is still in.
-    const mine = new Set((await db.select({ pipeId: pipeMembers.pipeId }).from(pipeMembers).where(eq(pipeMembers.userId, ctx.userId))).map((m) => m.pipeId));
+    const mine = await pipesOfUser(ctx.userId);
     return rows.filter((r) => mine.has(r.pipeId));
   }),
 
